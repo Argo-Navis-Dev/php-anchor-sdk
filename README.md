@@ -6,10 +6,12 @@ Stellar clients make requests to the endpoints of Anchor Servers using sets of s
 
 The SDK will be composed of two components:
 - A Service Layer Library implementing the Stellar specific functionality described in the corresponding SEPs
-- A Reference Server implementation that uses the library.
+- An [Anchor Reference Server](https://github.com/Argo-Navis-Dev/anchor-reference-server) implementation that uses the library.
 
 
 This is the repo of the Service Layer Library. Pls. see [architecture doc](https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/architecture.md).
+
+The Anchor Reference Server using the library can be found [here](https://github.com/Argo-Navis-Dev/anchor-reference-server). 
 
 Roadmap:
 
