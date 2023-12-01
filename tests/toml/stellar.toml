@@ -1,0 +1,115 @@
+VERSION = "2.0.0"
+NETWORK_PASSPHRASE = "Public Global Stellar Network ; September 2015"
+FEDERATION_SERVER = "https://federation.argo-navis.dev"
+AUTH_SERVER = "https://auth.argo-navis.dev"
+TRANSFER_SERVER = "https://transfer.argo-navis.dev"
+TRANSFER_SERVER_SEP0024 = "https://transfer_sep24.argo-navis.dev"
+KYC_SERVER = "https://kyc.argo-navis.dev"
+WEB_AUTH_ENDPOINT = "https://web_auth.argo-navis.dev"
+SIGNING_KEY = "GBTVIUH5FRB5DQ6MWCWBAXTHGBGVNKRXGX2AJCVAKXBBW2ZKGOT6ZL4E"
+HORIZON_URL = "https://horizon.argo-navis.dev"
+ACCOUNTS = ["GCLQF44JZZQKQX5XRASAEVG2PAJZZWKHMCDZGLLO4BMOSPN6IYTNCJQX", "GAIE56EEB4TOKPABWGWGMDCRB5JS2TWFZRDOXBIZ4IY4TU6V6X6M7SU4", "GCUMMMMOEVE7WYLDC66GUW5VLAU46LPTQFWBELJWXNBUQVOYWZD6SDSD", "GA5QZADVLLS56JZCX5LIFW3MZ5ONLSA4OH6QZZMKRYQ3XN5OQGI7MIKB"]
+URI_REQUEST_SIGNING_KEY = "GCLQF44JZZQKQX5XRASAEVG2PAJZZWKHMCDZGLLO4BMOSPN6IYTNCJQX"
+DIRECT_PAYMENT_SERVER = "https://dir_pay.argo-navis.dev"
+ANCHOR_QUOTE_SERVER = "https://anchor_quote.argo-navis.dev"
+
+[DOCUMENTATION]
+ORG_NAME = "Argo Navis Dev"
+ORG_DBA = "DBA"
+ORG_URL = "https://argo-navis.dev"
+ORG_LOGO = "https://argo-navis.dev/logo.png"
+ORG_DESCRIPTION = "Argo Navis Dev provides development services related to Stellar"
+ORG_PHYSICAL_ADDRESS = "address"
+ORG_PHYSICAL_ADDRESS_ATTESTATION = "https://argo-navis.dev/paddrattest.pdf"
+ORG_PHONE_NUMBER = "1234567890"
+ORG_PHONE_NUMBER_ATTESTATION = "https://argo-navis.dev/phnrattest.pdf"
+ORG_KEYBASE = "keybase"
+ORG_TWITTER = "twitter"
+ORG_GITHUB = "Argo-Navis-Dev"
+ORG_OFFICIAL_EMAIL = "info@argo-navis.dev"
+ORG_SUPPORT_EMAIL = "support@argo-navis.dev"
+ORG_LICENSING_AUTHORITY = "l-auth"
+ORG_LICENSE_TYPE = "l-type"
+ORG_LICENSE_NUMBER = "1234"
+
+[[PRINCIPALS]]
+name = "Bence"
+email = "bence@argo-navis.dev"
+keybase = "bence-keybase"
+twitter = "bence-twitter"
+telegram = "bence-telegram"
+github = "bence-github"
+id_photo_hash = "a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e"
+verification_photo_hash = "b221b6d40bf420404a011733cfb7b190d62c65bf0abcd32b57b277d9ad9f199a"
+
+[[PRINCIPALS]]
+name = "Christian"
+email = "christian@argo-navis.dev"
+keybase = "christian-keybase"
+twitter = "christian-twitter"
+telegram = "christian-telegram"
+github = "christian-github"
+id_photo_hash = "f420404a0117a591a6d40b33cfb7b190d277d9ad9f146e62c65bf0bcda32b57b"
+verification_photo_hash = "04a011733cfb7b19b221b6d40bf42040db57b277d9ad9f199a62c65bf0abcd32"
+
+[[CURRENCIES]]
+code = "tXLM"
+code_template = "tXLM???"
+issuer = "GCLQF44JZZQKQX5XRASAEVG2PAJZZWKHMCDZGLLO4BMOSPN6IYTNCJQX"
+status = "test"
+display_decimals = 4
+name = "Test XLM"
+desc = "A test token for the stellar toml test."
+conditions = "tXLM conditions"
+image = "https://argo-navis.dev/tXLM.png"
+fixed_number = 12
+max_number = 13
+is_unlimited = false
+is_asset_anchored = true
+anchor_asset_type = "crypto"
+anchor_asset = "XLM"
+redemption_instructions = "tXLM redemption instructions"
+collateral_addresses = ["GAIE56EEB4TOKPABWGWGMDCRB5JS2TWFZRDOXBIZ4IY4TU6V6X6M7SU4", "GCUMMMMOEVE7WYLDC66GUW5VLAU46LPTQFWBELJWXNBUQVOYWZD6SDSD"]
+collateral_address_messages = ["tXLM message one", "tXLM message two"]
+collateral_address_signatures = ["w6r3RxucUNClymjp06Vx/XdxlBaQMBoshe9XPKcjPGemfFPhbrGe/SIZGvmttPd8EOIDCmB6SWJyeofjN8QNBA==", "j/whXcN+Nf+n1iuQ7bNeNLuV8zVjusawfJUv8fSrJVlKKBAvbdBiRmXRzKPRhjOkkFV+4Nlpgr22TmEbKs4jDw=="]
+regulated = true
+approval_server = "https://txml_appr.argo-navis.dev"
+approval_criteria = "only for humans"
+
+[[CURRENCIES]]
+code = "bXLM"
+code_template = "bXLM???"
+issuer = "GA5QZADVLLS56JZCX5LIFW3MZ5ONLSA4OH6QZZMKRYQ3XN5OQGI7MIKB"
+status = "public"
+display_decimals = 6
+name = "Test b for XLM"
+desc = "Another test token for the stellar toml test."
+conditions = "bXLM conditions"
+image = "https://argo-navis.dev/bXLM.png"
+fixed_number = 65
+max_number = 66
+is_unlimited = true
+is_asset_anchored = false
+anchor_asset_type = "other"
+anchor_asset = "MOON"
+redemption_instructions = "bXLM redemption instructions"
+collateral_addresses = ["GCUMMMMOEVE7WYLDC66GUW5VLAU46LPTQFWBELJWXNBUQVOYWZD6SDSD", "GAIE56EEB4TOKPABWGWGMDCRB5JS2TWFZRDOXBIZ4IY4TU6V6X6M7SU4"]
+collateral_address_messages = ["bXLM message one", "bXLM message two"]
+collateral_address_signatures = ["lBaQMBoshe9XPKcjPGemOIDCmB6w6r3RxucUNClymjp06Vx/XdxSWJyeofjN8QNBAfFPhbrGe/SIZGvmttPd8E==", "VlKKBAvbdBiRmXRj/whXcN+Nf+n1iuQ7bNeNLuVPRhjOkkFV+4Nlpgr22TmEbKs4jDw8zVjusawfJUv8fSrJzK=="]
+regulated = true
+approval_server = "https://bxml_appr.argo-navis.dev"
+approval_criteria = "only for pets"
+
+[[VALIDATORS]]
+ALIAS = "vali 1"
+DISPLAY_NAME = "Validator 1"
+PUBLIC_KEY = "GCWPH7VG2J37XJX34R344KVR7RQ6M52WPVKOWNOJ33N7TWT4P6LS5YWY"
+HOST = "validator1.argo-navis.dev:5003"
+HISTORY = "https://history.argo-navis.dev/val1"
+
+[[VALIDATORS]]
+ALIAS = "vali 2"
+DISPLAY_NAME = "Validator 2"
+PUBLIC_KEY = "GCEB2YK5ISAWJFSMFXSHZT44OOCZVV4PQOSYM4OBC3BCLNADLKYLWYX2"
+HOST = "validator2.argo-navis.dev:5003"
+HISTORY = "https://history.argo-navis.dev/val2"

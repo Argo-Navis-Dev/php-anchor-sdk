@@ -8,7 +8,10 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\SEP\Toml;
 
+use Laminas\Diactoros\Request;
 use Laminas\Diactoros\Response\TextResponse;
+use Psr\Http\Client\ClientExceptionInterface;
+use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\ResponseInterface;
 use Soneso\StellarSDK\SEP\Toml\Currencies;
 use Soneso\StellarSDK\SEP\Toml\Currency;
@@ -21,14 +24,79 @@ use Soneso\StellarSDK\SEP\Toml\Validators;
 use Yosymfony\Toml\TomlBuilder;
 
 use function count;
+use function file_get_contents;
 
+/**
+ * This class can be used to construct a http response containing the stellar toml data that is formatted
+ * as defined by [SEP-0001](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0001.md).
+ * You can either provide the input data by building a TomlData object, the path to a file or an url.
+ * If you provide a path to a file or an url, the data must already be correctly formatted.
+ */
 class TomlProvider
 {
-    public function handle(TomlData $data): ResponseInterface
+    /**
+     * Constructs the stellar.toml file from the given data.
+     *
+     * @param TomlData $data data to construct the stellar.toml file from.
+     *
+     * @return ResponseInterface response with content type 'text/plain' and status 200 containing the formatted data in the body.
+     */
+    public function handleFromData(TomlData $data): ResponseInterface
     {
         $result = $this->buildFromData($data);
 
         return new TextResponse($result, status: 200);
+    }
+
+    /**
+     * Returns the content of the given stellar toml file as a response.
+     *
+     * @param String $pathToFile the path to the file containing the already formatted stellar toml data.
+     *
+     * @return ResponseInterface response with content type 'text/plain' and status 200 containing the formatted data in the body.
+     *
+     * @throws TomlDataLoadingException if the given file could not be read.
+     */
+    public function handleFromFile(string $pathToFile): ResponseInterface
+    {
+        $fileContent = file_get_contents($pathToFile, false);
+        if ($fileContent === false) {
+            $msg = 'File content could not be loaded for: ' . $pathToFile;
+
+            throw new TomlDataLoadingException($msg, code: 404);
+        }
+
+        return new TextResponse($fileContent, status: 200);
+    }
+
+    /**
+     * Loads the stellar toml data from a given url and returns a new response containing the loaded data.
+     *
+     * @param String $url the url to load the data from.
+     * @param ClientInterface $httpClient the http client to be used for loading the data.
+     *
+     * @return ResponseInterface response with content type 'text/plain' and status 200 containing the formatted data in the body.
+     *
+     * @throws TomlDataLoadingException if the data could not be loaded from the given url.
+     */
+    public function handleFromUrl(string $url, ClientInterface $httpClient): ResponseInterface
+    {
+        $request = new Request($url, 'GET');
+        try {
+            $response = $httpClient->sendRequest($request);
+        } catch (ClientExceptionInterface $e) {
+            $msg = 'Stellar toml could not be loaded: ' . $e->getMessage();
+
+            throw new TomlDataLoadingException($msg, code: $e->getCode(), previous: $e);
+        }
+
+        if ($response->getStatusCode() !== 200) {
+            $msg = 'Stellar toml could not be loaded from url: ' . $url . 'Response status code ' . $response->getStatusCode();
+
+            throw new TomlDataLoadingException($msg, code: $response->getStatusCode());
+        }
+
+        return new TextResponse($response->getBody(), status: 200);
     }
 
     private function buildFromData(TomlData $data): string
@@ -256,6 +324,11 @@ class TomlProvider
                 if ($cur->anchorAsset !== null) {
                     $builder->addValue('anchor_asset', $cur->anchorAsset);
                 }
+                // TODO add attestationOfReserve as soon as available
+                //if ($cur->attestationOfReserve !== null) {
+                //    $builder->addValue('attestation_of_reserve', $cur->attestationOfReserve);
+                //}
+
                 if ($cur->redemptionInstructions !== null) {
                     $builder->addValue('redemption_instructions', $cur->redemptionInstructions);
                 }
