@@ -24,6 +24,7 @@ use Soneso\StellarSDK\SEP\Toml\Validator;
 use Soneso\StellarSDK\SEP\Toml\Validators;
 use Yosymfony\Toml\TomlBuilder;
 
+use function assert;
 use function count;
 use function file_get_contents;
 
@@ -233,34 +234,32 @@ class TomlProvider
             return;
         }
 
-        /** @var mixed $poc */
         foreach ($pArr as $poc) {
-            if ($poc instanceof PointOfContact) {
-                $builder->addArrayOfTable('PRINCIPALS');
-                if ($poc->name !== null) {
-                    $builder->addValue('name', $poc->name);
-                }
-                if ($poc->email !== null) {
-                    $builder->addValue('email', $poc->email);
-                }
-                if ($poc->keybase !== null) {
-                    $builder->addValue('keybase', $poc->keybase);
-                }
-                if ($poc->twitter !== null) {
-                    $builder->addValue('twitter', $poc->twitter);
-                }
-                if ($poc->telegram !== null) {
-                    $builder->addValue('telegram', $poc->telegram);
-                }
-                if ($poc->github !== null) {
-                    $builder->addValue('github', $poc->github);
-                }
-                if ($poc->idPhotoHash !== null) {
-                    $builder->addValue('id_photo_hash', $poc->idPhotoHash);
-                }
-                if ($poc->verificationPhotoHash !== null) {
-                    $builder->addValue('verification_photo_hash', $poc->verificationPhotoHash);
-                }
+            assert($poc instanceof PointOfContact);
+            $builder->addArrayOfTable('PRINCIPALS');
+            if ($poc->name !== null) {
+                $builder->addValue('name', $poc->name);
+            }
+            if ($poc->email !== null) {
+                $builder->addValue('email', $poc->email);
+            }
+            if ($poc->keybase !== null) {
+                $builder->addValue('keybase', $poc->keybase);
+            }
+            if ($poc->twitter !== null) {
+                $builder->addValue('twitter', $poc->twitter);
+            }
+            if ($poc->telegram !== null) {
+                $builder->addValue('telegram', $poc->telegram);
+            }
+            if ($poc->github !== null) {
+                $builder->addValue('github', $poc->github);
+            }
+            if ($poc->idPhotoHash !== null) {
+                $builder->addValue('id_photo_hash', $poc->idPhotoHash);
+            }
+            if ($poc->verificationPhotoHash !== null) {
+                $builder->addValue('verification_photo_hash', $poc->verificationPhotoHash);
             }
         }
     }
@@ -276,84 +275,82 @@ class TomlProvider
             return;
         }
 
-        /** @var mixed $cur */
         foreach ($cArr as $cur) {
-            if ($cur instanceof Currency) {
-                $builder->addArrayOfTable('CURRENCIES');
-                if ($cur->toml !== null) {
-                    $builder->addValue('toml', $cur->toml);
-                }
-                if ($cur->code !== null) {
-                    $builder->addValue('code', $cur->code);
-                }
-                if ($cur->codeTemplate !== null) {
-                    $builder->addValue('code_template', $cur->codeTemplate);
-                }
-                if ($cur->issuer !== null) {
-                    $builder->addValue('issuer', $cur->issuer);
-                }
-                if ($cur->status !== null) {
-                    $builder->addValue('status', $cur->status);
-                }
-                if ($cur->displayDecimals !== null) {
-                    $builder->addValue('display_decimals', $cur->displayDecimals);
-                }
-                if ($cur->name !== null) {
-                    $builder->addValue('name', $cur->name);
-                }
-                if ($cur->desc !== null) {
-                    $builder->addValue('desc', $cur->desc);
-                }
-                if ($cur->conditions !== null) {
-                    $builder->addValue('conditions', $cur->conditions);
-                }
-                if ($cur->image !== null) {
-                    $builder->addValue('image', $cur->image);
-                }
-                if ($cur->fixedNumber !== null) {
-                    $builder->addValue('fixed_number', $cur->fixedNumber);
-                }
-                if ($cur->maxNumber !== null) {
-                    $builder->addValue('max_number', $cur->maxNumber);
-                }
-                if ($cur->isUnlimited !== null) {
-                    $builder->addValue('is_unlimited', $cur->isUnlimited);
-                }
-                if ($cur->isAssetAnchored !== null) {
-                    $builder->addValue('is_asset_anchored', $cur->isAssetAnchored);
-                }
-                if ($cur->anchorAssetType !== null) {
-                    $builder->addValue('anchor_asset_type', $cur->anchorAssetType);
-                }
-                if ($cur->anchorAsset !== null) {
-                    $builder->addValue('anchor_asset', $cur->anchorAsset);
-                }
+            assert($cur instanceof Currency);
+            $builder->addArrayOfTable('CURRENCIES');
+            if ($cur->toml !== null) {
+                $builder->addValue('toml', $cur->toml);
+            }
+            if ($cur->code !== null) {
+                $builder->addValue('code', $cur->code);
+            }
+            if ($cur->codeTemplate !== null) {
+                $builder->addValue('code_template', $cur->codeTemplate);
+            }
+            if ($cur->issuer !== null) {
+                $builder->addValue('issuer', $cur->issuer);
+            }
+            if ($cur->status !== null) {
+                $builder->addValue('status', $cur->status);
+            }
+            if ($cur->displayDecimals !== null) {
+                $builder->addValue('display_decimals', $cur->displayDecimals);
+            }
+            if ($cur->name !== null) {
+                $builder->addValue('name', $cur->name);
+            }
+            if ($cur->desc !== null) {
+                $builder->addValue('desc', $cur->desc);
+            }
+            if ($cur->conditions !== null) {
+                $builder->addValue('conditions', $cur->conditions);
+            }
+            if ($cur->image !== null) {
+                $builder->addValue('image', $cur->image);
+            }
+            if ($cur->fixedNumber !== null) {
+                $builder->addValue('fixed_number', $cur->fixedNumber);
+            }
+            if ($cur->maxNumber !== null) {
+                $builder->addValue('max_number', $cur->maxNumber);
+            }
+            if ($cur->isUnlimited !== null) {
+                $builder->addValue('is_unlimited', $cur->isUnlimited);
+            }
+            if ($cur->isAssetAnchored !== null) {
+                $builder->addValue('is_asset_anchored', $cur->isAssetAnchored);
+            }
+            if ($cur->anchorAssetType !== null) {
+                $builder->addValue('anchor_asset_type', $cur->anchorAssetType);
+            }
+            if ($cur->anchorAsset !== null) {
+                $builder->addValue('anchor_asset', $cur->anchorAsset);
+            }
 
-                //if ($cur->attestationOfReserve !== null) {
-                //    $builder->addValue('attestation_of_reserve', $cur->attestationOfReserve);
-                //}
+            //if ($cur->attestationOfReserve !== null) {
+            //    $builder->addValue('attestation_of_reserve', $cur->attestationOfReserve);
+            //}
 
-                if ($cur->redemptionInstructions !== null) {
-                    $builder->addValue('redemption_instructions', $cur->redemptionInstructions);
-                }
-                if ($cur->collateralAddresses !== null) {
-                    $builder->addValue('collateral_addresses', $cur->collateralAddresses);
-                }
-                if ($cur->collateralAddressMessages !== null) {
-                    $builder->addValue('collateral_address_messages', $cur->collateralAddressMessages);
-                }
-                if ($cur->collateralAddressSignatures !== null) {
-                    $builder->addValue('collateral_address_signatures', $cur->collateralAddressSignatures);
-                }
-                if ($cur->regulated !== null) {
-                    $builder->addValue('regulated', $cur->regulated);
-                }
-                if ($cur->approvalServer !== null) {
-                    $builder->addValue('approval_server', $cur->approvalServer);
-                }
-                if ($cur->approvalCriteria !== null) {
-                    $builder->addValue('approval_criteria', $cur->approvalCriteria);
-                }
+            if ($cur->redemptionInstructions !== null) {
+                $builder->addValue('redemption_instructions', $cur->redemptionInstructions);
+            }
+            if ($cur->collateralAddresses !== null) {
+                $builder->addValue('collateral_addresses', $cur->collateralAddresses);
+            }
+            if ($cur->collateralAddressMessages !== null) {
+                $builder->addValue('collateral_address_messages', $cur->collateralAddressMessages);
+            }
+            if ($cur->collateralAddressSignatures !== null) {
+                $builder->addValue('collateral_address_signatures', $cur->collateralAddressSignatures);
+            }
+            if ($cur->regulated !== null) {
+                $builder->addValue('regulated', $cur->regulated);
+            }
+            if ($cur->approvalServer !== null) {
+                $builder->addValue('approval_server', $cur->approvalServer);
+            }
+            if ($cur->approvalCriteria !== null) {
+                $builder->addValue('approval_criteria', $cur->approvalCriteria);
             }
         }
     }
@@ -369,25 +366,23 @@ class TomlProvider
             return;
         }
 
-        /** @var mixed $validator */
         foreach ($vArr as $validator) {
-            if ($validator instanceof Validator) {
-                $builder->addArrayOfTable('VALIDATORS');
-                if ($validator->alias !== null) {
-                    $builder->addValue('ALIAS', $validator->alias);
-                }
-                if ($validator->displayName !== null) {
-                    $builder->addValue('DISPLAY_NAME', $validator->displayName);
-                }
-                if ($validator->publicKey !== null) {
-                    $builder->addValue('PUBLIC_KEY', $validator->publicKey);
-                }
-                if ($validator->host !== null) {
-                    $builder->addValue('HOST', $validator->host);
-                }
-                if ($validator->history !== null) {
-                    $builder->addValue('HISTORY', $validator->history);
-                }
+            assert($validator instanceof Validator);
+            $builder->addArrayOfTable('VALIDATORS');
+            if ($validator->alias !== null) {
+                $builder->addValue('ALIAS', $validator->alias);
+            }
+            if ($validator->displayName !== null) {
+                $builder->addValue('DISPLAY_NAME', $validator->displayName);
+            }
+            if ($validator->publicKey !== null) {
+                $builder->addValue('PUBLIC_KEY', $validator->publicKey);
+            }
+            if ($validator->host !== null) {
+                $builder->addValue('HOST', $validator->host);
+            }
+            if ($validator->history !== null) {
+                $builder->addValue('HISTORY', $validator->history);
             }
         }
     }
