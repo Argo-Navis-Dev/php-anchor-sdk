@@ -73,7 +73,7 @@ When you do begin working on your feature, here are some guidelines to consider:
   description, or it does not adequately describe your feature, we may ask you
   to update the description.
 * argonavis/php-anchor-sdk follows a superset of **[PSR-12 coding standard][psr-12]**.
-  Please ensure your code does, too. _Hint: run `composer dev:lint` to check._
+  Please ensure your code does, too. _Hint: run `composer argo:lint:all` to check._
 * Please **write tests** for any new features you add.
 * Please **ensure that tests pass** before submitting your pull request.
   argonavis/php-anchor-sdk automatically runs tests for pull requests. However,
@@ -126,10 +126,10 @@ You may lint the codebase manually using the following commands:
 
 ``` bash
 # Lint
-composer dev:lint
+composer argo:lint:all
 
 # Attempt to auto-fix coding standards issues
-composer dev:lint:fix
+composer argo:lint:fix
 ```
 
 ### Static Analysis

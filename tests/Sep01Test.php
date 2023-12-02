@@ -8,8 +8,8 @@ declare(strict_types=1);
 
 namespace ArgoNavis\Test\PhpAnchorSdk;
 
-use ArgoNavis\PhpAnchorSdk\SEP\Toml\TomlData;
-use ArgoNavis\PhpAnchorSdk\SEP\Toml\TomlProvider;
+use ArgoNavis\PhpAnchorSdk\Sep01\TomlData;
+use ArgoNavis\PhpAnchorSdk\Sep01\TomlProvider;
 use GuzzleHttp\Client;
 use Soneso\StellarSDK\SEP\Toml\Currencies;
 use Soneso\StellarSDK\SEP\Toml\Currency;
@@ -20,7 +20,7 @@ use Soneso\StellarSDK\SEP\Toml\Principals;
 use Soneso\StellarSDK\SEP\Toml\Validator;
 use Soneso\StellarSDK\SEP\Toml\Validators;
 
-class TomlTest extends TestCase
+class Sep01Test extends TestCase
 {
     public function testWithData(): void
     {
@@ -50,7 +50,8 @@ class TomlTest extends TestCase
         self::assertEquals($parsed, $tomlData);
     }
 
-    public function testFromDomain(): void {
+    public function testFromDomain(): void
+    {
         $tomlData = TomlData::fromDomain('ultrastellar.com', new Client());
         self::assertEquals('2.2.0', $tomlData->generalInformation->version);
         $provider = new TomlProvider();
@@ -141,16 +142,17 @@ class TomlTest extends TestCase
         $tXLM->isAssetAnchored = true;
         $tXLM->anchorAssetType = 'crypto';
         $tXLM->anchorAsset = 'XLM';
-        // TODO add as soon as available
+
         //$tXLM->attestationOfReserve = 'https://argo-navis.dev/tXLM-att-or.pdf';
         $tXLM->redemptionInstructions = 'tXLM redemption instructions';
         $tXLM->collateralAddresses = ['GAIE56EEB4TOKPABWGWGMDCRB5JS2TWFZRDOXBIZ4IY4TU6V6X6M7SU4',
             'GCUMMMMOEVE7WYLDC66GUW5VLAU46LPTQFWBELJWXNBUQVOYWZD6SDSD',
         ];
         $tXLM->collateralAddressMessages = ['tXLM message one', 'tXLM message two'];
-        $tXLM->collateralAddressSignatures = ['w6r3RxucUNClymjp06Vx/XdxlBaQMBoshe9XPKcjPGemfFPhbrGe/SIZGvmttPd8EOIDCmB6SWJyeofjN8QNBA==',
-            'j/whXcN+Nf+n1iuQ7bNeNLuV8zVjusawfJUv8fSrJVlKKBAvbdBiRmXRzKPRhjOkkFV+4Nlpgr22TmEbKs4jDw==',
-        ];
+        $sig1 = 'w6r3RxucUNClymjp06Vx/XdxlBaQMBoshe9XPKcjPGemfFPhbrGe/SIZGvmttPd8EOIDCmB6SWJyeofjN8QNBA==';
+        $sig2 = 'j/whXcN+Nf+n1iuQ7bNeNLuV8zVjusawfJUv8fSrJVlKKBAvbdBiRmXRzKPRhjOkkFV+4Nlpgr22TmEbKs4jDw==';
+
+        $tXLM->collateralAddressSignatures = [$sig1, $sig2];
         $tXLM->regulated = true;
         $tXLM->approvalServer = 'https://txml_appr.argo-navis.dev';
         $tXLM->approvalCriteria = 'only for humans';
@@ -173,16 +175,16 @@ class TomlTest extends TestCase
         $bXLM->isAssetAnchored = false;
         $bXLM->anchorAssetType = 'other';
         $bXLM->anchorAsset = 'MOON';
-        // TODO add as soon as available
+
         //$tXLM->attestationOfReserve = 'https://argo-navis.dev/bXLM-att-or.pdf';
         $bXLM->redemptionInstructions = 'bXLM redemption instructions';
         $bXLM->collateralAddresses = ['GCUMMMMOEVE7WYLDC66GUW5VLAU46LPTQFWBELJWXNBUQVOYWZD6SDSD',
             'GAIE56EEB4TOKPABWGWGMDCRB5JS2TWFZRDOXBIZ4IY4TU6V6X6M7SU4',
         ];
         $bXLM->collateralAddressMessages = ['bXLM message one', 'bXLM message two'];
-        $bXLM->collateralAddressSignatures = ['lBaQMBoshe9XPKcjPGemOIDCmB6w6r3RxucUNClymjp06Vx/XdxSWJyeofjN8QNBAfFPhbrGe/SIZGvmttPd8E==',
-            'VlKKBAvbdBiRmXRj/whXcN+Nf+n1iuQ7bNeNLuVPRhjOkkFV+4Nlpgr22TmEbKs4jDw8zVjusawfJUv8fSrJzK==',
-        ];
+        $sig1 = 'lBaQMBoshe9XPKcjPGemOIDCmB6w6r3RxucUNClymjp06Vx/XdxSWJyeofjN8QNBAfFPhbrGe/SIZGvmttPd8E==';
+        $sig2 = 'VlKKBAvbdBiRmXRj/whXcN+Nf+n1iuQ7bNeNLuVPRhjOkkFV+4Nlpgr22TmEbKs4jDw8zVjusawfJUv8fSrJzK==';
+        $bXLM->collateralAddressSignatures = [$sig1, $sig2];
         $bXLM->regulated = true;
         $bXLM->approvalServer = 'https://bxml_appr.argo-navis.dev';
         $bXLM->approvalCriteria = 'only for pets';

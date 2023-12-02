@@ -43,7 +43,7 @@
                 ]
             },
             {
-                "action": "composer dev:lint:syntax -- {$STAGED_FILES|of-type:php}",
+                "action": "composer argo:lint:syntax -- {$STAGED_FILES|of-type:php}",
                 "conditions": [
                     {
                         "exec": "\\CaptainHook\\App\\Hook\\Condition\\FileStaged\\OfType",
@@ -52,7 +52,7 @@
                 ]
             },
             {
-                "action": "composer dev:lint:style -- {$STAGED_FILES|of-type:php}",
+                "action": "composer argo:lint:style -- {$STAGED_FILES|of-type:php}",
                 "conditions": [
                     {
                         "exec": "\\CaptainHook\\App\\Hook\\Condition\\FileStaged\\OfType",

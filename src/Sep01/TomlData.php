@@ -6,8 +6,9 @@ declare(strict_types=1);
 // Use of this source code is governed by a license that can be
 // found in the LICENSE file.
 
-namespace ArgoNavis\PhpAnchorSdk\SEP\Toml;
+namespace ArgoNavis\PhpAnchorSdk\Sep01;
 
+use ArgoNavis\PhpAnchorSdk\exception\TomlDataNotLoaded;
 use Laminas\Diactoros\Request;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
@@ -23,7 +24,7 @@ use function file_get_contents;
 
 /**
  * This class can be used to construct or to parse stellar toml data as defined by
- * [SEP-0001](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0001.md).
+ * <a href="https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0001.md">SEP-01</a>.
  * By using the constructor you can provide the data stored in arguments, for example from a database.
  * The stellar toml data can also be loaded from a given source such as from an url or from a file.
  * In these cases, the data will be parsed from the given source and the class members will
@@ -62,7 +63,7 @@ class TomlData
      *
      * @return TomlData The loaded and parsed data as a TomlData object.
      *
-     * @throws TomlDataLoadingException if the data could not be loaded.
+     * @throws TomlDataNotLoaded if the data could not be loaded.
      * @throws ParseException if the loaded data is not correctly formatted and could not be parsed.
      */
     public static function fromUrl(string $url, ClientInterface $httpClient): TomlData
@@ -74,13 +75,13 @@ class TomlData
         } catch (ClientExceptionInterface $e) {
             $msg = 'Stellar toml could not be loaded: ' . $e->getMessage();
 
-            throw new TomlDataLoadingException($msg, code: $e->getCode(), previous: $e);
+            throw new TomlDataNotLoaded($msg, code: $e->getCode(), previous: $e);
         }
 
         if ($response->getStatusCode() !== 200) {
             $msg = 'Stellar toml not found. Response status code ' . $response->getStatusCode();
 
-            throw new TomlDataLoadingException($msg, code: $response->getStatusCode());
+            throw new TomlDataNotLoaded($msg, code: $response->getStatusCode());
         }
 
         return self::fromString((string) $response->getBody());
@@ -93,7 +94,7 @@ class TomlData
      *
      * @return TomlData The loaded and parsed data as a TomlData object.
      *
-     * @throws TomlDataLoadingException if the data could not be loaded.
+     * @throws TomlDataNotLoaded if the data could not be loaded.
      * @throws ParseException if the loaded data is not correctly formatted and could not be parsed.
      */
     public static function fromFile(string $pathToFile): TomlData
@@ -102,7 +103,7 @@ class TomlData
         if ($fileContent === false) {
             $msg = 'File content could not be loaded for: ' . $pathToFile;
 
-            throw new TomlDataLoadingException($msg, code: 404);
+            throw new TomlDataNotLoaded($msg, code: 404);
         }
 
         return self::fromString($fileContent);
@@ -137,7 +138,7 @@ class TomlData
      *
      * @return TomlData The loaded and parsed data as a TomlData object.
      *
-     * @throws TomlDataLoadingException if the data could not be loaded.
+     * @throws TomlDataNotLoaded if the data could not be loaded.
      * @throws ParseException if the loaded data is not correctly formatted and could not be parsed.
      */
     public static function fromDomain(string $domain, ClientInterface $httpClient): TomlData

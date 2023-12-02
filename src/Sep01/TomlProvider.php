@@ -6,8 +6,9 @@ declare(strict_types=1);
 // Use of this source code is governed by a license that can be
 // found in the LICENSE file.
 
-namespace ArgoNavis\PhpAnchorSdk\SEP\Toml;
+namespace ArgoNavis\PhpAnchorSdk\Sep01;
 
+use ArgoNavis\PhpAnchorSdk\exception\TomlDataNotLoaded;
 use Laminas\Diactoros\Request;
 use Laminas\Diactoros\Response\TextResponse;
 use Psr\Http\Client\ClientExceptionInterface;
@@ -28,7 +29,7 @@ use function file_get_contents;
 
 /**
  * This class can be used to construct a http response containing the stellar toml data that is formatted
- * as defined by [SEP-0001](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0001.md).
+ * as defined by <a href="https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0001.md">SEP-01</a>.
  * You can either provide the input data by building a TomlData object, the path to a file or an url.
  * If you provide a path to a file or an url, the data must already be correctly formatted.
  */
@@ -55,7 +56,7 @@ class TomlProvider
      *
      * @return ResponseInterface response with content type 'text/plain' and status 200 containing the formatted data in the body.
      *
-     * @throws TomlDataLoadingException if the given file could not be read.
+     * @throws TomlDataNotLoaded if the given file could not be read.
      */
     public function handleFromFile(string $pathToFile): ResponseInterface
     {
@@ -63,7 +64,7 @@ class TomlProvider
         if ($fileContent === false) {
             $msg = 'File content could not be loaded for: ' . $pathToFile;
 
-            throw new TomlDataLoadingException($msg, code: 404);
+            throw new TomlDataNotLoaded($msg, code: 404);
         }
 
         return new TextResponse($fileContent, status: 200);
@@ -77,7 +78,7 @@ class TomlProvider
      *
      * @return ResponseInterface response with content type 'text/plain' and status 200 containing the formatted data in the body.
      *
-     * @throws TomlDataLoadingException if the data could not be loaded from the given url.
+     * @throws TomlDataNotLoaded if the data could not be loaded from the given url.
      */
     public function handleFromUrl(string $url, ClientInterface $httpClient): ResponseInterface
     {
@@ -87,13 +88,14 @@ class TomlProvider
         } catch (ClientExceptionInterface $e) {
             $msg = 'Stellar toml could not be loaded: ' . $e->getMessage();
 
-            throw new TomlDataLoadingException($msg, code: $e->getCode(), previous: $e);
+            throw new TomlDataNotLoaded($msg, code: $e->getCode(), previous: $e);
         }
 
         if ($response->getStatusCode() !== 200) {
-            $msg = 'Stellar toml could not be loaded from url: ' . $url . 'Response status code ' . $response->getStatusCode();
+            $msg = 'Stellar toml could not be loaded from url: ' . $url;
+            $msg .= ' Response status code ' . $response->getStatusCode();
 
-            throw new TomlDataLoadingException($msg, code: $response->getStatusCode());
+            throw new TomlDataNotLoaded($msg, code: $response->getStatusCode());
         }
 
         return new TextResponse($response->getBody(), status: 200);
@@ -324,7 +326,7 @@ class TomlProvider
                 if ($cur->anchorAsset !== null) {
                     $builder->addValue('anchor_asset', $cur->anchorAsset);
                 }
-                // TODO add attestationOfReserve as soon as available
+
                 //if ($cur->attestationOfReserve !== null) {
                 //    $builder->addValue('attestation_of_reserve', $cur->attestationOfReserve);
                 //}
