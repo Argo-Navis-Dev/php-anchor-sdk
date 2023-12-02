@@ -233,6 +233,7 @@ class TomlProvider
             return;
         }
 
+        /** @var mixed $poc */
         foreach ($pArr as $poc) {
             if ($poc instanceof PointOfContact) {
                 $builder->addArrayOfTable('PRINCIPALS');
@@ -275,6 +276,7 @@ class TomlProvider
             return;
         }
 
+        /** @var mixed $cur */
         foreach ($cArr as $cur) {
             if ($cur instanceof Currency) {
                 $builder->addArrayOfTable('CURRENCIES');
@@ -367,6 +369,7 @@ class TomlProvider
             return;
         }
 
+        /** @var mixed $validator */
         foreach ($vArr as $validator) {
             if ($validator instanceof Validator) {
                 $builder->addArrayOfTable('VALIDATORS');

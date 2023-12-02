@@ -10,6 +10,7 @@ namespace ArgoNavis\Test\PhpAnchorSdk;
 
 use ArgoNavis\PhpAnchorSdk\Sep01\TomlData;
 use ArgoNavis\PhpAnchorSdk\Sep01\TomlProvider;
+use ArgoNavis\PhpAnchorSdk\exception\TomlDataNotLoaded;
 use GuzzleHttp\Client;
 use Soneso\StellarSDK\SEP\Toml\Currencies;
 use Soneso\StellarSDK\SEP\Toml\Currency;
@@ -50,10 +51,13 @@ class Sep01Test extends TestCase
         self::assertEquals($parsed, $tomlData);
     }
 
+    /**
+     * @throws TomlDataNotLoaded
+     */
     public function testFromDomain(): void
     {
         $tomlData = TomlData::fromDomain('ultrastellar.com', new Client());
-        self::assertEquals('2.2.0', $tomlData->generalInformation->version);
+        self::assertEquals('2.2.0', $tomlData->generalInformation?->version);
         $provider = new TomlProvider();
         $tomlResponse = $provider->handleFromUrl('https://ultrastellar.com/.well-known/stellar.toml', new Client());
         $tomlString = $tomlResponse->getBody()->__toString();
