@@ -6,9 +6,10 @@ declare(strict_types=1);
 // Use of this source code is governed by a license that can be
 // found in the LICENSE file.
 
-namespace ArgoNavis\PhpAnchorSdk\config;
+namespace ArgoNavis\PhpAnchorSdk\exception;
 
-interface ISecretConfig
+use Exception;
+
+class InvalidRequestData extends Exception
 {
-    public function getSep10SigningSeed(): ?string;
 }
