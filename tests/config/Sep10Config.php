@@ -14,7 +14,7 @@ class Sep10Config implements ISep10Config
 {
     public function getWebAuthDomain(): ?string
     {
-        return 'localhost:8000/auth';
+        return 'localhost:8000';
     }
 
     /**
@@ -54,5 +54,17 @@ class Sep10Config implements ISep10Config
     public function getKnownCustodialAccountList(): ?array
     {
         return null;
+    }
+
+    public function getSep10SigningSeed(): string
+    {
+        return 'SCYJJBZTHTN2RZI7UA2MN3RNMSDNQ3BKHPYWXXPXMRJ4KLU7N5XQ5BXE';
+        // GA4A5CVA2QJNS5CBPOEFKWJC4F5SUI36IPWHAKIEKBQ7UVGJ4Y5WC5FA
+    }
+
+    public function getSep10JWTSigningKey(): string
+    {
+        return 'SDY6IQYPXU2XYUUCYJML6M2UUGTGSWXCACAKJ55DG5JG7QVH5CD26K7I';
+        // GBUANI7GNVM4EQOWEKBMJFL3O4C6PCY3JL7JHM7LEMKIJVEQM4YLJ7PE
     }
 }

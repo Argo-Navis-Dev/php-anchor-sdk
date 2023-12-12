@@ -38,6 +38,20 @@ interface ISep10Config
     public function getAuthTimeout(): int;
 
     /**
+     * The server signing seed.
+     *
+     * @return string server signing seed for webauth
+     */
+    public function getSep10SigningSeed(): string;
+
+    /**
+     * The key to sign the jwt.
+     *
+     * @return string secret seed used to sign the jwt.
+     */
+    public function getSep10JWTSigningKey(): string;
+
+    /**
      *  Set the timeout in seconds of the authenticated JSON Web Token. An expired JWT will be
      *  rejected. This is the timeout period after the client has authenticated.
      *

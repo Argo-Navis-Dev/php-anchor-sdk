@@ -70,41 +70,41 @@ class ChallengeRequest
     }
 
     /**
-     * Creates a ChallengeRequest object from the given json array.
+     * Creates a ChallengeRequest object from the given query parameters array.
      *
-     * @param array<array-key, mixed> $json the array to parse the data from.
+     * @param array<array-key, mixed> $queryParameters the array to parse the data from.
      *
      * @return ChallengeRequest the parsed challenge request.
      *
      * @throws InvalidRequestData
      */
-    public static function fromJson(array $json): ChallengeRequest
+    public static function fromQueryParameters(array $queryParameters): ChallengeRequest
     {
-        if (!isset($json['account'])) {
+        if (!isset($queryParameters['account'])) {
             throw new InvalidRequestData('Account is not set');
         }
-        $account = $json['account'];
+        $account = $queryParameters['account'];
         if (!is_string($account)) {
             throw new InvalidRequestData('Invalid account. Must be string.');
         }
 
         $result = new ChallengeRequest($account);
-        if (isset($json['memo'])) {
-            $memo = $json['memo'];
+        if (isset($queryParameters['memo'])) {
+            $memo = $queryParameters['memo'];
             if (!is_string($memo)) {
                 throw new InvalidRequestData('Invalid memo value. Must be string.');
             }
             $result->memo = $memo;
         }
-        if (isset($json['home_domain'])) {
-            $homeDomain = $json['home_domain'];
+        if (isset($queryParameters['home_domain'])) {
+            $homeDomain = $queryParameters['home_domain'];
             if (!is_string($homeDomain)) {
                 throw new InvalidRequestData('Invalid home_domain value. Must be string.');
             }
             $result->homeDomain = $homeDomain;
         }
-        if (isset($json['client_domain'])) {
-            $clientDomain = $json['client_domain'];
+        if (isset($queryParameters['client_domain'])) {
+            $clientDomain = $queryParameters['client_domain'];
             if (!is_string($clientDomain)) {
                 throw new InvalidRequestData('Invalid client_domain value. Must be string.');
             }

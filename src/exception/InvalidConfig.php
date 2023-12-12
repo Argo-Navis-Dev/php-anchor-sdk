@@ -6,9 +6,8 @@ declare(strict_types=1);
 // Use of this source code is governed by a license that can be
 // found in the LICENSE file.
 
-
 namespace ArgoNavis\PhpAnchorSdk\exception;
 
-class InvalidSigningSeed extends SepHandlingFailure
+class InvalidConfig extends SepHandlingFailure
 {
 }
