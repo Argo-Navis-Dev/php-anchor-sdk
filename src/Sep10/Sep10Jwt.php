@@ -8,12 +8,21 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\Sep10;
 
+use DomainException;
+use Firebase\JWT\BeforeValidException;
+use Firebase\JWT\ExpiredException;
 use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
+use Firebase\JWT\SignatureInvalidException;
+use InvalidArgumentException;
 use Soneso\StellarSDK\MuxedAccount;
 use Throwable;
+use UnexpectedValueException;
 
+use function array_key_exists;
 use function count;
 use function explode;
+use function is_string;
 
 class Sep10Jwt
 {
@@ -68,7 +77,7 @@ class Sep10Jwt
             $this->accountMemo = $subs[1];
         } else {
             try {
-                $muxedAccount = MuxedAccount::fromMed25519AccountId($sub);
+                $muxedAccount = MuxedAccount::fromAccountId($sub);
                 $this->muxedAccountId = $sub;
                 $this->accountId = $muxedAccount->getEd25519AccountId();
                 $this->muxedId = $muxedAccount->getId();
@@ -111,5 +120,101 @@ class Sep10Jwt
     public function sign(string $key): string
     {
         return JWT::encode($this->getPayload(), $key, 'HS256');
+    }
+
+    /**
+     * Validates the given sep 10 jwt string. Returns an Sep10Jwt object if valid.
+     * Throws an exception if invalid. For example if expired. (see exceptions).
+     *
+     * @param string $jwt the jwt string to validate
+     * @param string $signerKey the secret key that has been used to sign the jwt
+     * @param string|null $issuerUrl the url the jwt was requested from (issued by). If null, it will not be validated.
+     *
+     * @return Sep10Jwt object created from the given sep10 jwt string.
+     *
+     * @throws InvalidArgumentException Provided signerKey was empty or malformed
+     * @throws DomainException Provided JWT is malformed
+     * @throws UnexpectedValueException Provided JWT was invalid
+     * @throws SignatureInvalidException Provided JWT was invalid because the signature verification failed
+     * @throws BeforeValidException Provided JWT is trying to be used before it's been created as defined by 'iat'
+     * @throws BeforeValidException Provided JWT is trying to be used before it's eligible as defined by 'nbf'
+     * @throws ExpiredException Provided JWT has since expired, as defined by the 'exp' claim
+     */
+    public static function validateSep10Jwt(string $jwt, string $signerKey, ?string $issuerUrl = null): Sep10Jwt
+    {
+        $decodedJwt = JWT::decode($jwt, new Key($signerKey, 'HS256'));
+        //print_r($decodedJwt);
+        $decodedJwtArray = (array) $decodedJwt;
+        if (!array_key_exists('jti', $decodedJwtArray)) {
+            throw new UnexpectedValueException('jti not found');
+        }
+        $jti = $decodedJwtArray['jti'];
+        if (!is_string($jti)) {
+            throw new UnexpectedValueException('jti is not a string');
+        }
+
+        if (!array_key_exists('iss', $decodedJwtArray)) {
+            throw new UnexpectedValueException('iss not found');
+        }
+        $iss = $decodedJwtArray['iss'];
+        if (!is_string($iss)) {
+            throw new UnexpectedValueException('iss is not a string');
+        }
+
+        if ($issuerUrl !== null && $iss !== $issuerUrl) {
+            throw new UnexpectedValueException('jwt was not issued by ' . $issuerUrl);
+        }
+
+        if (!array_key_exists('sub', $decodedJwtArray)) {
+            throw new UnexpectedValueException('sub not found');
+        }
+        $sub = $decodedJwtArray['sub'];
+        if (!is_string($sub)) {
+            throw new UnexpectedValueException('sub is not a string');
+        }
+
+        if (!array_key_exists('iat', $decodedJwtArray)) {
+            throw new UnexpectedValueException('iat not found');
+        }
+        $iat = $decodedJwtArray['iat'];
+        if (!is_string($iat)) {
+            throw new UnexpectedValueException('iat is not a string');
+        }
+
+        if (!array_key_exists('exp', $decodedJwtArray)) {
+            throw new UnexpectedValueException('exp not found');
+        }
+        $exp = $decodedJwtArray['exp'];
+        if (!is_string($exp)) {
+            throw new UnexpectedValueException('exp is not a string');
+        }
+
+        $homeDomain = null;
+        if (array_key_exists('home_domain', $decodedJwtArray)) {
+            $hd = $decodedJwtArray['home_domain'];
+            if (!is_string($hd)) {
+                throw new UnexpectedValueException('home_domain is not a string');
+            }
+            $homeDomain = $hd;
+        }
+
+        $clientDomain = null;
+        if (array_key_exists('client_domain', $decodedJwtArray)) {
+            $cd = $decodedJwtArray['client_domain'];
+            if (!is_string($cd)) {
+                throw new UnexpectedValueException('client_domain is not a string');
+            }
+            $clientDomain = $cd;
+        }
+
+        return new Sep10Jwt(
+            $iss,
+            $sub,
+            $iat,
+            $exp,
+            $jti,
+            homeDomain: $homeDomain,
+            clientDomain: $clientDomain,
+        );
     }
 }

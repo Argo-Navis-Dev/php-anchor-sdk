@@ -12,6 +12,26 @@ use ArgoNavis\PhpAnchorSdk\config\ISep10Config;
 
 class Sep10Config implements ISep10Config
 {
+    /**
+     * @var array<string>
+     */
+    public array $homeDomains = [];
+    public string $sep10SigningSeed = '';
+
+    public string $sep10JwtSigningSeed = 'SDY6IQYPXU2XYUUCYJML6M2UUGTGSWXCACAKJ55DG5JG7QVH5CD26K7I';
+    // GBUANI7GNVM4EQOWEKBMJFL3O4C6PCY3JL7JHM7LEMKIJVEQM4YLJ7PE
+    /**
+     * @var array<string>|null
+     */
+    public ?array $custodialAccountList = null;
+
+    public bool $clientAttributionRequired = false;
+
+    /**
+     * @var array<string>|null
+     */
+    public ?array $allowedClientDomains = null;
+
     public function getWebAuthDomain(): ?string
     {
         return 'localhost:8000';
@@ -22,7 +42,7 @@ class Sep10Config implements ISep10Config
      */
     public function getHomeDomains(): array
     {
-        return ['localhost:8000'];
+        return $this->homeDomains;
     }
 
     public function getAuthTimeout(): int
@@ -37,7 +57,7 @@ class Sep10Config implements ISep10Config
 
     public function isClientAttributionRequired(): bool
     {
-        return false;
+        return $this->clientAttributionRequired;
     }
 
     /**
@@ -45,7 +65,7 @@ class Sep10Config implements ISep10Config
      */
     public function getAllowedClientDomains(): ?array
     {
-        return null;
+        return $this->allowedClientDomains;
     }
 
     /**
@@ -53,18 +73,16 @@ class Sep10Config implements ISep10Config
      */
     public function getKnownCustodialAccountList(): ?array
     {
-        return null;
+        return $this->custodialAccountList;
     }
 
     public function getSep10SigningSeed(): string
     {
-        return 'SCYJJBZTHTN2RZI7UA2MN3RNMSDNQ3BKHPYWXXPXMRJ4KLU7N5XQ5BXE';
-        // GA4A5CVA2QJNS5CBPOEFKWJC4F5SUI36IPWHAKIEKBQ7UVGJ4Y5WC5FA
+        return $this->sep10SigningSeed;
     }
 
     public function getSep10JWTSigningKey(): string
     {
-        return 'SDY6IQYPXU2XYUUCYJML6M2UUGTGSWXCACAKJ55DG5JG7QVH5CD26K7I';
-        // GBUANI7GNVM4EQOWEKBMJFL3O4C6PCY3JL7JHM7LEMKIJVEQM4YLJ7PE
+        return $this->sep10JwtSigningSeed;
     }
 }

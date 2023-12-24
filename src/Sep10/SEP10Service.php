@@ -14,6 +14,7 @@ use ArgoNavis\PhpAnchorSdk\config\ISep10Config;
 use ArgoNavis\PhpAnchorSdk\exception\AccountNotLoaded;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidConfig;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidRequestData;
+use ArgoNavis\PhpAnchorSdk\exception\TomlDataNotLoaded;
 use DateTime;
 use Exception;
 use Laminas\Diactoros\Response\JsonResponse;
@@ -35,6 +36,7 @@ use Soneso\StellarSDK\Transaction;
 use Soneso\StellarSDK\TransactionBuilder;
 use Soneso\StellarSDK\Xdr\XdrDecoratedSignature;
 use Throwable;
+use Yosymfony\Toml\Exception\ParseException;
 use phpseclib3\Math\BigInteger;
 
 use function assert;
@@ -46,6 +48,7 @@ use function in_array;
 use function intval;
 use function is_array;
 use function is_int;
+use function is_numeric;
 use function json_decode;
 use function microtime;
 use function random_bytes;
@@ -275,7 +278,7 @@ class SEP10Service
             ($clientDomainData !== null && count($tx->getSignatures()) !== 3)
             || ($clientDomainData === null && count($tx->getSignatures()) !== 2)
         ) {
-            $msg = "There is more than one user signer on challenge transaction for an account that doesn't exist";
+            $msg = 'Invalid number of signatures.';
 
             throw new InvalidRequestData($msg);
         }
@@ -320,17 +323,17 @@ class SEP10Service
             }
         }
         if ($validClientAccountSignatures !== 1) {
-            $msg = 'Invalid number of client account signatures: ' . strval($validClientAccountSignatures);
+            $msg = 'Invalid number of valid client account signatures: ' . strval($validClientAccountSignatures);
 
             throw new InvalidRequestData($msg);
         }
         if ($validServerSignatures !== 1) {
-            $msg = 'Invalid number of server signatures: ' . strval($validServerSignatures);
+            $msg = 'Invalid number of valid server signatures: ' . strval($validServerSignatures);
 
             throw new InvalidRequestData($msg);
         }
         if ($clientDomainData !== null && $validClientDomainSignatures !== 1) {
-            $msg = 'Invalid number of client domain account signatures: ' . strval($validClientDomainSignatures);
+            $msg = 'Invalid number of valid client domain account signatures: ' . strval($validClientDomainSignatures);
 
             throw new InvalidRequestData($msg);
         }
@@ -348,10 +351,15 @@ class SEP10Service
     private function fetchAccount(string $accountId, string $horizonUrl): ?AccountResponse
     {
         $sdk = new StellarSDK($horizonUrl);
+        $accId = $accountId;
+        if (str_starts_with($accountId, 'M')) {
+            $mux = MuxedAccount::fromAccountId($accountId);
+            $accId = $mux->getEd25519AccountId();
+        }
         $account = null;
         try {
-            if ($sdk->accountExists($accountId)) {
-                $account = $sdk->accounts()->account($accountId);
+            if ($sdk->accountExists($accId)) {
+                $account = $sdk->accounts()->account($accId);
             }
         } catch (Throwable $e) {
            // could not fetch client account.
@@ -389,7 +397,7 @@ class SEP10Service
 
         // verify that transaction source account is equal to the server's signing key
         if ($serverAccountId !== $tx->getSourceAccount()->getAccountId()) {
-            throw new InvalidRequestData("Transaction source account is not equal to server's account.");
+            throw new InvalidRequestData('Transaction source account is not equal to server account.');
         }
 
         // verify that transaction sequenceNumber is equal to zero
@@ -416,7 +424,7 @@ class SEP10Service
             $currentTime < $minTime->getTimestamp() - $grace ||
             $currentTime > $maxTime->getTimestamp() + $grace
         ) {
-            throw new InvalidRequestData('Transaction requires non-infinite timebounds.');
+            throw new InvalidRequestData('Transaction is not within range of the specified timebounds.');
         }
 
         if (count($tx->getOperations()) < 1) {
@@ -442,7 +450,7 @@ class SEP10Service
         }
 
         if ($matchedDomainName === null) {
-            $msg = "The transaction's operation key name does not include one of the expected home domains.";
+            $msg = 'The transaction operation key name does not include one of the expected home domains.';
 
             throw new InvalidRequestData($msg);
         }
@@ -450,7 +458,7 @@ class SEP10Service
         // verify manage data value
         $dataValue = $op->getValue();
         if ($dataValue === null) {
-            throw new InvalidRequestData("The transaction's operation value should not be null.");
+            throw new InvalidRequestData('The transaction operation value should not be null.');
         }
         if (strlen($dataValue) !== 64) {
             throw new InvalidRequestData('Random nonce encoded as base64 should be 64 bytes long.');
@@ -480,20 +488,20 @@ class SEP10Service
             }
             if ($operation->getKey() === 'web_auth_domain') {
                 if ($operation->getValue() === null) {
-                    throw new InvalidRequestData("'web_auth_domain' operation value should not be null.");
+                    throw new InvalidRequestData('web_auth_domain operation value should not be null.');
                 }
                 if ($webAuthDomain !== $operation->getValue()) {
-                    throw new InvalidRequestData("'web_auth_domain' operation value does not match " . $webAuthDomain);
+                    throw new InvalidRequestData('web_auth_domain operation value does not match ' . $webAuthDomain);
                 }
             }
             if ($operation->getKey() === 'client_domain') {
                 $clientDomain = $operation->getValue();
                 $clientDomainAccountId = $operation->getSourceAccount()?->getEd25519AccountId();
                 if ($clientDomain === null) {
-                    throw new InvalidRequestData("'client_domain' operation value should not be null.");
+                    throw new InvalidRequestData('client_domain operation value should not be null.');
                 }
                 if ($clientDomainAccountId === null) {
-                    throw new InvalidRequestData("'client_domain' operation should have a source account.");
+                    throw new InvalidRequestData('client_domain operation should have a source account.');
                 }
                 $clientDomainData = new ClientDomainData(
                     $clientDomain,
@@ -599,11 +607,12 @@ class SEP10Service
                 throw new InvalidRequestData('memo not allowed for muxed accounts', 400);
             }
             try {
-                $value = intval($request->memo);
-                if ($value < 0) {
-                    throw new InvalidRequestData('invalid memo value: ' . $value, 400);
+                if (is_numeric($request->memo) && is_int($request->memo + 0)) {
+                    $value = intval($request->memo);
+                    $memo = Memo::id($value);
+                } else {
+                    throw new InvalidRequestData('invalid memo value: ' . $request->memo, 400);
                 }
-                $memo = Memo::id($value);
             } catch (Throwable $e) {
                 throw new InvalidRequestData('invalid memo value: ' . $request->memo, 400, $e);
             }
@@ -620,12 +629,17 @@ class SEP10Service
         $clientSigningKey = null;
         try {
             if ($request->clientDomain !== null) {
-                $tomlData = TomlData::fromDomain($request->clientDomain, $httpClient);
-                $clientSigningKey = $tomlData->generalInformation?->signingKey;
-                if ($clientSigningKey === null) {
-                    $msg = 'client signing key not found for domain: ' . $request->clientDomain;
-
-                    return new JsonResponse(['error' => $msg], 400);
+                $msg = 'client signing key not found for domain ' . $request->clientDomain;
+                try {
+                    $tomlData = TomlData::fromDomain($request->clientDomain, $httpClient);
+                    $clientSigningKey = $tomlData->generalInformation?->signingKey;
+                    if ($clientSigningKey === null) {
+                        return new JsonResponse(['error' => $msg], 400);
+                    }
+                } catch (TomlDataNotLoaded $tnl) {
+                    return new JsonResponse(['error' => $msg . ' : ' . $tnl->getMessage()], 400);
+                } catch (ParseException $pse) {
+                    return new JsonResponse(['error' => $msg . ' : ' . $pse->getMessage()], 400);
                 }
             }
 
