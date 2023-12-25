@@ -22,12 +22,4 @@ class AppConfig implements IAppConfig
     {
         return 'https://horizon-testnet.stellar.org';
     }
-
-    /**
-     * @inheritDoc
-     */
-    public function getLanguages(): ?array
-    {
-        return ['en'];
-    }
 }

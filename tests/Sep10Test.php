@@ -8,8 +8,8 @@ declare(strict_types=1);
 
 namespace ArgoNavis\Test\PhpAnchorSdk;
 
-use ArgoNavis\PhpAnchorSdk\Sep10\SEP10Service;
 use ArgoNavis\PhpAnchorSdk\Sep10\Sep10Jwt;
+use ArgoNavis\PhpAnchorSdk\Sep10\Sep10Service;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidConfig;
 use ArgoNavis\Test\PhpAnchorSdk\config\AppConfig;
 use ArgoNavis\Test\PhpAnchorSdk\config\Sep10Config;
@@ -103,7 +103,7 @@ class Sep10Test extends TestCase
             ->withQueryParams($data)
             ->withAddedHeader('Content-Type', 'application/json');
 
-        $sep10Service = new SEP10Service($appConfig, $sep10Config);
+        $sep10Service = new Sep10Service($appConfig, $sep10Config);
         $response = $sep10Service->handleRequest($request, new Client());
         //print $response->getBody()->__toString();
         self::assertEquals(200, $response->getStatusCode());
@@ -160,7 +160,7 @@ class Sep10Test extends TestCase
         $sep10Service = null;
         $thrown = false;
         try {
-            $sep10Service = new SEP10Service($appConfig, $sep10Config);
+            $sep10Service = new Sep10Service($appConfig, $sep10Config);
         } catch (InvalidConfig) {
             $thrown = true;
         }
@@ -170,7 +170,7 @@ class Sep10Test extends TestCase
         $thrown = false;
         $sep10Config->homeDomains = ['localhost:8000'];
         try {
-            $sep10Service = new SEP10Service($appConfig, $sep10Config);
+            $sep10Service = new Sep10Service($appConfig, $sep10Config);
         } catch (InvalidConfig) {
             $thrown = true;
         }
@@ -180,7 +180,7 @@ class Sep10Test extends TestCase
         $sep10Config->sep10SigningSeed = 'SCYJJBZTHTN2RZI7UA2MN3RNMSDNQ3BKHPYWXXPXMRJ4KLU7N5XQ5BXE';
         $thrown = false;
         try {
-            $sep10Service = new SEP10Service($appConfig, $sep10Config);
+            $sep10Service = new Sep10Service($appConfig, $sep10Config);
         } catch (InvalidConfig) {
             $thrown = true;
         }
@@ -220,7 +220,7 @@ class Sep10Test extends TestCase
 
         $sep10Config->custodialAccountList = [$userAccountId];
         try {
-            $sep10Service = new SEP10Service($appConfig, $sep10Config);
+            $sep10Service = new Sep10Service($appConfig, $sep10Config);
         } catch (InvalidConfig) {
             $thrown = true;
         }
@@ -235,7 +235,7 @@ class Sep10Test extends TestCase
         $sep10Config->custodialAccountList = null;
         $sep10Config->clientAttributionRequired = true;
         try {
-            $sep10Service = new SEP10Service($appConfig, $sep10Config);
+            $sep10Service = new Sep10Service($appConfig, $sep10Config);
         } catch (InvalidConfig) {
             $thrown = true;
         }
@@ -248,7 +248,7 @@ class Sep10Test extends TestCase
 
         $sep10Config->allowedClientDomains = ['client.com'];
         try {
-            $sep10Service = new SEP10Service($appConfig, $sep10Config);
+            $sep10Service = new Sep10Service($appConfig, $sep10Config);
         } catch (InvalidConfig) {
             $thrown = true;
         }
@@ -263,7 +263,7 @@ class Sep10Test extends TestCase
         $sep10Config->clientAttributionRequired = false;
         $sep10Config->allowedClientDomains = null;
         try {
-            $sep10Service = new SEP10Service($appConfig, $sep10Config);
+            $sep10Service = new Sep10Service($appConfig, $sep10Config);
         } catch (InvalidConfig) {
             $thrown = true;
         }
@@ -327,7 +327,7 @@ class Sep10Test extends TestCase
         $sep10Service = null;
         $thrown = false;
         try {
-            $sep10Service = new SEP10Service($appConfig, $sep10Config);
+            $sep10Service = new Sep10Service($appConfig, $sep10Config);
         } catch (InvalidConfig) {
             $thrown = true;
         }
@@ -415,7 +415,7 @@ class Sep10Test extends TestCase
         $sep10Service = null;
         $thrown = false;
         try {
-            $sep10Service = new SEP10Service($appConfig, $sep10Config);
+            $sep10Service = new Sep10Service($appConfig, $sep10Config);
         } catch (InvalidConfig) {
             $thrown = true;
         }
@@ -841,7 +841,7 @@ class Sep10Test extends TestCase
         $sep10Service = null;
         $thrown = false;
         try {
-            $sep10Service = new SEP10Service($appConfig, $sep10Config);
+            $sep10Service = new Sep10Service($appConfig, $sep10Config);
         } catch (InvalidConfig) {
             $thrown = true;
         }

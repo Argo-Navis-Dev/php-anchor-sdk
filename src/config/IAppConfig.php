@@ -12,12 +12,13 @@ use Soneso\StellarSDK\Network;
 
 interface IAppConfig
 {
+    /**
+     * @return Network the stellar network to be used.
+     */
     public function getStellarNetwork(): Network;
 
-    public function getHorizonUrl(): string;
-
     /**
-     * @return array<string>|null
+     * @return string The horizon url to be used.
      */
-    public function getLanguages(): ?array;
+    public function getHorizonUrl(): string;
 }

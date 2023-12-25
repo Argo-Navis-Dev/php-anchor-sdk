@@ -23,6 +23,8 @@ use function array_key_exists;
 use function count;
 use function explode;
 use function is_string;
+use function str_starts_with;
+use function strval;
 
 class Sep10Jwt
 {
@@ -78,8 +80,13 @@ class Sep10Jwt
         } else {
             try {
                 $muxedAccount = MuxedAccount::fromAccountId($sub);
-                $this->muxedAccountId = $sub;
-                $this->accountId = $muxedAccount->getEd25519AccountId();
+
+                if (str_starts_with($sub, 'M')) {
+                    $this->muxedAccountId = $sub;
+                } else {
+                    $this->accountId = $muxedAccount->getEd25519AccountId();
+                }
+
                 $this->muxedId = $muxedAccount->getId();
             } catch (Throwable) {
             }
@@ -108,6 +115,46 @@ class Sep10Jwt
         }
 
         return $payload;
+    }
+
+    /**
+     * Returns the values stored within the jwt as an array<string,string>.
+     * Mandatory keys are: jti, iss, sub, iat, exp
+     * Optional keys are: account_id, account_memo, muxed_account_id, muxed_id, client_domain, home_domain
+     * Either account_id or muxed_account_id are set. If muxed_account_id is set, muxed_id is also set.
+     * muxed_account_id and account_memo cannot be set at the same time.
+     *
+     * @return array<string,string>
+     */
+    public function toArray(): array
+    {
+        $result = [
+            'jti' => $this->jti,
+            'iss' => $this->iss,
+            'sub' => $this->sub,
+            'iat' => $this->iat,
+            'exp' => $this->exp,
+        ];
+        if ($this->accountId !== null) {
+            $result['account_id'] = $this->accountId;
+        }
+        if ($this->accountMemo !== null) {
+            $result['account_memo'] = $this->accountMemo;
+        }
+        if ($this->muxedAccountId !== null) {
+            $result['muxed_account_id'] = $this->muxedAccountId;
+        }
+        if ($this->muxedId !== null) {
+            $result['muxed_id'] = strval($this->muxedId);
+        }
+        if ($this->clientDomain !== null) {
+            $result['client_domain'] = $this->clientDomain;
+        }
+        if ($this->homeDomain !== null) {
+            $result['home_domain'] = $this->homeDomain;
+        }
+
+        return $result;
     }
 
     /**

@@ -57,7 +57,7 @@ use function str_starts_with;
 use function strlen;
 use function strval;
 
-class SEP10Service
+class Sep10Service
 {
     public IAppConfig $appConfig;
     public ISep10Config $sep10Config;
@@ -86,7 +86,7 @@ class SEP10Service
         }
     }
 
-    public function handleRequest(ServerRequestInterface $request, ClientInterface $client): ResponseInterface
+    public function handleRequest(ServerRequestInterface $request, ClientInterface $httpClient): ResponseInterface
     {
         if ($request->getMethod() === 'GET') {
             $content = $request->getBody()->__toString();
@@ -94,7 +94,7 @@ class SEP10Service
                 $queryParams = $request->getQueryParams();
                 $challengeRequest = ChallengeRequest::fromQueryParameters($queryParams);
 
-                return $this->createChallenge($challengeRequest, $client);
+                return $this->createChallenge($challengeRequest, $httpClient);
             } catch (InvalidRequestData $invalid) {
                 return new JsonResponse(['error' => 'Invalid request. ' . $invalid->getMessage()], 400);
             }
