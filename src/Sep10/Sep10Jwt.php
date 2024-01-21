@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\Sep10;
 
+use ArgoNavis\PhpAnchorSdk\exception\InvalidSep10JwtData;
 use DomainException;
 use Firebase\JWT\BeforeValidException;
 use Firebase\JWT\ExpiredException;
@@ -155,6 +156,57 @@ class Sep10Jwt
         }
 
         return $result;
+    }
+
+    /**
+     * Parses and creates a Sep10Jwt object from the given data array.
+     * This is typically used to create the Sep10Jwt object from an authenticated request.
+     * The array must contain the key - value pairs: jti, iss, sub, iat, exp.
+     * Optional key - value pairs are home_domain and client_domain.
+     * Keys and values must be strings.
+     *
+     * @param array<string,string> $data data to parse from
+     *
+     * @throws InvalidSep10JwtData
+     */
+    public static function fromArray(array $data): Sep10Jwt
+    {
+        if (!isset($data['jti'])) {
+            throw new InvalidSep10JwtData('jti can not be null');
+        }
+        $jti = $data['jti'];
+
+        if (!isset($data['iss'])) {
+            throw new InvalidSep10JwtData('iss can not be null');
+        }
+        $iss = $data['iss'];
+
+        if (!isset($data['sub'])) {
+            throw new InvalidSep10JwtData('sub can not be null');
+        }
+        $sub = $data['sub'];
+
+        if (!isset($data['iat'])) {
+            throw new InvalidSep10JwtData('iat can not be null');
+        }
+        $iat = $data['iat'];
+
+        if (!isset($data['exp'])) {
+            throw new InvalidSep10JwtData('exp can not be null');
+        }
+        $exp = $data['exp'];
+
+        $homeDomain = null;
+        if (isset($data['home_domain'])) {
+            $homeDomain = $data['home_domain'];
+        }
+
+        $clientDomain = null;
+        if (isset($data['client_domain'])) {
+            $clientDomain = $data['client_domain'];
+        }
+
+        return new Sep10Jwt($iss, $sub, $iat, $exp, $jti, $homeDomain, $clientDomain);
     }
 
     /**

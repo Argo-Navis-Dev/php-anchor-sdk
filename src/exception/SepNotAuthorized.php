@@ -8,6 +8,6 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\exception;
 
-class SepHandlingFailure extends AnchorFailure
+class SepNotAuthorized extends SepHandlingFailure
 {
 }

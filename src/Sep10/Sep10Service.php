@@ -89,7 +89,6 @@ class Sep10Service
     public function handleRequest(ServerRequestInterface $request, ClientInterface $httpClient): ResponseInterface
     {
         if ($request->getMethod() === 'GET') {
-            $content = $request->getBody()->__toString();
             try {
                 $queryParams = $request->getQueryParams();
                 $challengeRequest = ChallengeRequest::fromQueryParameters($queryParams);
