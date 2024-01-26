@@ -14,7 +14,6 @@ use ArgoNavis\PhpAnchorSdk\callback\ICustomerIntegration;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerRequest;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerResponse;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerVerificationRequest;
-use ArgoNavis\PhpAnchorSdk\shared\CustomerField;
 use ArgoNavis\PhpAnchorSdk\shared\CustomerFieldType;
 use ArgoNavis\PhpAnchorSdk\shared\CustomerStatus;
 use ArgoNavis\PhpAnchorSdk\shared\ProvidedCustomerField;
@@ -76,6 +75,7 @@ class CustomerIntegration implements ICustomerIntegration
         );
     }
 
+/*
     // The case when a customer has provided some but not all required information.
     private function getCustomerNeedsInfo(): GetCustomerResponse
     {
@@ -190,4 +190,5 @@ class CustomerIntegration implements ICustomerIntegration
             providedFields: [$mobileNumber],
         );
     }
+*/
 }
