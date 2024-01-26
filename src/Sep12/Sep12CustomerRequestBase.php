@@ -10,6 +10,7 @@ namespace ArgoNavis\PhpAnchorSdk\Sep12;
 
 use ArgoNavis\PhpAnchorSdk\callback\GetCustomerRequest;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerRequest;
+use ArgoNavis\PhpAnchorSdk\callback\PutCustomerVerificationRequest;
 
 class Sep12CustomerRequestBase
 {
@@ -80,5 +81,11 @@ class Sep12CustomerRequestBase
             $request->memoType,
             $request->type,
         );
+    }
+
+    public static function fromPutCustomerVerificationRequest(
+        PutCustomerVerificationRequest $request,
+    ): Sep12CustomerRequestBase {
+        return new Sep12CustomerRequestBase($request->id);
     }
 }

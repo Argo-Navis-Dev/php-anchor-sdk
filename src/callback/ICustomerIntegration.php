@@ -8,7 +8,6 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\callback;
 
-use ArgoNavis\PhpAnchorSdk\Sep12\PutCustomerVerificationRequest;
 use ArgoNavis\PhpAnchorSdk\exception\AnchorFailure;
 
 /**

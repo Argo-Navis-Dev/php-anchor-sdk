@@ -24,6 +24,7 @@ use Laminas\Diactoros\Response;
 use Laminas\Diactoros\Response\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Soneso\StellarSDK\Crypto\KeyPair;
 use Soneso\StellarSDK\Xdr\XdrMemoType;
 use Throwable;
 
@@ -62,10 +63,11 @@ class Sep12Service
         } elseif ($request->getMethod() === 'PUT') {
             $requestTarget = $request->getRequestTarget();
             if (str_contains($requestTarget, '/customer/verification')) {
-                return new JsonResponse(['error' => 'Not implemented.'], 404);
-                // return $this->handlePutCustomerVerification($token, $request);
+                return $this->handlePutCustomerVerification($request);
             } elseif (str_contains($requestTarget, '/customer')) {
                 return $this->handlePutCustomer($token, $request);
+            } elseif (str_contains($requestTarget, '/customer/callback')) {
+                return new JsonResponse(['error' => 'Not implemented.'], 404);
             } else {
                 return new JsonResponse(['error' => 'Invalid request. Unknown endpoint.'], 404);
             }
@@ -94,11 +96,15 @@ class Sep12Service
         }
     }
 
-    /*
-    private function handlePutCustomerVerification(Sep10Jwt $token, ServerRequestInterface $request): ResponseInterface
+    private function handlePutCustomerVerification(ServerRequestInterface $request): ResponseInterface
     {
         try {
-            $data = $this->getBodyData($request);
+            $requestData = $this->getBodyData($request);
+            $putCustomerValidationRequest =
+                Sep12RequestParser::putCustomerVerificationRequestFormRequestData($requestData);
+            $response = $this->customerIntegration->putCustomerVerification($putCustomerValidationRequest);
+
+            return new JsonResponse($response->toJson(), 200);
         } catch (InvalidRequestData $invalid) {
             return new JsonResponse(['error' => 'Invalid request. ' . $invalid->getMessage()], 400);
         } catch (Throwable $e) {
@@ -107,7 +113,7 @@ class Sep12Service
             return new JsonResponse(['error' => $msg], 500);
         }
     }
-    */
+
     private function handleDeleteCustomer(Sep10Jwt $token, ServerRequestInterface $request): ResponseInterface
     {
         try {
@@ -134,6 +140,12 @@ class Sep12Service
             $requestTarget = $request->getRequestTarget();
             $path = explode('/', $requestTarget);
             $account = array_pop($path);
+            try {
+                KeyPair::fromAccountId($account);
+            } catch (Throwable) {
+                throw new InvalidSepRequest('invalid account id ' . $account);
+            }
+
             if (trim($account) !== '') {
                 $this->deleteCustomer($token, $account, $memo, $memoType);
 
@@ -141,8 +153,10 @@ class Sep12Service
             } else {
                 throw new InvalidSepRequest('missing account in request');
             }
-        } catch (InvalidRequestData $invalid) {
+        } catch (InvalidRequestData | InvalidSepRequest $invalid) {
             return new JsonResponse(['error' => 'Invalid request. ' . $invalid->getMessage()], 400);
+        } catch (SepNotAuthorized $notAuthorized) {
+            return new JsonResponse(['error' => 'Invalid request. ' . $notAuthorized->getMessage()], 401);
         } catch (Throwable $e) {
             $msg = 'Failed to put customer validation. ' . $e->getMessage();
 
@@ -160,6 +174,9 @@ class Sep12Service
         $contentType = $request->getHeaderLine('Content-Type');
         if ($contentType === 'application/x-www-form-urlencoded' || $contentType === 'multipart/form-data') {
             $parsedBody = $request->getParsedBody();
+            if ($parsedBody === null) {
+                return [];
+            }
             if (!is_array($parsedBody)) {
                 throw new InvalidRequestData('Invalid body.');
             }
@@ -168,6 +185,9 @@ class Sep12Service
         } elseif ($contentType === 'application/json') {
             $content = $request->getBody()->__toString();
             $jsonData = @json_decode($content, true);
+            if ($jsonData === null) {
+                return [];
+            }
             if (!is_array($jsonData)) {
                 throw new InvalidRequestData('Invalid body.');
             }
@@ -189,6 +209,9 @@ class Sep12Service
         $this->validateGetOrPutRequest($sep12RequestBase, $token);
         $request->memo = $sep12RequestBase->memo;
         $request->memoType = $sep12RequestBase->memoType;
+        if ($request->id === null && $request->account === null && $token->accountId !== null) {
+            $request->account = $token->accountId;
+        }
 
         return $this->customerIntegration->getCustomer($request);
     }
@@ -204,6 +227,9 @@ class Sep12Service
         $this->validateGetOrPutRequest($sep12RequestBase, $token);
         $request->memo = $sep12RequestBase->memo;
         $request->memoType = $sep12RequestBase->memoType;
+        if ($request->account === null && $token->accountId !== null) {
+            $request->account = $token->accountId;
+        }
 
         return $this->customerIntegration->putCustomer($request);
     }

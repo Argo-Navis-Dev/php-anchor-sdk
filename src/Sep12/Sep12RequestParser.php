@@ -10,10 +10,13 @@ namespace ArgoNavis\PhpAnchorSdk\Sep12;
 
 use ArgoNavis\PhpAnchorSdk\callback\GetCustomerRequest;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerRequest;
+use ArgoNavis\PhpAnchorSdk\callback\PutCustomerVerificationRequest;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSepRequest;
 
 use function array_key_exists;
+use function array_keys;
 use function is_string;
+use function str_ends_with;
 
 class Sep12RequestParser
 {
@@ -145,5 +148,44 @@ class Sep12RequestParser
         $result->kycUploadedFiles = $uploadedFiles;
 
         return $result;
+    }
+
+    /**
+     * @param array<array-key, mixed> $requestData the array to parse the data from.
+     *
+     * @throws InvalidSepRequest
+     */
+    public static function putCustomerVerificationRequestFormRequestData(
+        array $requestData,
+    ): PutCustomerVerificationRequest {
+        $data = $requestData;
+        $id = null;
+        if (!array_key_exists('id', $data)) {
+            throw new InvalidSepRequest('missing id');
+        } elseif (is_string($data['id'])) {
+            $id = $data['id'];
+            unset($data['id']);
+        } else {
+            throw new InvalidSepRequest('id must be a string');
+        }
+        /**
+         * @var array<string, string> $verificationFields
+         */
+        $verificationFields = [];
+        foreach (array_keys($data) as $key) {
+            if (!is_string($key)) {
+                throw new InvalidSepRequest('key must be a string');
+            }
+            if (!str_ends_with($key, '_verification')) {
+                throw new InvalidSepRequest('invalid key ' . $key);
+            }
+            $value = $data[$key];
+            if (!is_string($value)) {
+                throw new InvalidSepRequest('invalid value for ' . $key . '. Must be string');
+            }
+            $verificationFields[$key] = $value;
+        }
+
+        return new PutCustomerVerificationRequest($id, $verificationFields);
     }
 }

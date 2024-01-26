@@ -1335,20 +1335,6 @@ class Sep10Test extends TestCase
         }
     }
 
-    /**
-     * @param array<array-key, mixed> $data
-     */
-    private function getStreamFromDataArray(array $data): Stream
-    {
-        $stream = new Stream('php://temp', 'w+');
-        $jsonData = json_encode($data);
-        assert(is_string($jsonData));
-        $stream->write($jsonData);
-        $stream->rewind();
-
-        return $stream;
-    }
-
     private function getTransactionFromResponse(ResponseInterface $response): string
     {
         $decoded = json_decode($response->getBody()->__toString(), true);
