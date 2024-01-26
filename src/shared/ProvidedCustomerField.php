@@ -14,7 +14,7 @@ namespace ArgoNavis\PhpAnchorSdk\shared;
  *
  * see <a href="https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0012.md#provided-fields">Provided Fields</a>
  */
-class ProvidedCustomerFields
+class ProvidedCustomerField
 {
     public string $fieldName;
     public string $type;
