@@ -160,7 +160,7 @@ class Sep10Service
 
         $jwt = $this->generateSep10Jwt($request->url, $challenge, $homeDomain, $clientDomainData);
 
-        return new JsonResponse(['jwt' => $jwt], 200);
+        return new JsonResponse(['token' => $jwt], 200);
     }
 
     /**

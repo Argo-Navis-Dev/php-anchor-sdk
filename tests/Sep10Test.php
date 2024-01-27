@@ -141,7 +141,7 @@ class Sep10Test extends TestCase
         self::assertEquals(200, $response->getStatusCode());
         $decoded = json_decode($response->getBody()->__toString(), true);
         assert(is_array($decoded));
-        $jwt = $decoded['jwt'];
+        $jwt = $decoded['token'];
         assert(is_string($jwt));
     }
 
@@ -1279,7 +1279,7 @@ class Sep10Test extends TestCase
     ): void {
         $decoded = json_decode($response->getBody()->__toString(), true);
         assert(is_array($decoded));
-        $jwt = $decoded['jwt'];
+        $jwt = $decoded['token'];
         assert(is_string($jwt));
 
         $decodedJwt = JWT::decode($jwt, new Key($cfg->getSep10JWTSigningKey(), 'HS256'));
