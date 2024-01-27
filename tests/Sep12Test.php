@@ -9,13 +9,32 @@ namespace ArgoNavis\Test\PhpAnchorSdk;
 
 use ArgoNavis\PhpAnchorSdk\Sep10\Sep10Jwt;
 use ArgoNavis\PhpAnchorSdk\Sep12\Sep12Service;
+use ArgoNavis\PhpAnchorSdk\shared\CustomerFieldType;
+use ArgoNavis\PhpAnchorSdk\shared\CustomerStatus;
+use ArgoNavis\PhpAnchorSdk\shared\ProvidedCustomerFieldStatus;
 use ArgoNavis\Test\PhpAnchorSdk\callback\CustomerIntegration;
 use Laminas\Diactoros\ServerRequest;
 use Laminas\Diactoros\Uri;
+use Psr\Http\Message\ResponseInterface;
+use Soneso\StellarSDK\SEP\KYCService\GetCustomerInfoField;
+use Soneso\StellarSDK\SEP\KYCService\GetCustomerInfoProvidedField;
+use Soneso\StellarSDK\SEP\KYCService\GetCustomerInfoResponse;
+use Soneso\StellarSDK\SEP\KYCService\PutCustomerInfoResponse;
 
+use function PHPUnit\Framework\assertContains;
+use function PHPUnit\Framework\assertCount;
+use function PHPUnit\Framework\assertEquals;
+use function PHPUnit\Framework\assertFalse;
+use function PHPUnit\Framework\assertInstanceOf;
+use function PHPUnit\Framework\assertNotNull;
+use function PHPUnit\Framework\assertTrue;
+use function assert;
 use function intval;
-use function json_encode;
+use function is_array;
+use function is_string;
+use function json_decode;
 use function microtime;
+use function str_starts_with;
 use function strval;
 
 class Sep12Test extends TestCase
@@ -25,7 +44,7 @@ class Sep12Test extends TestCase
     private string $customerId = 'd1ce2f48-3ff1-495d-9240-7a50d806cfed';
     private string $accountId = 'GCUIGD4V6U7ATOUSC6IYSJCK7ZBKGN73YXN5VBMAKUY44FAASJBO6H2M';
 
-    public function testGetCustomer(): void
+    public function testGetCustomerSuccess(): void
     {
         $customerIntegration = new CustomerIntegration();
         $sep12Service = new Sep12Service($customerIntegration);
@@ -33,16 +52,267 @@ class Sep12Test extends TestCase
         $sep10Jwt = $this->createSep10Jwt($this->accountId);
 
         $data = ['account' => $this->accountId];
-        $request = (new ServerRequest())
-            ->withMethod('GET')
-            ->withUri(new Uri($this->customerEndpoint))
-            ->withQueryParams($data)
-            ->withAddedHeader('Content-Type', 'application/json');
+        $request = $this->getServerRequest($data, 'application/json');
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
-        self::assertEquals(200, $response->getStatusCode());
+        $responseData = $this->getCustomerInfo($response);
+        assertEquals($this->customerId, $responseData->getId());
+        assertEquals(CustomerStatus::ACCEPTED, $responseData->getStatus());
+        $providedFields = $responseData->getProvidedFields();
+        assertNotNull($providedFields);
+        assertCount(3, $providedFields);
+
+        assertTrue(isset($providedFields['first_name']));
+        $firstNameField = $providedFields['first_name'];
+        assertInstanceOf(GetCustomerInfoProvidedField::class, $firstNameField);
+        assertEquals(ProvidedCustomerFieldStatus::ACCEPTED, $firstNameField->getStatus());
+        assertEquals("The customer's first name", $firstNameField->getDescription());
+        assertEquals(CustomerFieldType::STRING, $firstNameField->getType());
+
+        assertTrue(isset($providedFields['last_name']));
+        $lastNameField = $providedFields['last_name'];
+        assertInstanceOf(GetCustomerInfoProvidedField::class, $lastNameField);
+        assertEquals(ProvidedCustomerFieldStatus::ACCEPTED, $lastNameField->getStatus());
+        assertEquals("The customer's last name", $lastNameField->getDescription());
+        assertEquals(CustomerFieldType::STRING, $lastNameField->getType());
+
+        self::assertTrue(isset($providedFields['email_address']));
+        $emailField = $providedFields['email_address'];
+        assertInstanceOf(GetCustomerInfoProvidedField::class, $emailField);
+        assertEquals(ProvidedCustomerFieldStatus::ACCEPTED, $emailField->getStatus());
+        assertEquals("The customer's email address", $emailField->getDescription());
+        assertEquals(CustomerFieldType::STRING, $emailField->getType());
     }
 
-    public function testPutCustomer(): void
+    public function testGetCustomerNeedsInfo(): void
+    {
+        $customerIntegration = new CustomerIntegration();
+        $sep12Service = new Sep12Service($customerIntegration);
+
+        $sep10Jwt = $this->createSep10Jwt($this->accountId);
+
+        $data = ['account' => $this->accountId, 'memo' => '1'];
+        $request = $this->getServerRequest($data, 'multipart/form-data');
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        $responseData = $this->getCustomerInfo($response);
+        assertEquals($this->customerId, $responseData->getId());
+        assertEquals(CustomerStatus::NEEDS_INFO, $responseData->getStatus());
+        $fields = $responseData->getFields();
+        assertNotNull($fields);
+        assertCount(2, $fields);
+
+        self::assertTrue(isset($fields['mobile_number']));
+        $mobileField = $fields['mobile_number'];
+        assertInstanceOf(GetCustomerInfoField::class, $mobileField);
+        assertEquals('phone number of the customer', $mobileField->getDescription());
+        assertEquals(CustomerFieldType::STRING, $mobileField->getType());
+        assertFalse($mobileField->isOptional());
+
+        assertTrue(isset($fields['email_address']));
+        $emailField = $fields['email_address'];
+        assertInstanceOf(GetCustomerInfoField::class, $emailField);
+        assertEquals('email address of the customer', $emailField->getDescription());
+        assertEquals(CustomerFieldType::STRING, $emailField->getType());
+        assertTrue($emailField->isOptional());
+
+        $providedFields = $responseData->getProvidedFields();
+        assertNotNull($providedFields);
+        assertCount(2, $providedFields);
+
+        assertTrue(isset($providedFields['first_name']));
+        $firstNameField = $providedFields['first_name'];
+        assertInstanceOf(GetCustomerInfoProvidedField::class, $firstNameField);
+        assertEquals(ProvidedCustomerFieldStatus::ACCEPTED, $firstNameField->getStatus());
+        assertEquals("The customer's first name", $firstNameField->getDescription());
+        assertEquals(CustomerFieldType::STRING, $firstNameField->getType());
+
+        assertTrue(isset($providedFields['last_name']));
+        $lastNameField = $providedFields['last_name'];
+        assertInstanceOf(GetCustomerInfoProvidedField::class, $lastNameField);
+        assertEquals(ProvidedCustomerFieldStatus::ACCEPTED, $lastNameField->getStatus());
+        assertEquals("The customer's last name", $lastNameField->getDescription());
+        assertEquals(CustomerFieldType::STRING, $lastNameField->getType());
+    }
+
+    public function testGetCustomerUnknown(): void
+    {
+        $customerIntegration = new CustomerIntegration();
+        $sep12Service = new Sep12Service($customerIntegration);
+
+        $sep10Jwt = $this->createSep10Jwt($this->accountId);
+
+        $data = ['account' => $this->accountId, 'memo' => '2'];
+        $request = $this->getServerRequest($data, 'application/x-www-form-urlencoded');
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        $responseData = $this->getCustomerInfo($response);
+        assertEquals($this->customerId, $responseData->getId());
+        assertEquals(CustomerStatus::NEEDS_INFO, $responseData->getStatus());
+        $fields = $responseData->getFields();
+        assertNotNull($fields);
+        assertCount(3, $fields);
+
+        assertTrue(isset($fields['email_address']));
+        $emailField = $fields['email_address'];
+        assertInstanceOf(GetCustomerInfoField::class, $emailField);
+        assertEquals('Email address of the customer', $emailField->getDescription());
+        assertEquals(CustomerFieldType::STRING, $emailField->getType());
+        assertTrue($emailField->isOptional());
+
+        assertTrue(isset($fields['id_type']));
+        $idTypeField = $fields['id_type'];
+        assertInstanceOf(GetCustomerInfoField::class, $idTypeField);
+        assertEquals('Government issued ID', $idTypeField->getDescription());
+        assertEquals(CustomerFieldType::STRING, $idTypeField->getType());
+        assertFalse($idTypeField->isOptional());
+        $choices = $idTypeField->getChoices();
+        assertNotNull($choices);
+        assertContains('Passport', $choices);
+        assertContains('Drivers License', $choices);
+        assertContains('State ID', $choices);
+
+        assertTrue(isset($fields['photo_id_front']));
+        $pIdField = $fields['photo_id_front'];
+        assertInstanceOf(GetCustomerInfoField::class, $pIdField);
+        assertEquals('A clear photo of the front of the government issued ID', $pIdField->getDescription());
+        assertEquals(CustomerFieldType::BINARY, $pIdField->getType());
+        assertFalse($pIdField->isOptional());
+    }
+
+    public function testGetCustomerProcessing(): void
+    {
+        $customerIntegration = new CustomerIntegration();
+        $sep12Service = new Sep12Service($customerIntegration);
+
+        $sep10Jwt = $this->createSep10Jwt($this->accountId);
+
+        $data = ['account' => $this->accountId, 'memo' => '3'];
+        $request = $this->getServerRequest($data, 'application/json');
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        $responseData = $this->getCustomerInfo($response);
+        assertEquals($this->customerId, $responseData->getId());
+        assertEquals(CustomerStatus::PROCESSING, $responseData->getStatus());
+        assertEquals(
+            'Photo ID requires manual review. This process typically takes 1-2 business days.',
+            $responseData->getMessage(),
+        );
+
+        $providedFields = $responseData->getProvidedFields();
+        assertNotNull($providedFields);
+        assertCount(1, $providedFields);
+
+        assertTrue(isset($providedFields['photo_id_front']));
+        $pIdField = $providedFields['photo_id_front'];
+        assertInstanceOf(GetCustomerInfoProvidedField::class, $pIdField);
+        assertEquals(ProvidedCustomerFieldStatus::PROCESSING, $pIdField->getStatus());
+        assertEquals('A clear photo of the front of the government issued ID', $pIdField->getDescription());
+        assertEquals(CustomerFieldType::BINARY, $pIdField->getType());
+    }
+
+    public function testGetCustomerRejected(): void
+    {
+        $customerIntegration = new CustomerIntegration();
+        $sep12Service = new Sep12Service($customerIntegration);
+
+        $sep10Jwt = $this->createSep10Jwt($this->accountId);
+
+        $data = ['account' => $this->accountId, 'memo' => '4'];
+        $request = $this->getServerRequest($data, 'application/json');
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        $responseData = $this->getCustomerInfo($response);
+        assertEquals($this->customerId, $responseData->getId());
+        assertEquals(CustomerStatus::REJECTED, $responseData->getStatus());
+        assertEquals(
+            'This person is on a sanctions list',
+            $responseData->getMessage(),
+        );
+    }
+
+    public function testGetCustomerRequiresVerification(): void
+    {
+        $customerIntegration = new CustomerIntegration();
+        $sep12Service = new Sep12Service($customerIntegration);
+
+        $sep10Jwt = $this->createSep10Jwt($this->accountId);
+
+        $data = ['account' => $this->accountId, 'memo' => '5'];
+        $request = $this->getServerRequest($data, 'application/json');
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        $responseData = $this->getCustomerInfo($response);
+        assertEquals($this->customerId, $responseData->getId());
+        assertEquals(CustomerStatus::NEEDS_INFO, $responseData->getStatus());
+
+        $providedFields = $responseData->getProvidedFields();
+        assertNotNull($providedFields);
+        assertCount(1, $providedFields);
+
+        assertTrue(isset($providedFields['mobile_number']));
+        $mobileField = $providedFields['mobile_number'];
+        assertInstanceOf(GetCustomerInfoProvidedField::class, $mobileField);
+        assertEquals(ProvidedCustomerFieldStatus::VERIFICATION_REQUIRED, $mobileField->getStatus());
+        assertEquals('phone number of the customer', $mobileField->getDescription());
+        assertEquals(CustomerFieldType::STRING, $mobileField->getType());
+    }
+
+    public function testGetCustomerErrors(): void
+    {
+        $customerIntegration = new CustomerIntegration();
+        $sep12Service = new Sep12Service($customerIntegration);
+
+        $sep10Jwt = $this->createSep10Jwt($this->accountId);
+
+        // lang must be a string
+        $data = ['account' => $this->accountId, 'lang' => 12344];
+        $request = $this->getServerRequest($data, 'application/json');
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        $this->checkError($response, 400, 'lang must be a string');
+
+        // The account specified does not match authorization token
+        $data = ['account' => 'GB6E3WGW6HJBZHUNR6Z5PBDNUERIQYJOKPTG2XG46O4AZUVPEA342UU5'];
+        $request = $this->getServerRequest($data, 'application/json');
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        $this->checkError($response, 400, 'The account specified does not match authorization token');
+
+        // The memo specified does not match the memo ID authorized via SEP-10
+        $sep10JwtMemo = $this->createSep10Jwt($this->accountId . ':' . '1234');
+        $data = ['account' => $this->accountId, 'memo' => '39393'];
+        $request = $this->getServerRequest($data, 'application/json');
+        $response = $sep12Service->handleRequest($request, $sep10JwtMemo);
+        $this->checkError($response, 400, 'The memo specified does not match the memo ID authorized via SEP-10');
+
+        $sep10JwtMemo = $this->createSep10Jwt('MCUIGD4V6U7ATOUSC6IYSJCK7ZBKGN73YXN5VBMAKUY44FAASJBO6AAAAAAAAAAE2LE36');
+        $data = ['account' => 'MCUIGD4V6U7ATOUSC6IYSJCK7ZBKGN73YXN5VBMAKUY44FAASJBO6AAAAAAAAAAE2LE36',
+            'memo' => '39393',
+        ];
+        $request = $this->getServerRequest($data, 'application/json');
+        $response = $sep12Service->handleRequest($request, $sep10JwtMemo);
+        $this->checkError($response, 400, 'The memo specified does not match the memo ID authorized via SEP-10');
+
+        // 'Invalid memo ' . $memo . ' of type: id'
+        $data = ['account' => $this->accountId, 'memo' => 'blub', 'memo_type' => 'id'];
+        $request = $this->getServerRequest($data, 'application/json');
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        $this->checkError($response, 400, 'Invalid memo blub of type: id');
+
+        // 'Invalid memo ' . $memo . ' of type: text'
+        $data = ['account' => $this->accountId,
+            'memo' => 'this is a very long memo, having more than 28 characters',
+            'memo_type' => 'text',
+        ];
+        $request = $this->getServerRequest($data, 'application/json');
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        $this->checkError(
+            $response,
+            400,
+            'Invalid memo this is a very long memo, having more than 28 characters of type: text',
+        );
+
+        // customer not found for id
+        $data = ['id' => '7e285e7d-d984-412c-97bc-909d0e399fbf'];
+        $request = $this->getServerRequest($data, 'application/json');
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        $this->checkError($response, 404, 'customer not found for id: 7e285e7d-d984-412c-97bc-909d0e399fbf');
+    }
+
+    public function testPutCustomerSuccess(): void
     {
         $customerIntegration = new CustomerIntegration();
         $sep12Service = new Sep12Service($customerIntegration);
@@ -50,18 +320,78 @@ class Sep12Test extends TestCase
         $sep10Jwt = $this->createSep10Jwt($this->accountId);
 
         $data = ['account' => $this->accountId];
-        $request = (new ServerRequest())
-            ->withMethod('PUT')
-            ->withUri(new Uri($this->customerEndpoint))
-            ->withBody($this->getStreamFromDataArray($data))
-            ->withAddedHeader('Content-Type', 'application/json');
-        $encoded = json_encode($data);
-        self::assertIsString($encoded);
+
+        $request = $this->putServerRequest($data, 'application/json');
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
-        self::assertEquals(200, $response->getStatusCode());
+        $responseData = $this->putCustomerInfo($response);
+        assertEquals($this->customerId, $responseData->getId());
+
+        $request = $this->putServerRequest($data, 'multipart/form-data;boundary="boundary"');
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        $responseData = $this->putCustomerInfo($response);
+        assertEquals($this->customerId, $responseData->getId());
+
+        $request = $this->putServerRequest($data, 'application/x-www-form-urlencoded');
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        $responseData = $this->putCustomerInfo($response);
+        assertEquals($this->customerId, $responseData->getId());
     }
 
-    public function testPutCustomerVerification(): void
+    public function testPutCustomerErrors(): void
+    {
+        $customerIntegration = new CustomerIntegration();
+        $sep12Service = new Sep12Service($customerIntegration);
+
+        $sep10Jwt = $this->createSep10Jwt($this->accountId);
+
+        // The account specified does not match authorization token
+        $data = ['account' => 'GB6E3WGW6HJBZHUNR6Z5PBDNUERIQYJOKPTG2XG46O4AZUVPEA342UU5'];
+        $request = $this->putServerRequest($data, 'application/json');
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        $this->checkError($response, 400, 'The account specified does not match authorization token');
+
+        // The memo specified does not match the memo ID authorized via SEP-10
+        $sep10JwtMemo = $this->createSep10Jwt($this->accountId . ':' . '1234');
+        $data = ['account' => $this->accountId, 'memo' => '39393'];
+        $request = $this->putServerRequest($data, 'multipart/form-data;boundary="boundary"');
+        $response = $sep12Service->handleRequest($request, $sep10JwtMemo);
+        $this->checkError($response, 400, 'The memo specified does not match the memo ID authorized via SEP-10');
+
+        $sep10JwtMemo = $this->createSep10Jwt('MCUIGD4V6U7ATOUSC6IYSJCK7ZBKGN73YXN5VBMAKUY44FAASJBO6AAAAAAAAAAE2LE36');
+        $data = ['account' => 'MCUIGD4V6U7ATOUSC6IYSJCK7ZBKGN73YXN5VBMAKUY44FAASJBO6AAAAAAAAAAE2LE36',
+            'memo' => '39393',
+        ];
+        $request = $this->putServerRequest($data, 'application/x-www-form-urlencoded');
+        $response = $sep12Service->handleRequest($request, $sep10JwtMemo);
+        $this->checkError($response, 400, 'The memo specified does not match the memo ID authorized via SEP-10');
+
+        // 'Invalid memo ' . $memo . ' of type: id'
+        $data = ['account' => $this->accountId, 'memo' => 'blub', 'memo_type' => 'id'];
+        $request = $this->putServerRequest($data, 'application/json');
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        $this->checkError($response, 400, 'Invalid memo blub of type: id');
+
+        // 'Invalid memo ' . $memo . ' of type: text'
+        $data = ['account' => $this->accountId,
+            'memo' => 'this is a very long memo, having more than 28 characters',
+            'memo_type' => 'text',
+        ];
+        $request = $this->putServerRequest($data, 'application/json');
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        $this->checkError(
+            $response,
+            400,
+            'Invalid memo this is a very long memo, having more than 28 characters of type: text',
+        );
+
+        // customer not found for id
+        $data = ['id' => '7e285e7d-d984-412c-97bc-909d0e399fbf'];
+        $request = $this->putServerRequest($data, 'application/json');
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        $this->checkError($response, 404, 'customer not found for id: 7e285e7d-d984-412c-97bc-909d0e399fbf');
+    }
+
+    public function testPutCustomerVerificationSuccess(): void
     {
         $customerIntegration = new CustomerIntegration();
         $sep12Service = new Sep12Service($customerIntegration);
@@ -69,31 +399,84 @@ class Sep12Test extends TestCase
         $sep10Jwt = $this->createSep10Jwt($this->accountId);
 
         $data = ['id' => $this->customerId, 'mobile_number_verification' => '2735021'];
-        $request = (new ServerRequest())
-            ->withMethod('PUT')
-            ->withUri(new Uri($this->customerVerificationEndpoint))
-            ->withBody($this->getStreamFromDataArray($data))
-            ->withAddedHeader('Content-Type', 'application/json');
-        $encoded = json_encode($data);
-        self::assertIsString($encoded);
+        $request = $this->putVerificationServerRequest($data, 'application/json');
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
-        self::assertEquals(200, $response->getStatusCode());
+        $responseData = $this->getCustomerInfo($response);
+        assertEquals($this->customerId, $responseData->getId());
     }
 
-    public function testDeleteCustomer(): void
+    public function testPutCustomerVerificationErrors(): void
     {
         $customerIntegration = new CustomerIntegration();
         $sep12Service = new Sep12Service($customerIntegration);
 
         $sep10Jwt = $this->createSep10Jwt($this->accountId);
 
-        $data = ['account' => $this->accountId];
-        $request = (new ServerRequest())
-            ->withMethod('DELETE')
-            ->withUri(new Uri($this->customerEndpoint . '/' . $this->accountId))
-            ->withQueryParams($data)
-            ->withAddedHeader('Content-Type', 'application/json');
+        // missing id
+        $data = ['mobile_number_verification' => '2735021'];
+        $request = $this->putVerificationServerRequest($data, 'application/json');
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        $this->checkError($response, 400, 'missing id');
+
+        // invalid key
+        $data = ['id' => $this->customerId, 'mobile_number' => '2735021'];
+        $request = $this->putVerificationServerRequest($data, 'application/x-www-form-urlencoded');
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        $this->checkError($response, 400, 'invalid key mobile_number');
+
+        // customer not found for id
+        $data = ['id' => '7e285e7d-d984-412c-97bc-909d0e399fbf', 'mobile_number_verification' => '2735021'];
+        $request = $this->putVerificationServerRequest($data, 'multipart/form-data;boundary="boundary"');
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        $this->checkError($response, 404, 'customer not found for id: 7e285e7d-d984-412c-97bc-909d0e399fbf');
+    }
+
+    public function testDeleteCustomerSuccess(): void
+    {
+        $customerIntegration = new CustomerIntegration();
+        $sep12Service = new Sep12Service($customerIntegration);
+
+        $sep10Jwt = $this->createSep10Jwt($this->accountId);
+
+        $data = ['memo' => '100'];
+        $request = $this->deleteServerRequest($data, $this->accountId, 'application/json');
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        self::assertEquals(200, $response->getStatusCode());
+
+        $request = $this->deleteServerRequest($data, $this->accountId, 'application/x-www-form-urlencoded');
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        self::assertEquals(200, $response->getStatusCode());
+
+        $request = $this->deleteServerRequest($data, $this->accountId, 'multipart/form-data;boundary="boundary"');
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        self::assertEquals(200, $response->getStatusCode());
+    }
+
+    public function testDeleteCustomerErrors(): void
+    {
+        $customerIntegration = new CustomerIntegration();
+        $sep12Service = new Sep12Service($customerIntegration);
+
+        $sep10Jwt = $this->createSep10Jwt($this->accountId);
+
+        $data = [];
+        $request = $this->deleteServerRequest(
+            $data,
+            accountId: 'GB6E3WGW6HJBZHUNR6Z5PBDNUERIQYJOKPTG2XG46O4AZUVPEA342UU5',
+            contentType: 'application/json',
+        );
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        $this->checkError($response, 401, 'Not authorized to delete account.');
+
+        $sep10JwtMemo = $this->createSep10Jwt($this->accountId . ':' . '1234');
+        $data = ['memo' => '39393'];
+        $request = $this->deleteServerRequest($data, $this->accountId, 'application/x-www-form-urlencoded');
+        $response = $sep12Service->handleRequest($request, $sep10JwtMemo);
+        $this->checkError($response, 401, 'Not authorized to delete account.');
+
+        $data = ['memo' => '1234'];
+        $request = $this->deleteServerRequest($data, $this->accountId, 'multipart/form-data;boundary="boundary"');
+        $response = $sep12Service->handleRequest($request, $sep10JwtMemo);
         self::assertEquals(200, $response->getStatusCode());
     }
 
@@ -106,5 +489,105 @@ class Sep12Test extends TestCase
         $exp = strval(($currentTime + 5 * 60));
 
         return new Sep10Jwt($iss, $sub, $iat, $exp, $jti);
+    }
+
+    /**
+     * @param array<string, mixed> $queryParameters
+     */
+    private function getServerRequest(array $queryParameters, string $contentType): ServerRequest
+    {
+        return (new ServerRequest())
+            ->withMethod('GET')
+            ->withUri(new Uri($this->customerEndpoint))
+            ->withQueryParams($queryParameters)
+            ->withAddedHeader('Content-Type', $contentType);
+    }
+
+    /**
+     * @param array<string, mixed> $parameters
+     */
+    private function putServerRequest(array $parameters, string $contentType): ServerRequest
+    {
+        $serverRequest = (new ServerRequest())
+            ->withMethod('PUT')
+            ->withUri(new Uri($this->customerEndpoint))
+            ->withAddedHeader('Content-Type', $contentType);
+
+        if (
+            $contentType === 'application/x-www-form-urlencoded' ||
+            str_starts_with($contentType, 'multipart/form-data')
+        ) {
+            return $serverRequest->withParsedBody($this->getStreamFromDataArray($parameters));
+        } else {
+            return $serverRequest->withBody($this->getStreamFromDataArray($parameters));
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $parameters
+     */
+    private function putVerificationServerRequest(array $parameters, string $contentType): ServerRequest
+    {
+        $serverRequest = (new ServerRequest())
+            ->withMethod('PUT')
+            ->withUri(new Uri($this->customerVerificationEndpoint))
+            ->withAddedHeader('Content-Type', $contentType);
+
+        if (
+            $contentType === 'application/x-www-form-urlencoded' ||
+            str_starts_with($contentType, 'multipart/form-data')
+        ) {
+            return $serverRequest->withParsedBody($this->getStreamFromDataArray($parameters));
+        } else {
+            return $serverRequest->withBody($this->getStreamFromDataArray($parameters));
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $parameters
+     */
+    private function deleteServerRequest(array $parameters, string $accountId, string $contentType): ServerRequest
+    {
+        $serverRequest = (new ServerRequest())
+            ->withMethod('DELETE')
+            ->withUri(new Uri($this->customerEndpoint . '/' . $accountId))
+            ->withAddedHeader('Content-Type', $contentType);
+
+        if (
+            $contentType === 'application/x-www-form-urlencoded' ||
+            str_starts_with($contentType, 'multipart/form-data')
+        ) {
+            return $serverRequest->withParsedBody($this->getStreamFromDataArray($parameters));
+        } else {
+            return $serverRequest->withBody($this->getStreamFromDataArray($parameters));
+        }
+    }
+
+    private function getCustomerInfo(ResponseInterface $response): GetCustomerInfoResponse
+    {
+        assertEquals(200, $response->getStatusCode());
+        $decoded = json_decode($response->getBody()->__toString(), true);
+        assert(is_array($decoded));
+
+        return GetCustomerInfoResponse::fromJson($decoded);
+    }
+
+    private function putCustomerInfo(ResponseInterface $response): PutCustomerInfoResponse
+    {
+        assertEquals(200, $response->getStatusCode());
+        $decoded = json_decode($response->getBody()->__toString(), true);
+        assert(is_array($decoded));
+
+        return PutCustomerInfoResponse::fromJson($decoded);
+    }
+
+    private function checkError(ResponseInterface $response, int $statusCode, string $message): void
+    {
+        assertEquals($statusCode, $response->getStatusCode());
+        $decoded = json_decode($response->getBody()->__toString(), true);
+        assert(is_array($decoded));
+        assertTrue(is_string($decoded['error']));
+        $errorMsg = $decoded['error'];
+        assertEquals($message, $errorMsg);
     }
 }

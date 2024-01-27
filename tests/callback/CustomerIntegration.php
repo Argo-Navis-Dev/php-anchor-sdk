@@ -14,6 +14,9 @@ use ArgoNavis\PhpAnchorSdk\callback\ICustomerIntegration;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerRequest;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerResponse;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerVerificationRequest;
+use ArgoNavis\PhpAnchorSdk\exception\AnchorFailure;
+use ArgoNavis\PhpAnchorSdk\exception\CustomerNotFoundForId;
+use ArgoNavis\PhpAnchorSdk\shared\CustomerField;
 use ArgoNavis\PhpAnchorSdk\shared\CustomerFieldType;
 use ArgoNavis\PhpAnchorSdk\shared\CustomerStatus;
 use ArgoNavis\PhpAnchorSdk\shared\ProvidedCustomerField;
@@ -25,21 +28,62 @@ class CustomerIntegration implements ICustomerIntegration
 
     public function getCustomer(GetCustomerRequest $request): GetCustomerResponse
     {
+        if ($request->memo === '1') {
+            return $this->getCustomerNeedsInfo();
+        }
+
+        if ($request->memo === '2') {
+            return $this->getCustomerUnknown();
+        }
+
+        if ($request->memo === '3') {
+            return $this->getCustomerProcessing();
+        }
+
+        if ($request->memo === '4') {
+            return $this->getCustomerRejected();
+        }
+
+        if ($request->memo === '5') {
+            return $this->getCustomerVerificationRequired();
+        }
+
+        if ($request->id !== null && $request->id !== $this->id) {
+            throw new CustomerNotFoundForId($request->id);
+        }
+
         return $this->getCustomerSuccess();
     }
 
     public function putCustomer(PutCustomerRequest $request): PutCustomerResponse
     {
+        $account = $request->account;
+        $id = $request->id;
+        if ($account === null && $id === null) {
+            throw new AnchorFailure('missing account or id');
+        }
+
+        if ($request->id !== null && $request->id !== $this->id) {
+            throw new CustomerNotFoundForId($request->id);
+        }
+
         return new PutCustomerResponse(id: $this->id);
     }
 
     public function putCustomerVerification(PutCustomerVerificationRequest $request): GetCustomerResponse
     {
+        if ($request->id !== $this->id) {
+            throw new CustomerNotFoundForId($request->id);
+        }
+
         return $this->getCustomer(new GetCustomerRequest($this->id));
     }
 
     public function deleteCustomer(string $id): void
     {
+        if ($id !== $this->id) {
+            throw new CustomerNotFoundForId($id);
+        }
     }
 
     // The case when a customer has been successfully KYC'd and approved
@@ -75,7 +119,6 @@ class CustomerIntegration implements ICustomerIntegration
         );
     }
 
-/*
     // The case when a customer has provided some but not all required information.
     private function getCustomerNeedsInfo(): GetCustomerResponse
     {
@@ -88,7 +131,7 @@ class CustomerIntegration implements ICustomerIntegration
         $emailAddress = new CustomerField(
             fieldName: 'email_address',
             type: CustomerFieldType::STRING,
-            description: "The customer's email address",
+            description: 'email address of the customer',
             optional: true,
         );
 
@@ -190,5 +233,4 @@ class CustomerIntegration implements ICustomerIntegration
             providedFields: [$mobileNumber],
         );
     }
-*/
 }

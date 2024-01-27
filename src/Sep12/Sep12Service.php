@@ -24,6 +24,7 @@ use Laminas\Diactoros\Response;
 use Laminas\Diactoros\Response\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\StreamInterface;
 use Soneso\StellarSDK\Crypto\KeyPair;
 use Soneso\StellarSDK\Xdr\XdrMemoType;
 use Throwable;
@@ -34,6 +35,7 @@ use function is_array;
 use function is_string;
 use function json_decode;
 use function str_contains;
+use function str_starts_with;
 use function strval;
 use function trim;
 
@@ -57,7 +59,7 @@ class Sep12Service
                 return new JsonResponse($customer->toJson(), 200);
             } catch (CustomerNotFoundForId $e) {
                 return new JsonResponse(['error' => $e->getMessage()], 404);
-            } catch (InvalidSepRequest | AnchorFailure $e) {
+            } catch (InvalidSepRequest | InvalidSepRequest | AnchorFailure $e) {
                 return new JsonResponse(['error' => $e->getMessage()], 400);
             }
         } elseif ($request->getMethod() === 'PUT') {
@@ -87,8 +89,10 @@ class Sep12Service
             $response = $this->putCustomer($token, $putCustomerRequest);
 
             return new JsonResponse($response->toJson(), 200);
-        } catch (InvalidRequestData $invalid) {
-            return new JsonResponse(['error' => 'Invalid request. ' . $invalid->getMessage()], 400);
+        } catch (CustomerNotFoundForId $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 404);
+        } catch (InvalidRequestData | InvalidSepRequest | AnchorFailure $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 400);
         } catch (Throwable $e) {
             $msg = 'Failed to put customer. ' . $e->getMessage();
 
@@ -105,10 +109,12 @@ class Sep12Service
             $response = $this->customerIntegration->putCustomerVerification($putCustomerValidationRequest);
 
             return new JsonResponse($response->toJson(), 200);
-        } catch (InvalidRequestData $invalid) {
-            return new JsonResponse(['error' => 'Invalid request. ' . $invalid->getMessage()], 400);
+        } catch (CustomerNotFoundForId $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 404);
+        } catch (InvalidRequestData | InvalidSepRequest | AnchorFailure $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 400);
         } catch (Throwable $e) {
-            $msg = 'Failed to put customer validation. ' . $e->getMessage();
+            $msg = 'Failed to put customer verification. ' . $e->getMessage();
 
             return new JsonResponse(['error' => $msg], 500);
         }
@@ -153,12 +159,14 @@ class Sep12Service
             } else {
                 throw new InvalidSepRequest('missing account in request');
             }
-        } catch (InvalidRequestData | InvalidSepRequest $invalid) {
-            return new JsonResponse(['error' => 'Invalid request. ' . $invalid->getMessage()], 400);
         } catch (SepNotAuthorized $notAuthorized) {
-            return new JsonResponse(['error' => 'Invalid request. ' . $notAuthorized->getMessage()], 401);
+            return new JsonResponse(['error' => $notAuthorized->getMessage()], 401);
+        } catch (CustomerNotFoundForId $notFound) {
+            return new JsonResponse(['error' => $notFound->getMessage()], 404);
+        } catch (InvalidRequestData | InvalidSepRequest | AnchorFailure $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 400);
         } catch (Throwable $e) {
-            $msg = 'Failed to put customer validation. ' . $e->getMessage();
+            $msg = 'Failed to delete customer. ' . $e->getMessage();
 
             return new JsonResponse(['error' => $msg], 500);
         }
@@ -172,30 +180,48 @@ class Sep12Service
     private function getBodyData(ServerRequestInterface $request): array
     {
         $contentType = $request->getHeaderLine('Content-Type');
-        if ($contentType === 'application/x-www-form-urlencoded' || $contentType === 'multipart/form-data') {
+        if (
+            $contentType === 'application/x-www-form-urlencoded' ||
+            str_starts_with($contentType, 'multipart/form-data')
+        ) {
             $parsedBody = $request->getParsedBody();
             if ($parsedBody === null) {
                 return [];
             }
-            if (!is_array($parsedBody)) {
-                throw new InvalidRequestData('Invalid body.');
+            if (is_array($parsedBody)) {
+                return $parsedBody;
+            } elseif ($parsedBody instanceof StreamInterface) {
+                $content = $parsedBody->__toString();
+
+                return $this->jsonDataFromRequestString($content);
             }
 
-            return $parsedBody;
+            throw new InvalidRequestData('Invalid body.');
         } elseif ($contentType === 'application/json') {
             $content = $request->getBody()->__toString();
-            $jsonData = @json_decode($content, true);
-            if ($jsonData === null) {
-                return [];
-            }
-            if (!is_array($jsonData)) {
-                throw new InvalidRequestData('Invalid body.');
-            }
 
-            return $jsonData;
+            return $this->jsonDataFromRequestString($content);
         } else {
             throw new InvalidRequestData('Invalid request type ' . $contentType);
         }
+    }
+
+    /**
+     * @return array<array-key, mixed>
+     *
+     * @throws InvalidRequestData
+     */
+    private function jsonDataFromRequestString(string $content): array
+    {
+        $jsonData = @json_decode($content, true);
+        if ($jsonData === null) {
+            return [];
+        }
+        if (!is_array($jsonData)) {
+            throw new InvalidRequestData('Invalid body.');
+        }
+
+        return $jsonData;
     }
 
     /**
@@ -271,6 +297,8 @@ class Sep12Service
         $getCustomerResponse = $this->customerIntegration->getCustomer($getCustomerRequest);
         if ($getCustomerResponse->id !== null) {
             $this->customerIntegration->deleteCustomer($getCustomerResponse->id);
+        } else {
+            throw new CustomerNotFoundForId($accountId);
         }
     }
 
