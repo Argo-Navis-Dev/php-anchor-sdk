@@ -22,6 +22,8 @@ use ArgoNavis\PhpAnchorSdk\shared\CustomerStatus;
 use ArgoNavis\PhpAnchorSdk\shared\ProvidedCustomerField;
 use ArgoNavis\PhpAnchorSdk\shared\ProvidedCustomerFieldStatus;
 
+use function PHPUnit\Framework\assertIsString;
+
 class CustomerIntegration implements ICustomerIntegration
 {
     private string $id = 'd1ce2f48-3ff1-495d-9240-7a50d806cfed';
@@ -65,6 +67,14 @@ class CustomerIntegration implements ICustomerIntegration
 
         if ($request->id !== null && $request->id !== $this->id) {
             throw new CustomerNotFoundForId($request->id);
+        }
+
+        if ($request->kycUploadedFiles !== null) {
+            foreach ($request->kycUploadedFiles as $file) {
+                $fileName = $file->getClientFilename();
+                assertIsString($fileName);
+                $file->moveTo('tests/kyc/down_' . $fileName);
+            }
         }
 
         return new PutCustomerResponse(id: $this->id);

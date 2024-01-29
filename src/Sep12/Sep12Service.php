@@ -14,6 +14,7 @@ use ArgoNavis\PhpAnchorSdk\callback\GetCustomerResponse;
 use ArgoNavis\PhpAnchorSdk\callback\ICustomerIntegration;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerRequest;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerResponse;
+use ArgoNavis\PhpAnchorSdk\config\ISep12Config;
 use ArgoNavis\PhpAnchorSdk\exception\AnchorFailure;
 use ArgoNavis\PhpAnchorSdk\exception\CustomerNotFoundForId;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidRequestData;
@@ -24,7 +25,6 @@ use Laminas\Diactoros\Response;
 use Laminas\Diactoros\Response\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
-use Psr\Http\Message\StreamInterface;
 use Soneso\StellarSDK\Crypto\KeyPair;
 use Soneso\StellarSDK\Xdr\XdrMemoType;
 use Throwable;
@@ -34,18 +34,34 @@ use function explode;
 use function is_array;
 use function is_string;
 use function json_decode;
+use function parse_str;
 use function str_contains;
 use function str_starts_with;
+use function strlen;
 use function strval;
 use function trim;
 
 class Sep12Service
 {
     public ICustomerIntegration $customerIntegration;
+    private ?ISep12Config $config;
+    private int $uploadFileMaxSize = 16777216; // 2 MB
+    private int $uploadFileMaxCount = 6;
 
-    public function __construct(ICustomerIntegration $customerIntegration)
+    public function __construct(ICustomerIntegration $customerIntegration, ?ISep12Config $config = null)
     {
         $this->customerIntegration = $customerIntegration;
+        $this->config = $config;
+        if ($config !== null) {
+            $fMaxSizeMb = $config->getUploadFileMaxSizeMb();
+            if ($fMaxSizeMb !== null) {
+                $this->uploadFileMaxSize = $fMaxSizeMb * 1024 * 1024;
+            }
+            $fMaxCount = $config->getUploadFileMaxCount();
+            if ($fMaxCount !== null) {
+                $this->uploadFileMaxCount = $fMaxCount;
+            }
+        }
     }
 
     public function handleRequest(ServerRequestInterface $request, Sep10Jwt $token): ResponseInterface
@@ -84,7 +100,11 @@ class Sep12Service
     {
         try {
             $requestData = $this->getBodyData($request);
-            $uploadedFiles = $request->getUploadedFiles();
+            $uploadedFiles = null;
+            if ($requestData instanceof MultipartFormDataset) {
+                $uploadedFiles = $requestData->uploadedFiles;
+                $requestData = $requestData->bodyParams;
+            }
             $putCustomerRequest = Sep12RequestParser::putCustomerRequestFormRequestData($requestData, $uploadedFiles);
             $response = $this->putCustomer($token, $putCustomerRequest);
 
@@ -104,6 +124,9 @@ class Sep12Service
     {
         try {
             $requestData = $this->getBodyData($request);
+            if ($requestData instanceof MultipartFormDataset) {
+                $requestData = $requestData->bodyParams;
+            }
             $putCustomerValidationRequest =
                 Sep12RequestParser::putCustomerVerificationRequestFormRequestData($requestData);
             $response = $this->customerIntegration->putCustomerVerification($putCustomerValidationRequest);
@@ -124,7 +147,9 @@ class Sep12Service
     {
         try {
             $data = $this->getBodyData($request);
-
+            if ($data instanceof MultipartFormDataset) {
+                $data = $data->bodyParams;
+            }
             $memo = null;
             if (isset($data['memo'])) {
                 if (is_string($data['memo'])) {
@@ -173,33 +198,30 @@ class Sep12Service
     }
 
     /**
-     * @return array<array-key, mixed> the body data
+     * @return array<array-key, mixed> | MultipartFormDataset the body data
      *
      * @throws InvalidRequestData if the body data could not be parsed.
      */
-    private function getBodyData(ServerRequestInterface $request): array
+    private function getBodyData(ServerRequestInterface $request): array | MultipartFormDataset
     {
+        $content = $request->getBody()->__toString();
+        if (strlen($content) === 0) {
+            return [];
+        }
+
         $contentType = $request->getHeaderLine('Content-Type');
-        if (
-            $contentType === 'application/x-www-form-urlencoded' ||
-            str_starts_with($contentType, 'multipart/form-data')
-        ) {
-            $parsedBody = $request->getParsedBody();
-            if ($parsedBody === null) {
-                return [];
-            }
-            if (is_array($parsedBody)) {
-                return $parsedBody;
-            } elseif ($parsedBody instanceof StreamInterface) {
-                $content = $parsedBody->__toString();
+        if ($contentType === 'application/x-www-form-urlencoded') {
+            parse_str($content, $parsedArray);
 
-                return $this->jsonDataFromRequestString($content);
+            return $parsedArray;
+        } elseif (str_starts_with($contentType, 'multipart/form-data')) {
+            $parser = new MultipartFormDataParser($this->uploadFileMaxSize, $this->uploadFileMaxCount);
+            try {
+                return $parser->parse($request);
+            } catch (InvalidRequestData $invalid) {
+                throw new InvalidRequestData('Could not parse multipart/form-data : ' . $invalid->getMessage());
             }
-
-            throw new InvalidRequestData('Invalid body.');
         } elseif ($contentType === 'application/json') {
-            $content = $request->getBody()->__toString();
-
             return $this->jsonDataFromRequestString($content);
         } else {
             throw new InvalidRequestData('Invalid request type ' . $contentType);

@@ -12,6 +12,7 @@ use ArgoNavis\PhpAnchorSdk\callback\GetCustomerRequest;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerRequest;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerVerificationRequest;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSepRequest;
+use Psr\Http\Message\UploadedFileInterface;
 
 use function array_key_exists;
 use function array_keys;
@@ -111,7 +112,7 @@ class Sep12RequestParser
 
     /**
      * @param array<array-key, mixed> $requestData the array to parse the data from.
-     * @param array<array-key, mixed>|null $uploadedFiles the array of uploaded files by the client.
+     * @param array<string, UploadedFileInterface>|null $uploadedFiles the array of uploaded files by the client.
      *
      * @throws InvalidSepRequest
      */
