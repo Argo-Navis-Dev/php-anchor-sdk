@@ -45,19 +45,19 @@ class Sep12Service
 {
     public ICustomerIntegration $customerIntegration;
     private ?ISep12Config $config;
-    private int $uploadFileMaxSize = 16777216; // 2 MB
+    private int $uploadFileMaxSize = 2097152; // 2 MB
     private int $uploadFileMaxCount = 6;
 
     public function __construct(ICustomerIntegration $customerIntegration, ?ISep12Config $config = null)
     {
         $this->customerIntegration = $customerIntegration;
         $this->config = $config;
-        if ($config !== null) {
-            $fMaxSizeMb = $config->getUploadFileMaxSizeMb();
+        if ($this->config !== null) {
+            $fMaxSizeMb = $this->config->getUploadFileMaxSizeMb();
             if ($fMaxSizeMb !== null) {
-                $this->uploadFileMaxSize = $fMaxSizeMb * 1024 * 1024;
+                $this->uploadFileMaxSize = $fMaxSizeMb * 1048576;
             }
-            $fMaxCount = $config->getUploadFileMaxCount();
+            $fMaxCount = $this->config->getUploadFileMaxCount();
             if ($fMaxCount !== null) {
                 $this->uploadFileMaxCount = $fMaxCount;
             }
