@@ -8,6 +8,8 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\callback;
 
+use Psr\Http\Message\UploadedFileInterface;
+
 /**
  * The request body of PUT /customer endpoint.
  *
@@ -51,7 +53,7 @@ class PutCustomerRequest
     public ?array $kycFields = null;
 
     /**
-     * @var array<array-key, mixed>|null Uploaded files by the client. Listed in
+     * @var array<array-key, UploadedFileInterface>|null Uploaded files by the client. Listed in
      * <a href="https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0009.md">SEP-009</a>,
      * depending on what the anchor has indicated it needs. This variable contains upload metadata in a normalized tree,
      * with each leaf an instance of Psr\Http\Message\UploadedFileInterface.

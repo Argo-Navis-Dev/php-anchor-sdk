@@ -132,6 +132,7 @@ class MultipartFormDataParser
             $unparsedName = $headers['content-disposition']['name'];
             $nameParts = $this->parseNameParts($unparsedName);
             $clientFilename = null;
+            $imageContentType = null;
             if (isset($headers['content-disposition']['filename'])) {
                 $clientFilename = $headers['content-disposition']['filename'];
             } else {
@@ -143,6 +144,7 @@ class MultipartFormDataParser
                     $imageType = $this->isImage($value);
                     if (is_string($imageType)) {
                         $clientFilename = $fieldName . '.' . $imageType;
+                        $imageContentType = 'image/' . $imageType;
                     }
                 }
             }
@@ -155,6 +157,8 @@ class MultipartFormDataParser
                 $clientMediaType = 'application/octet-stream';
                 if (isset($headers['content-type']) && is_string($headers['content-type'])) {
                     $clientMediaType = $headers['content-type'];
+                } elseif ($imageContentType !== null) {
+                    $clientMediaType = $imageContentType;
                 }
                 $size = mb_strlen($value, '8bit');
                 $error = UPLOAD_ERR_OK;
