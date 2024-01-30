@@ -73,7 +73,7 @@ class PutCustomerRequest
      * @param string|null $type (optional) The type of the customer as defined in the <a href="https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0012.md#type-specification">Type Specification</a>.
      * @param array<array-key, mixed>|null $kycFields The client should also transmit one or more of the fields listed in
      * <a href="https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0009.md">SEP-009</a>, depending on what the anchor has indicated it needs.
-     * @param array<array-key, mixed>|null $kycUploadedFiles Uploaded files by the client. Listed in
+     * @param array<array-key, UploadedFileInterface>|null $kycUploadedFiles Uploaded files by the client. Listed in
      * <a href="https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0009.md">SEP-009</a>,
      * depending on what the anchor has indicated it needs. This variable contains upload metadata in a normalized tree,
      * with each leaf an instance of Psr\Http\Message\UploadedFileInterface.
