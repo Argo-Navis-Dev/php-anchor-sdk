@@ -14,13 +14,13 @@ The Anchor Reference Server using the library can be found [here](https://github
 
 ## Roadmap:
 
-- Implementation of [SEP-01](https://dashboard.communityfund.stellar.org/redirect?url=https%3A%2F%2Fgithub.com%2Fstellar%2Fstellar-protocol%2Fblob%2Fmaster%2Fecosystem%2Fsep-0001.md) Service (Stellar Info File) until Dec.10.2023 -> **Done**, see [doc](https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-01.md).
-- Implementation of [SEP-10](https://dashboard.communityfund.stellar.org/redirect?url=https%3A%2F%2Fgithub.com%2Fstellar%2Fstellar-protocol%2Fblob%2Fmaster%2Fecosystem%2Fsep-0010.md) Service (Stellar Authentication) until Dec.27.2023 -> **Done**, see [doc](https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-10.md).
-- Implementation of [SEP-12](https://dashboard.communityfund.stellar.org/redirect?url=https%3A%2F%2Fgithub.com%2Fstellar%2Fstellar-protocol%2Fblob%2Fmaster%2Fecosystem%2Fsep-0012.md) KYC API Service &  [SEP-09](https://dashboard.communityfund.stellar.org/redirect?url=https%3A%2F%2Fgithub.com%2Fstellar%2Fstellar-protocol%2Fblob%2Fmaster%2Fecosystem%2Fsep-0009.md) Standard KYC Fields until Jan.10.2024 -> in progress
-- Implementation of [SEP-24](https://dashboard.communityfund.stellar.org/redirect?url=https%3A%2F%2Fgithub.com%2Fstellar%2Fstellar-protocol%2Fblob%2Fmaster%2Fecosystem%2Fsep-0024.md) Hosted Deposit and Withdrawal - Interactive Flow Service until Jan.29.2024
-- Implementation of [SEP-31](https://dashboard.communityfund.stellar.org/redirect?url=https%3A%2F%2Fgithub.com%2Fstellar%2Fstellar-protocol%2Fblob%2Fmaster%2Fecosystem%2Fsep-0031.md) Cross-Border Payments Service until Feb.15.2024
-- Implementation of [SEP-38](https://dashboard.communityfund.stellar.org/redirect?url=https%3A%2F%2Fgithub.com%2Fstellar%2Fstellar-protocol%2Fblob%2Fmaster%2Fecosystem%2Fsep-0038.md) Anchor RFQ Service until Mar.04.2024
-- Implementation of [SEP-06](https://dashboard.communityfund.stellar.org/redirect?url=https%3A%2F%2Fgithub.com%2Fstellar%2Fstellar-protocol%2Fblob%2Fmaster%2Fecosystem%2Fsep-0006.md) Deposit and Withdrawal Service until Mar.25.2024
+- Implementation of [SEP-01](https://dashboard.communityfund.stellar.org/redirect?url=https%3A%2F%2Fgithub.com%2Fstellar%2Fstellar-protocol%2Fblob%2Fmaster%2Fecosystem%2Fsep-0001.md) Service (Stellar Info File) -> **Done**, see [doc](https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-01.md).
+- Implementation of [SEP-10](https://dashboard.communityfund.stellar.org/redirect?url=https%3A%2F%2Fgithub.com%2Fstellar%2Fstellar-protocol%2Fblob%2Fmaster%2Fecosystem%2Fsep-0010.md) Service (Stellar Authentication) -> **Done**, see [doc](https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-10.md).
+- Implementation of [SEP-12](https://dashboard.communityfund.stellar.org/redirect?url=https%3A%2F%2Fgithub.com%2Fstellar%2Fstellar-protocol%2Fblob%2Fmaster%2Fecosystem%2Fsep-0012.md) KYC API Service &  [SEP-09](https://dashboard.communityfund.stellar.org/redirect?url=https%3A%2F%2Fgithub.com%2Fstellar%2Fstellar-protocol%2Fblob%2Fmaster%2Fecosystem%2Fsep-0009.md) Standard KYC Fields -> **Done**, see [doc](https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-12.md).
+- Implementation of [SEP-24](https://dashboard.communityfund.stellar.org/redirect?url=https%3A%2F%2Fgithub.com%2Fstellar%2Fstellar-protocol%2Fblob%2Fmaster%2Fecosystem%2Fsep-0024.md) Hosted Deposit and Withdrawal - Interactive Flow Service -> in progress
+- Implementation of [SEP-31](https://dashboard.communityfund.stellar.org/redirect?url=https%3A%2F%2Fgithub.com%2Fstellar%2Fstellar-protocol%2Fblob%2Fmaster%2Fecosystem%2Fsep-0031.md) Cross-Border Payments Service
+- Implementation of [SEP-38](https://dashboard.communityfund.stellar.org/redirect?url=https%3A%2F%2Fgithub.com%2Fstellar%2Fstellar-protocol%2Fblob%2Fmaster%2Fecosystem%2Fsep-0038.md) Anchor RFQ Service 
+- Implementation of [SEP-06](https://dashboard.communityfund.stellar.org/redirect?url=https%3A%2F%2Fgithub.com%2Fstellar%2Fstellar-protocol%2Fblob%2Fmaster%2Fecosystem%2Fsep-0006.md) Deposit and Withdrawal Service 
 
 ## Installing the SDK:
 

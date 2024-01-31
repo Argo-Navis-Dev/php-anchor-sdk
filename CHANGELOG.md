@@ -12,3 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SEP-01 Support
 - SEP-10 Support
 
+## [0.2.0] - 2024-01-31
+
+### Added
+
+- SEP-09 Support
+- SEP-12 Support
