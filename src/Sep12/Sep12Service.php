@@ -31,13 +31,8 @@ use Throwable;
 
 use function array_pop;
 use function explode;
-use function is_array;
 use function is_string;
-use function json_decode;
-use function parse_str;
 use function str_contains;
-use function str_starts_with;
-use function strlen;
 use function strval;
 use function trim;
 
@@ -99,7 +94,11 @@ class Sep12Service
     private function handlePutCustomer(Sep10Jwt $token, ServerRequestInterface $request): ResponseInterface
     {
         try {
-            $requestData = $this->getBodyData($request);
+            $requestData = RequestBodyDataParser::getParsedBodyData(
+                $request,
+                $this->uploadFileMaxSize,
+                $this->uploadFileMaxCount,
+            );
             $uploadedFiles = null;
             if ($requestData instanceof MultipartFormDataset) {
                 $uploadedFiles = $requestData->uploadedFiles;
@@ -123,7 +122,11 @@ class Sep12Service
     private function handlePutCustomerVerification(ServerRequestInterface $request): ResponseInterface
     {
         try {
-            $requestData = $this->getBodyData($request);
+            $requestData = RequestBodyDataParser::getParsedBodyData(
+                $request,
+                $this->uploadFileMaxSize,
+                $this->uploadFileMaxCount,
+            );
             if ($requestData instanceof MultipartFormDataset) {
                 $requestData = $requestData->bodyParams;
             }
@@ -146,7 +149,11 @@ class Sep12Service
     private function handleDeleteCustomer(Sep10Jwt $token, ServerRequestInterface $request): ResponseInterface
     {
         try {
-            $data = $this->getBodyData($request);
+            $data = RequestBodyDataParser::getParsedBodyData(
+                $request,
+                $this->uploadFileMaxSize,
+                $this->uploadFileMaxCount,
+            );
             if ($data instanceof MultipartFormDataset) {
                 $data = $data->bodyParams;
             }
@@ -195,55 +202,6 @@ class Sep12Service
 
             return new JsonResponse(['error' => $msg], 500);
         }
-    }
-
-    /**
-     * @return array<array-key, mixed> | MultipartFormDataset the body data
-     *
-     * @throws InvalidRequestData if the body data could not be parsed.
-     */
-    private function getBodyData(ServerRequestInterface $request): array | MultipartFormDataset
-    {
-        $content = $request->getBody()->__toString();
-        if (strlen($content) === 0) {
-            return [];
-        }
-
-        $contentType = $request->getHeaderLine('Content-Type');
-        if ($contentType === 'application/x-www-form-urlencoded') {
-            parse_str($content, $parsedArray);
-
-            return $parsedArray;
-        } elseif (str_starts_with($contentType, 'multipart/form-data')) {
-            $parser = new MultipartFormDataParser($this->uploadFileMaxSize, $this->uploadFileMaxCount);
-            try {
-                return $parser->parse($request);
-            } catch (InvalidRequestData $invalid) {
-                throw new InvalidRequestData('Could not parse multipart/form-data : ' . $invalid->getMessage());
-            }
-        } elseif ($contentType === 'application/json') {
-            return $this->jsonDataFromRequestString($content);
-        } else {
-            throw new InvalidRequestData('Invalid request type ' . $contentType);
-        }
-    }
-
-    /**
-     * @return array<array-key, mixed>
-     *
-     * @throws InvalidRequestData
-     */
-    private function jsonDataFromRequestString(string $content): array
-    {
-        $jsonData = @json_decode($content, true);
-        if ($jsonData === null) {
-            return [];
-        }
-        if (!is_array($jsonData)) {
-            throw new InvalidRequestData('Invalid body.');
-        }
-
-        return $jsonData;
     }
 
     /**
@@ -358,8 +316,8 @@ class Sep12Service
     private function validateRequestAndTokenMemos(Sep12CustomerRequestBase $request, Sep10Jwt $token): void
     {
         $tokenSubMemo = $token->accountMemo;
-        $tokenMuxedAccountId = $token->muxedAccountId;
-        $tokenMemo = $tokenMuxedAccountId ?? $tokenSubMemo;
+        $tokenMuxedId = $token->muxedId;
+        $tokenMemo = $tokenMuxedId ?? $tokenSubMemo;
 
         // SEP-12 says: If the JWT's `sub` field does not contain a muxed account or memo then the memo
         // request parameters may contain any value.

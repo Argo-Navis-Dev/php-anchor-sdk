@@ -11,8 +11,11 @@ namespace ArgoNavis\PhpAnchorSdk\util;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSepRequest;
 use Soneso\StellarSDK\Memo;
 use Soneso\StellarSDK\Xdr\XdrMemoType;
+use Throwable;
 
+use function base64_decode;
 use function is_numeric;
+use function is_string;
 use function strlen;
 
 class MemoHelper
@@ -57,9 +60,18 @@ class MemoHelper
             case 'none':
                 return Memo::none();
             case 'hash':
-                throw new InvalidSepRequest('Unsupported value: ' . $memoType);
+                $decoded = base64_decode($memo, true);
+                try {
+                    if (is_string($decoded)) {
+                        return Memo::hash($decoded);
+                    } else {
+                        return Memo::hash($memo);
+                    }
+                } catch (Throwable) {
+                    throw new InvalidSepRequest('Invalid memo ' . $memo . ' of type: hash');
+                }
             case 'return':
-                throw new InvalidSepRequest('Unsupported value: ' . $memoType);
+                throw new InvalidSepRequest('Unsupported memo type value: ' . $memoType);
             default:
                 throw new InvalidSepRequest('Invalid memo type: ' . $memoType);
         }
