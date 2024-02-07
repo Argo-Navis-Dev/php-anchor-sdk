@@ -96,9 +96,9 @@ abstract class Sep24TransactionResponse
     public ?DateTime $updatedAt = null;
 
     /**
-     * @var string $stellarTransactionId transaction id on Stellar network of the transfer that either completed the deposit or started the withdrawal.
+     * @var string|null $stellarTransactionId transaction id on Stellar network of the transfer that either completed the deposit or started the withdrawal.
      */
-    public string $stellarTransactionId;
+    public ?string $stellarTransactionId = null;
 
     /**
      * @var string|null $externalTransactionId ID of transaction on external network that either started the deposit or completed the withdrawal.
@@ -129,7 +129,7 @@ abstract class Sep24TransactionResponse
      * @param string $amountOut Amount sent by anchor to user at end of transaction as a string with up to 7 decimals. Excludes amount converted to XLM to fund account and any external fees.
      * @param string $amountFee Amount of fee charged by anchor.
      * @param DateTime $startedAt Start date and time of transaction.
-     * @param string $stellarTransactionId transaction id on Stellar network of the transfer that either completed the deposit or started the withdrawal.
+     * @param string|null $stellarTransactionId transaction id on Stellar network of the transfer that either completed the deposit or started the withdrawal.
      * @param int|null $statusEta Estimated number of seconds until a status change is expected.
      * @param bool|null $kycVerified true, if the anchor has verified the user's KYC information for this transaction.
      * @param IdentificationFormatAsset|null $amountInAsset The asset received or to be received by the Anchor. Must be present if the deposit/withdraw was made using non-equivalent assets.
@@ -152,7 +152,7 @@ abstract class Sep24TransactionResponse
         string $amountOut,
         string $amountFee,
         DateTime $startedAt,
-        string $stellarTransactionId,
+        ?string $stellarTransactionId = null,
         ?int $statusEta = null,
         ?bool $kycVerified = null,
         ?IdentificationFormatAsset $amountInAsset = null,

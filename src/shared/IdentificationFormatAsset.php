@@ -36,7 +36,7 @@ class IdentificationFormatAsset
      *
      * @throws InvalidAsset
      */
-    public function __construct(string $schema, string $code, ?string $issuer)
+    public function __construct(string $schema, string $code, ?string $issuer = null)
     {
         self::validateSchema($schema);
         $this->schema = $schema;

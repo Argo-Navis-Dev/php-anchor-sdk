@@ -13,12 +13,9 @@ use ArgoNavis\PhpAnchorSdk\shared\CustomerFieldType;
 use ArgoNavis\PhpAnchorSdk\shared\CustomerStatus;
 use ArgoNavis\PhpAnchorSdk\shared\ProvidedCustomerFieldStatus;
 use ArgoNavis\Test\PhpAnchorSdk\callback\CustomerIntegration;
-use GuzzleHttp\Psr7\Utils;
-use Laminas\Diactoros\ServerRequest;
-use Laminas\Diactoros\Uri;
+use ArgoNavis\Test\PhpAnchorSdk\util\ServerRequestBuilder;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
-use Psr\Http\Message\StreamInterface;
 use Soneso\StellarSDK\SEP\KYCService\GetCustomerInfoField;
 use Soneso\StellarSDK\SEP\KYCService\GetCustomerInfoProvidedField;
 use Soneso\StellarSDK\SEP\KYCService\GetCustomerInfoResponse;
@@ -32,16 +29,13 @@ use function PHPUnit\Framework\assertInstanceOf;
 use function PHPUnit\Framework\assertIsString;
 use function PHPUnit\Framework\assertNotNull;
 use function PHPUnit\Framework\assertTrue;
-use function array_keys;
 use function assert;
 use function file_get_contents;
-use function http_build_query;
 use function intval;
 use function is_array;
 use function is_string;
 use function json_decode;
 use function microtime;
-use function str_starts_with;
 use function strval;
 
 class Sep12Test extends TestCase
@@ -61,7 +55,7 @@ class Sep12Test extends TestCase
         $sep10Jwt = $this->createSep10Jwt($this->accountId);
 
         $data = ['account' => $this->accountId];
-        $request = $this->getServerRequest($data, 'application/json');
+        $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
         $responseData = $this->getCustomerInfo($response);
         assertEquals($this->customerId, $responseData->getId());
@@ -100,7 +94,7 @@ class Sep12Test extends TestCase
         $sep10Jwt = $this->createSep10Jwt($this->accountId);
 
         $data = ['account' => $this->accountId, 'memo' => '1'];
-        $request = $this->getServerRequest($data, 'multipart/form-data');
+        $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
         $responseData = $this->getCustomerInfo($response);
         assertEquals($this->customerId, $responseData->getId());
@@ -150,7 +144,7 @@ class Sep12Test extends TestCase
         $sep10Jwt = $this->createSep10Jwt($this->accountId);
 
         $data = ['account' => $this->accountId, 'memo' => '2'];
-        $request = $this->getServerRequest($data, 'application/x-www-form-urlencoded');
+        $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
         $responseData = $this->getCustomerInfo($response);
         assertEquals($this->customerId, $responseData->getId());
@@ -194,7 +188,7 @@ class Sep12Test extends TestCase
         $sep10Jwt = $this->createSep10Jwt($this->accountId);
 
         $data = ['account' => $this->accountId, 'memo' => '3'];
-        $request = $this->getServerRequest($data, 'application/json');
+        $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
         $responseData = $this->getCustomerInfo($response);
         assertEquals($this->customerId, $responseData->getId());
@@ -224,7 +218,7 @@ class Sep12Test extends TestCase
         $sep10Jwt = $this->createSep10Jwt($this->accountId);
 
         $data = ['account' => $this->accountId, 'memo' => '4'];
-        $request = $this->getServerRequest($data, 'application/json');
+        $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
         $responseData = $this->getCustomerInfo($response);
         assertEquals($this->customerId, $responseData->getId());
@@ -243,7 +237,7 @@ class Sep12Test extends TestCase
         $sep10Jwt = $this->createSep10Jwt($this->accountId);
 
         $data = ['account' => $this->accountId, 'memo' => '5'];
-        $request = $this->getServerRequest($data, 'application/json');
+        $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
         $responseData = $this->getCustomerInfo($response);
         assertEquals($this->customerId, $responseData->getId());
@@ -270,20 +264,20 @@ class Sep12Test extends TestCase
 
         // lang must be a string
         $data = ['account' => $this->accountId, 'lang' => 12344];
-        $request = $this->getServerRequest($data, 'application/json');
+        $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
         $this->checkError($response, 400, 'lang must be a string');
 
         // The account specified does not match authorization token
         $data = ['account' => 'GB6E3WGW6HJBZHUNR6Z5PBDNUERIQYJOKPTG2XG46O4AZUVPEA342UU5'];
-        $request = $this->getServerRequest($data, 'application/json');
+        $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
         $this->checkError($response, 400, 'The account specified does not match authorization token');
 
         // The memo specified does not match the memo ID authorized via SEP-10
         $sep10JwtMemo = $this->createSep10Jwt($this->accountId . ':' . '1234');
         $data = ['account' => $this->accountId, 'memo' => '39393'];
-        $request = $this->getServerRequest($data, 'application/json');
+        $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
         $response = $sep12Service->handleRequest($request, $sep10JwtMemo);
         $this->checkError($response, 400, 'The memo specified does not match the memo ID authorized via SEP-10');
 
@@ -291,13 +285,13 @@ class Sep12Test extends TestCase
         $data = ['account' => 'MCUIGD4V6U7ATOUSC6IYSJCK7ZBKGN73YXN5VBMAKUY44FAASJBO6AAAAAAAAAAE2LE36',
             'memo' => '39393',
         ];
-        $request = $this->getServerRequest($data, 'application/json');
+        $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
         $response = $sep12Service->handleRequest($request, $sep10JwtMemo);
         $this->checkError($response, 400, 'The memo specified does not match the memo ID authorized via SEP-10');
 
         // 'Invalid memo ' . $memo . ' of type: id'
         $data = ['account' => $this->accountId, 'memo' => 'blub', 'memo_type' => 'id'];
-        $request = $this->getServerRequest($data, 'application/json');
+        $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
         $this->checkError($response, 400, 'Invalid memo blub of type: id');
 
@@ -306,7 +300,7 @@ class Sep12Test extends TestCase
             'memo' => 'this is a very long memo, having more than 28 characters',
             'memo_type' => 'text',
         ];
-        $request = $this->getServerRequest($data, 'application/json');
+        $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
         $this->checkError(
             $response,
@@ -316,7 +310,7 @@ class Sep12Test extends TestCase
 
         // customer not found for id
         $data = ['id' => '7e285e7d-d984-412c-97bc-909d0e399fbf'];
-        $request = $this->getServerRequest($data, 'application/json');
+        $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
         $this->checkError($response, 404, 'customer not found for id: 7e285e7d-d984-412c-97bc-909d0e399fbf');
     }
@@ -350,8 +344,8 @@ class Sep12Test extends TestCase
         $responseData = $this->putCustomerInfo($response);
         assertEquals($this->customerId, $responseData->getId());
 
-        $idFrontContent = file_get_contents($this->idFrontPath, false);
-        $idBackContent = file_get_contents($this->idBackPath, false);
+        $idFrontContent = file_get_contents($this->idFrontPath);
+        $idBackContent = file_get_contents($this->idBackPath);
         assertIsString($idFrontContent);
         assertIsString($idBackContent);
         $idFront = ['filename' => 'id_front.png', 'contents' => $idFrontContent];
@@ -522,18 +516,6 @@ class Sep12Test extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $queryParameters
-     */
-    private function getServerRequest(array $queryParameters, string $contentType): ServerRequest
-    {
-        return (new ServerRequest())
-            ->withMethod('GET')
-            ->withUri(new Uri($this->customerEndpoint))
-            ->withQueryParams($queryParameters)
-            ->withAddedHeader('Content-Type', $contentType);
-    }
-
-    /**
      * @param array<string, mixed> $parameters
      * @param ?array<string, array<string, mixed>> $files (field_name => [file_name => ... , content => ...]
      */
@@ -543,104 +525,7 @@ class Sep12Test extends TestCase
         string $contentType,
         ?array $files = null,
     ): ServerRequestInterface {
-        return $this->serverRequest('PUT', $parameters, $uri, $contentType, $files);
-    }
-
-    /**
-     * @param array<string, mixed> $parameters
-     * @param ?array<string, array<string, mixed>> $files (field_name => [filename => ... , content => ...]
-     */
-    private function serverRequest(
-        string $method,
-        array $parameters,
-        string $uri,
-        string $contentType,
-        ?array $files = null,
-    ): ServerRequestInterface {
-        $serverRequest = (new ServerRequest())
-            ->withMethod($method)
-            ->withUri(new Uri($uri))
-            ->withAddedHeader('Content-Type', $contentType);
-
-        if (str_starts_with($contentType, 'multipart/form-data')) {
-            $multipartData = [];
-            foreach (array_keys($parameters) as $key) {
-                $arr = [];
-                $arr += ['name' => $key];
-                $arr += ['contents' => $parameters[$key]];
-                $multipartData[] = $arr;
-            }
-            if ($files !== null) {
-                foreach (array_keys($files) as $key) {
-                    $arr = [];
-                    $arr += ['name' => $key];
-                    $arr += ['filename' => $files[$key]['filename']];
-                    $arr += ['contents' => $files[$key]['contents']];
-                    $multipartData[] = $arr;
-                }
-            }
-            $stream = Utils::streamFor('');
-            $boundary = 'some_random_boundary';
-            foreach ($multipartData as $data) {
-                $stream = $this->addMultipartData($stream, $data, $boundary);
-            }
-
-            return new \GuzzleHttp\Psr7\ServerRequest(
-                $method,
-                $uri,
-                [
-                    'Content-Type' => 'multipart/form-data; boundary=' . $boundary,
-                ],
-                $stream,
-            );
-        } elseif ($contentType === 'application/x-www-form-urlencoded') {
-            $queryString = http_build_query($parameters);
-            $stream = Utils::streamFor($queryString);
-
-            return new \GuzzleHttp\Psr7\ServerRequest(
-                $method,
-                $uri,
-                [
-                    'Content-Type' => 'application/x-www-form-urlencoded',
-                ],
-                $stream,
-            );
-        } else {
-            return $serverRequest->withBody($this->getStreamFromDataArray($parameters));
-        }
-    }
-
-    /**
-     * @param array<string, mixed> $data
-     */
-    private function addMultipartData(StreamInterface $stream, array $data, string $boundary): StreamInterface
-    {
-        $stream = Utils::streamFor($stream);
-        $name = $data['name'];
-        self::assertIsString($name);
-        $headers = [
-            'Content-Disposition' => 'form-data; name="' . $name . '"',
-        ];
-
-        if (isset($data['filename'])) {
-            $filename = $data['filename'];
-            self::assertIsString($filename);
-            $headers['Content-Disposition'] .= '; filename="' . $filename . '"';
-        }
-
-        $headers['Content-Type'] = 'application/octet-stream';
-
-        $stream->write("--$boundary\r\n");
-        foreach ($headers as $headerName => $headerValue) {
-            $stream->write("$headerName: $headerValue\r\n");
-        }
-        $stream->write("\r\n");
-
-        $contents = $data['contents'];
-        self::assertIsString($contents);
-        $stream->write($contents . "\r\n");
-
-        return $stream;
+        return ServerRequestBuilder::serverRequest('PUT', $parameters, $uri, $contentType, $files);
     }
 
     /**
@@ -651,7 +536,12 @@ class Sep12Test extends TestCase
         string $accountId,
         string $contentType,
     ): ServerRequestInterface {
-        return $this->serverRequest('DELETE', $parameters, $this->customerEndpoint . '/' . $accountId, $contentType);
+        return ServerRequestBuilder::serverRequest(
+            'DELETE',
+            $parameters,
+            $this->customerEndpoint . '/' . $accountId,
+            $contentType,
+        );
     }
 
     private function getCustomerInfo(ResponseInterface $response): GetCustomerInfoResponse

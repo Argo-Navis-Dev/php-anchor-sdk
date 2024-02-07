@@ -15,7 +15,6 @@ use ArgoNavis\PhpAnchorSdk\callback\IInteractiveFlowIntegration;
 use ArgoNavis\PhpAnchorSdk\callback\InteractiveDepositRequest;
 use ArgoNavis\PhpAnchorSdk\callback\InteractiveTransactionResponse;
 use ArgoNavis\PhpAnchorSdk\callback\InteractiveWithdrawRequest;
-use ArgoNavis\PhpAnchorSdk\config\IAppConfig;
 use ArgoNavis\PhpAnchorSdk\config\ISep24Config;
 use ArgoNavis\PhpAnchorSdk\exception\AnchorFailure;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidRequestData;
@@ -35,18 +34,15 @@ use function trim;
 
 class Sep24Service
 {
-    public IAppConfig $appConfig;
     public ISep24Config $sep24Config;
     public IInteractiveFlowIntegration $sep24Integration;
     private int $uploadFileMaxSize = 2097152; // 2 MB
     private int $uploadFileMaxCount = 6;
 
     public function __construct(
-        IAppConfig $appConfig,
         ISep24Config $sep24Config,
         IInteractiveFlowIntegration $sep24Integration,
     ) {
-        $this->appConfig = $appConfig;
         $this->sep24Config = $sep24Config;
         $this->sep24Integration = $sep24Integration;
 
@@ -101,20 +97,17 @@ class Sep24Service
          */
         $withdraw = [];
         foreach ($supportedAssets as $supportedAsset) {
-            if ($supportedAsset->depositOperation->enabled) {
-                $deposit += [$supportedAsset->asset->getCode() =>
-                    OperationResponse::fromAssetOperation(
-                        $supportedAsset->depositOperation,
-                    ),
-                ];
-            }
-            if ($supportedAsset->withdrawOperation->enabled) {
-                $withdraw += [$supportedAsset->asset->getCode() =>
-                    OperationResponse::fromAssetOperation(
-                        $supportedAsset->withdrawOperation,
-                    ),
-                ];
-            }
+            $deposit += [$supportedAsset->asset->getCode() =>
+                OperationResponse::fromAssetOperation(
+                    $supportedAsset->depositOperation,
+                ),
+            ];
+
+            $withdraw += [$supportedAsset->asset->getCode() =>
+                OperationResponse::fromAssetOperation(
+                    $supportedAsset->withdrawOperation,
+                ),
+            ];
         }
 
         return new InfoResponse(
@@ -220,7 +213,7 @@ class Sep24Service
                 );
             }
             if ($result !== null) {
-                return new JsonResponse($result->toJson(), 200);
+                return new JsonResponse(['transaction' => $result->toJson()], 200);
             } else {
                 return new JsonResponse(['error' => 'transaction not found'], 404);
             }
@@ -343,7 +336,7 @@ class Sep24Service
         $minAmount = $assetInfo->withdrawOperation->minAmount;
         if ($minAmount !== null && $amount !== null) {
             if ($amount < $minAmount) {
-                throw new InvalidSepRequest("amount is less than asset's minimum limit: " . $amount);
+                throw new InvalidSepRequest("amount is less than asset's minimum limit of: " . $minAmount);
             }
         }
 
@@ -351,7 +344,7 @@ class Sep24Service
         $maxAmount = $assetInfo->withdrawOperation->maxAmount;
         if ($maxAmount !== null && $amount !== null) {
             if ($amount > $maxAmount) {
-                throw new InvalidSepRequest("amount exceeds asset's maximum limit: " . $amount);
+                throw new InvalidSepRequest("amount exceeds asset's maximum limit of: " . $maxAmount);
             }
         }
 
@@ -422,7 +415,7 @@ class Sep24Service
         $minAmount = $assetInfo->depositOperation->minAmount;
         if ($minAmount !== null && $amount !== null) {
             if ($amount < $minAmount) {
-                throw new InvalidSepRequest("amount is less than asset's minimum limit: " . $amount);
+                throw new InvalidSepRequest("amount is less than asset's minimum limit of: " . $minAmount);
             }
         }
 
@@ -430,7 +423,7 @@ class Sep24Service
         $maxAmount = $assetInfo->depositOperation->maxAmount;
         if ($maxAmount !== null && $amount !== null) {
             if ($amount > $maxAmount) {
-                throw new InvalidSepRequest("amount exceeds asset's maximum limit: " . $amount);
+                throw new InvalidSepRequest("amount exceeds asset's maximum limit of: " . $maxAmount);
             }
         }
 
@@ -492,20 +485,25 @@ class Sep24Service
         }
 
         $assetCode = null;
+        $assetInfo = null;
+        $assetOperation = null;
         if (isset($requestData['asset_code'])) {
             if (is_string($requestData['asset_code'])) {
                 $assetCode = trim($requestData['asset_code']);
-                $supportedAssets = $this->sep24Integration->supportedAssets();
-                $found = false;
-                foreach ($supportedAssets as $supportedAsset) {
-                    if (trim($supportedAsset->asset->getCode()) === $assetCode) {
-                        $found = true;
-
-                        break;
-                    }
-                }
-                if (!$found) {
+                // check if asset is supported.
+                $assetInfo = $this->sep24Integration->getAsset($assetCode);
+                if ($assetInfo === null) {
                     throw new InvalidSepRequest("This anchor doesn't support the given currency code: " . $assetCode);
+                }
+                if ($operation === 'deposit') {
+                    $assetOperation = $assetInfo->depositOperation;
+                } else {
+                    $assetOperation = $assetInfo->withdrawOperation;
+                }
+                if (!$assetOperation->enabled) {
+                    throw new InvalidSepRequest($operation .
+                        ' operation not supported for the currency code: ' .
+                        $assetCode);
                 }
             } else {
                 throw new InvalidSepRequest('asset code must be a string');
@@ -518,6 +516,9 @@ class Sep24Service
         if (isset($requestData['amount'])) {
             if (is_float($requestData['amount'])) {
                 $amount = $requestData['amount'];
+                if ($amount <= 0.0) {
+                    throw new InvalidSepRequest('negative and zero amounts are not supported.');
+                }
             } else {
                 throw new InvalidSepRequest('amount must be a float');
             }
@@ -525,6 +526,35 @@ class Sep24Service
             throw new InvalidSepRequest('missing amount');
         }
 
-        return $this->sep24Integration->getFee($operation, $type, $assetCode, $amount);
+        // check if amount is in range
+        if ($assetOperation->minAmount !== null && $amount < $assetOperation->minAmount) {
+            throw new InvalidSepRequest("amount is less than asset's minimum limit of: " . $assetOperation->minAmount);
+        }
+
+        if ($assetOperation->maxAmount !== null && $amount > $assetOperation->maxAmount) {
+            throw new InvalidSepRequest("amount exceeds asset's maximum limit of: " . $assetOperation->maxAmount);
+        }
+
+        // check if the fee can easily be calculated by the given asset info
+        // SEP-24 says: If fee_fixed or fee_percent are provided,
+        // the total fee is calculated as (amount * fee_percent) + fee_fixed = fee_total.
+        // If the fee structure doesn't fit this model, omit them and provide the /fee endpoint instead.
+        if (
+            $this->sep24Config->shouldSdkCalculateObviousFee() &&
+            ($assetOperation->feeFixed !== null || $assetOperation->feePercent !== null)
+        ) {
+            $fee = $assetOperation->feeFixed ?? 0.0;
+            if ($assetOperation->feePercent !== null) {
+                $fee += $amount * $assetOperation->feePercent;
+            }
+            if ($assetOperation->feeMinimum !== null && $fee < $assetOperation->feeMinimum) {
+                $fee = $assetOperation->feeMinimum;
+            }
+
+            return $fee;
+        } else {
+            // complex fee calculation
+            return $this->sep24Integration->getFee($operation, $assetCode, $amount, type: $type);
+        }
     }
 }

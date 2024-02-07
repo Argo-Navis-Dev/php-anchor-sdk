@@ -51,7 +51,7 @@ class Sep24WithdrawTransactionResponse extends Sep24TransactionResponse
      * @param string $amountOut Amount sent by anchor to user at end of transaction as a string with up to 7 decimals. Excludes amount converted to XLM to fund account and any external fees.
      * @param string $amountFee Amount of fee charged by anchor.
      * @param DateTime $startedAt Start date and time of transaction.
-     * @param string $stellarTransactionId transaction id on Stellar network of the transfer that started the withdrawal.
+     * @param string|null $stellarTransactionId transaction id on Stellar network of the transfer that started the withdrawal.
      * @param string|null $withdrawMemo Memo used when the user transferred to withdraw_anchor_account. Assigned null if the withdraw is not ready to receive payment, for example if KYC is not completed.
      * @param string|null $withdrawMemoType Type for the withdrawMemo.
      * @param int|null $statusEta Estimated number of seconds until a status change is expected.
@@ -78,9 +78,9 @@ class Sep24WithdrawTransactionResponse extends Sep24TransactionResponse
         string $amountOut,
         string $amountFee,
         DateTime $startedAt,
-        string $stellarTransactionId,
-        ?string $withdrawMemo,
-        ?string $withdrawMemoType,
+        ?string $stellarTransactionId = null,
+        ?string $withdrawMemo = null,
+        ?string $withdrawMemoType = null,
         ?int $statusEta = null,
         ?bool $kycVerified = null,
         ?IdentificationFormatAsset $amountInAsset = null,

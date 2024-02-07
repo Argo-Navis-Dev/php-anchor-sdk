@@ -27,26 +27,29 @@ interface IInteractiveFlowIntegration
      * Get the asset identified by `code` and `issuer`. If `issuer` is null, match only on `code`.
      *
      * @param string $code The asset code.
-     * @param string|null $issuer The account ID of the issuer.
+     * @param string|null $issuer The account ID of the issuer if any.
      *
      * @return ?Sep24AssetInfo an asset with the given code and issuer if found, otherwise null.
      */
-    public function getAsset(string $code, ?string $issuer): ?Sep24AssetInfo;
+    public function getAsset(string $code, ?string $issuer = null): ?Sep24AssetInfo;
 
     /**
      * Calculates and returns fee for the given parameter values.
+     * This method is for complex fee calculation.
+     * It is only called if the fee can not be calculated from the asset info data
+     * (if feeFixed or feePercent are not provided).
      * Throws AnchorFailure if any error occurs.
      *
      * @param string $operation Kind of operation (deposit or withdraw).
-     * @param string|null $type (optional) Type of deposit or withdrawal (SEPA, bank_account, cash, etc...).
      * @param string $assetCode Asset code.
      * @param float $amount Amount of the asset that will be deposited/withdrawn.
+     * @param string|null $type (optional) Type of deposit or withdrawal (SEPA, bank_account, cash, etc...).
      *
      * @return float the calculated fee.
      *
      * @throws AnchorFailure if any error occurs or if not supported.
      */
-    public function getFee(string $operation, ?string $type, string $assetCode, float $amount): float;
+    public function getFee(string $operation, string $assetCode, float $amount, ?string $type = null): float;
 
     /**
      * Creates a new SEP 24 withdrawal transaction.
