@@ -29,6 +29,11 @@ class Sep24Config implements ISep24Config
         return $this->feeEndpointEnabled;
     }
 
+    public function feeEndpointRequiresAuthentication(): bool
+    {
+        return false;
+    }
+
     public function shouldSdkCalculateObviousFee(): bool
     {
         return true;

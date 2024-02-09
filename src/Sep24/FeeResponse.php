@@ -11,10 +11,12 @@ namespace ArgoNavis\PhpAnchorSdk\Sep24;
 class FeeResponse
 {
     public bool $enabled;
+    public ?bool $authenticationRequired = null;
 
-    public function __construct(bool $enabled)
+    public function __construct(bool $enabled, ?bool $authenticationRequired = null)
     {
         $this->enabled = $enabled;
+        $this->authenticationRequired = $authenticationRequired;
     }
 
     /**
@@ -22,8 +24,15 @@ class FeeResponse
      */
     public function toJson(): array
     {
-        return [
-            'enabled' => $this->enabled,
-        ];
+        /**
+         * @var array<string, mixed> $result
+         */
+        $result = ['enabled' => $this->enabled];
+
+        if ($this->enabled && $this->authenticationRequired) {
+            $result['authentication_required'] = true;
+        }
+
+        return $result;
     }
 }

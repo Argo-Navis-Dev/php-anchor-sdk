@@ -56,13 +56,29 @@ class Sep24Service
         }
     }
 
-    public function handleRequest(ServerRequestInterface $request, Sep10Jwt $token): ResponseInterface
+    public function handleRequest(ServerRequestInterface $request, ?Sep10Jwt $token = null): ResponseInterface
     {
+        $requestTarget = $request->getRequestTarget();
+        if ($request->getMethod() === 'GET' && str_contains($requestTarget, '/info')) {
+            return new JsonResponse($this->getInfo()->toJson(), 200);
+        }
+        if (
+            $request->getMethod() === 'GET'
+            && str_contains($requestTarget, '/fee')
+            && !$this->sep24Config->feeEndpointRequiresAuthentication()
+        ) {
+            return $this->handleGetFeeRequest($request);
+        }
+
+        // all other cases require authentication.
+
+        if ($token === null) {
+            //403  forbidden
+            return new JsonResponse(['type' => 'authentication_required'], 403);
+        }
+
         if ($request->getMethod() === 'GET') {
-            $requestTarget = $request->getRequestTarget();
-            if (str_contains($requestTarget, '/info')) {
-                return new JsonResponse($this->getInfo()->toJson(), 200);
-            } elseif (str_contains($requestTarget, '/fee')) {
+            if (str_contains($requestTarget, '/fee')) {
                 return $this->handleGetFeeRequest($request);
             } elseif (str_contains($requestTarget, '/transactions')) {
                 return $this->handleGetTransactionsRequest($request, $token);
@@ -72,7 +88,6 @@ class Sep24Service
                 return new JsonResponse(['error' => 'Invalid request. Unknown endpoint.'], 404);
             }
         } elseif ($request->getMethod() === 'POST') {
-            $requestTarget = $request->getRequestTarget();
             if (str_contains($requestTarget, '/transactions/deposit/interactive')) {
                 return $this->handlePostDepositRequest($request, $token);
             } elseif (str_contains($requestTarget, '/transactions/withdraw/interactive')) {
@@ -113,7 +128,10 @@ class Sep24Service
         return new InfoResponse(
             $deposit,
             $withdraw,
-            new FeeResponse($this->sep24Config->isFeeEndpointSupported()),
+            new FeeResponse(
+                $this->sep24Config->isFeeEndpointSupported(),
+                authenticationRequired: $this->sep24Config->feeEndpointRequiresAuthentication(),
+            ),
             new FeaturesFlagResponse(
                 $this->sep24Config->isAccountCreationSupported(),
                 $this->sep24Config->areClaimableBalancesSupported(),
