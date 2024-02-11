@@ -22,9 +22,10 @@ use Throwable;
 use function array_key_exists;
 use function array_keys;
 use function count;
+use function floatval;
 use function is_bool;
-use function is_float;
 use function is_int;
+use function is_numeric;
 use function is_string;
 use function trim;
 
@@ -136,8 +137,8 @@ class Sep24RequestParser
     {
         $amount = null;
         if (isset($requestData['amount'])) {
-            if (is_float($requestData['amount'])) {
-                $amount = $requestData['amount'];
+            if (is_numeric($requestData['amount'])) {
+                $amount = floatval($requestData['amount']);
             } else {
                 throw new InvalidSepRequest('amount must be a float');
             }

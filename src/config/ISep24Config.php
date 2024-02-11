@@ -11,14 +11,14 @@ namespace ArgoNavis\PhpAnchorSdk\config;
 interface ISep24Config
 {
     /**
-     * Whether or not the anchor supports creating accounts for users requesting deposits.
+     * Whether the anchor supports creating accounts for users requesting deposits.
      *
      * @return bool true if anchor supports creating accounts for users requesting deposits.
      */
     public function isAccountCreationSupported(): bool;
 
     /**
-     * Whether or not the anchor supports sending deposit funds as claimable balances.
+     * Whether the anchor supports sending deposit funds as claimable balances.
      * This is relevant for users of Stellar accounts without a trustline to the requested asset.
      *
      * @return bool true if anchor supports sending deposit funds as claimable balances.
@@ -26,7 +26,7 @@ interface ISep24Config
     public function areClaimableBalancesSupported(): bool;
 
     /**
-     * Whether or not the anchor supports the fee endpoint.
+     * Whether the anchor supports the fee endpoint.
      *
      * @return bool anchor supports the fee endpoint.
      */

@@ -16,14 +16,14 @@ use DateTime;
 class Sep24WithdrawTransactionResponse extends Sep24TransactionResponse
 {
     /**
-     * @var string $from Stellar address the assets were withdrawn from.
+     * @var string|null $from Stellar address the assets were withdrawn from.
      */
-    public string $from;
+    public ?string $from = null;
 
     /**
-     * @var string $to Sent to address (perhaps BTC, IBAN, or bank account).
+     * @var string|null $to Sent to address (perhaps BTC, IBAN, or bank account).
      */
-    public string $to;
+    public ?string $to = null;
 
     /**
      * @var string $withdrawAnchorAccount If this is a withdrawal, this is the anchor's Stellar account that the user transferred (or will transfer) their asset to.
@@ -42,15 +42,15 @@ class Sep24WithdrawTransactionResponse extends Sep24TransactionResponse
 
     /**
      * @param string $id Unique, anchor-generated id for the withdrawal.
-     * @param string $from Stellar address the assets were withdrawn from.
-     * @param string $to Sent to address (perhaps BTC, IBAN, or bank account).
      * @param string $withdrawAnchorAccount If this is a withdrawal, this is the anchor's Stellar account that the user transferred (or will transfer) their asset to.
      * @param string $status Processing status of withdrawal. (see Sep24TransactionStatus)
-     * @param string $moreInfoUrl A URL that is opened by wallets after the interactive flow is complete. It can include banking information for users to start deposits, the status of the transaction, or any other information the user might need to know about the transaction.
-     * @param string $amountIn Amount received by anchor at start of transaction as a string with up to 7 decimals. Excludes any fees charged before the anchor received the funds.
-     * @param string $amountOut Amount sent by anchor to user at end of transaction as a string with up to 7 decimals. Excludes amount converted to XLM to fund account and any external fees.
-     * @param string $amountFee Amount of fee charged by anchor.
      * @param DateTime $startedAt Start date and time of transaction.
+     * @param string|null $from Stellar address the assets were withdrawn from.
+     * @param string|null $to Sent to address (perhaps BTC, IBAN, or bank account).
+     * @param string|null $amountIn Amount received by anchor at start of transaction as a string with up to 7 decimals. Excludes any fees charged before the anchor received the funds.
+     * @param string|null $amountOut Amount sent by anchor to user at end of transaction as a string with up to 7 decimals. Excludes amount converted to XLM to fund account and any external fees.
+     * @param string|null $amountFee Amount of fee charged by anchor.
+     * @param string|null $moreInfoUrl A URL that is opened by wallets after the interactive flow is complete. It can include banking information for users to start deposits, the status of the transaction, or any other information the user might need to know about the transaction.
      * @param string|null $stellarTransactionId transaction id on Stellar network of the transfer that started the withdrawal.
      * @param string|null $withdrawMemo Memo used when the user transferred to withdraw_anchor_account. Assigned null if the withdraw is not ready to receive payment, for example if KYC is not completed.
      * @param string|null $withdrawMemoType Type for the withdrawMemo.
@@ -69,15 +69,15 @@ class Sep24WithdrawTransactionResponse extends Sep24TransactionResponse
      */
     public function __construct(
         string $id,
-        string $from,
-        string $to,
         string $withdrawAnchorAccount,
         string $status,
-        string $moreInfoUrl,
-        string $amountIn,
-        string $amountOut,
-        string $amountFee,
         DateTime $startedAt,
+        ?string $from = null,
+        ?string $to = null,
+        ?string $amountIn = null,
+        ?string $amountOut = null,
+        ?string $amountFee = null,
+        ?string $moreInfoUrl = null,
         ?string $stellarTransactionId = null,
         ?string $withdrawMemo = null,
         ?string $withdrawMemoType = null,
@@ -98,11 +98,11 @@ class Sep24WithdrawTransactionResponse extends Sep24TransactionResponse
             id:$id,
             kind:'withdrawal',
             status:$status,
-            moreInfoUrl: $moreInfoUrl,
             amountIn: $amountIn,
             amountOut: $amountOut,
             amountFee: $amountFee,
             startedAt: $startedAt,
+            moreInfoUrl: $moreInfoUrl,
             stellarTransactionId: $stellarTransactionId,
             statusEta: $statusEta,
             kycVerified: $kycVerified,

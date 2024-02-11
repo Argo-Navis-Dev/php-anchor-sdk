@@ -27,7 +27,9 @@ use Soneso\StellarSDK\Crypto\KeyPair;
 use Throwable;
 
 use function count;
-use function is_float;
+use function floatval;
+use function is_array;
+use function is_numeric;
 use function is_string;
 use function str_contains;
 use function trim;
@@ -314,19 +316,25 @@ class Sep24Service
      */
     private function withdraw(ServerRequestInterface $request, Sep10Jwt $token): InteractiveTransactionResponse
     {
-        $requestData = RequestBodyDataParser::getParsedBodyData(
-            $request,
-            $this->uploadFileMaxSize,
-            $this->uploadFileMaxCount,
-        );
-
+        $requestData = $request->getParsedBody();
         /**
-         * @var array<array-key, UploadedFileInterface>|null $uploadedFiles
+         * @var array<array-key, UploadedFileInterface> $uploadedFiles
          */
-        $uploadedFiles = null;
-        if ($requestData instanceof MultipartFormDataset) {
-            $uploadedFiles = $requestData->uploadedFiles;
-            $requestData = $requestData->bodyParams;
+        $uploadedFiles = $request->getUploadedFiles();
+
+        // if data is not in getParsedBody(), try to parse with our own parser.
+        if (!is_array($requestData) || count($requestData) === 0) {
+            $requestData = RequestBodyDataParser::getParsedBodyData(
+                $request,
+                $this->uploadFileMaxSize,
+                $this->uploadFileMaxCount,
+            );
+            if ($requestData instanceof MultipartFormDataset) {
+                if (count($uploadedFiles) === 0) {
+                    $uploadedFiles = $requestData->uploadedFiles;
+                }
+                $requestData = $requestData->bodyParams;
+            }
         }
 
         $asset = Sep24RequestParser::getAssetFromRequestData($requestData);
@@ -394,19 +402,25 @@ class Sep24Service
      */
     private function deposit(ServerRequestInterface $request, Sep10Jwt $token): InteractiveTransactionResponse
     {
-        $requestData = RequestBodyDataParser::getParsedBodyData(
-            $request,
-            $this->uploadFileMaxSize,
-            $this->uploadFileMaxCount,
-        );
-
+        $requestData = $request->getParsedBody();
         /**
-         * @var array<array-key, UploadedFileInterface>|null $uploadedFiles
+         * @var array<array-key, UploadedFileInterface> $uploadedFiles
          */
-        $uploadedFiles = null;
-        if ($requestData instanceof MultipartFormDataset) {
-            $uploadedFiles = $requestData->uploadedFiles;
-            $requestData = $requestData->bodyParams;
+        $uploadedFiles = $request->getUploadedFiles();
+
+        // if data is not in getParsedBody(), try to parse with our own parser.
+        if (!is_array($requestData) || count($requestData) === 0) {
+            $requestData = RequestBodyDataParser::getParsedBodyData(
+                $request,
+                $this->uploadFileMaxSize,
+                $this->uploadFileMaxCount,
+            );
+            if ($requestData instanceof MultipartFormDataset) {
+                if (count($uploadedFiles) === 0) {
+                    $uploadedFiles = $requestData->uploadedFiles;
+                }
+                $requestData = $requestData->bodyParams;
+            }
         }
 
         $asset = Sep24RequestParser::getAssetFromRequestData($requestData);
@@ -532,8 +546,8 @@ class Sep24Service
 
         $amount = null;
         if (isset($requestData['amount'])) {
-            if (is_float($requestData['amount'])) {
-                $amount = $requestData['amount'];
+            if (is_numeric($requestData['amount'])) {
+                $amount = floatval($requestData['amount']);
                 if ($amount <= 0.0) {
                     throw new InvalidSepRequest('negative and zero amounts are not supported.');
                 }

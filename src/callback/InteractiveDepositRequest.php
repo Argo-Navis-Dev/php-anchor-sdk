@@ -13,6 +13,8 @@ use ArgoNavis\PhpAnchorSdk\shared\IdentificationFormatAsset;
 use Psr\Http\Message\UploadedFileInterface;
 use Soneso\StellarSDK\Memo;
 
+use function count;
+
 /**
  * Prepared SEP-24 deposit request data.
  * See also <a href="https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0024.md#deposit-2">SEP-024 deposit</a>
@@ -138,5 +140,20 @@ class InteractiveDepositRequest
         $this->customerId = $customerId;
         $this->kycFields = $kycFields;
         $this->kycUploadedFiles = $kycUploadedFiles;
+    }
+
+    /**
+     * Checks if this request object contains kyc data
+     *
+     * @return bool true if this request contains kyc data.
+     */
+    public function hasKycData(): bool
+    {
+        $requestHasKycData = $this->kycFields !== null && count($this->kycFields) > 0;
+        if (!$requestHasKycData) {
+            $requestHasKycData = $this->kycUploadedFiles !== null && count($this->kycUploadedFiles) > 0;
+        }
+
+        return $requestHasKycData;
     }
 }

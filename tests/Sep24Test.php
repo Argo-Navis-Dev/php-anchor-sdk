@@ -155,7 +155,7 @@ class Sep24Test extends TestCase
         $config = new Sep24Config();
         $sep24Service = new Sep24Service(sep24Config: $config, sep24Integration: $integration);
         $sep10Jwt = $this->createSep10Jwt($this->accountId);
-        $data = ['asset_code' => 'native', 'amount' => 100.0, 'operation' => 'withdraw'];
+        $data = ['asset_code' => 'native', 'amount' => '100.0', 'operation' => 'withdraw'];
         $request = ServerRequestBuilder::getServerRequest($this->feeEndpoint, $data);
         $response = $sep24Service->handleRequest($request, $sep10Jwt);
         $feeResponse = $this->getSep24FeeResponse($response);

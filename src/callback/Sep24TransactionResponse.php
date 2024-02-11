@@ -41,14 +41,14 @@ abstract class Sep24TransactionResponse
     public ?bool $kycVerified = null;
 
     /**
-     * @var string $moreInfoUrl A URL that is opened by wallets after the interactive flow is complete. It can include banking information for users to start deposits, the status of the transaction, or any other information the user might need to know about the transaction.
+     * @var string|null $moreInfoUrl A URL that is opened by wallets after the interactive flow is complete. It can include banking information for users to start deposits, the status of the transaction, or any other information the user might need to know about the transaction.
      */
-    public string $moreInfoUrl;
+    public ?string $moreInfoUrl = null;
 
     /**
-     * @var string $amountIn Amount received by anchor at start of transaction as a string with up to 7 decimals. Excludes any fees charged before the anchor received the funds.
+     * @var string|null $amountIn Amount received by anchor at start of transaction as a string with up to 7 decimals. Excludes any fees charged before the anchor received the funds.
      */
-    public string $amountIn;
+    public ?string $amountIn = null;
 
     /**
      * @var IdentificationFormatAsset|null $amountInAsset The asset received or to be received by the Anchor. Must be present if the deposit/withdraw was made using non-equivalent assets.
@@ -56,9 +56,9 @@ abstract class Sep24TransactionResponse
     public ?IdentificationFormatAsset $amountInAsset = null;
 
     /**
-     * @var string $amountOut Amount sent by anchor to user at end of transaction as a string with up to 7 decimals. Excludes amount converted to XLM to fund account and any external fees.
+     * @var string|null $amountOut Amount sent by anchor to user at end of transaction as a string with up to 7 decimals. Excludes amount converted to XLM to fund account and any external fees.
      */
-    public string $amountOut;
+    public ?string $amountOut = null;
 
     /**
      * @var IdentificationFormatAsset|null $amountOutAsset The asset delivered or to be delivered to the user. Must be present if the deposit/withdraw was made using non-equivalent assets.
@@ -66,9 +66,9 @@ abstract class Sep24TransactionResponse
     public ?IdentificationFormatAsset $amountOutAsset = null;
 
     /**
-     * @var string $amountFee Amount of fee charged by anchor.
+     * @var string|null $amountFee Amount of fee charged by anchor.
      */
-    public string $amountFee;
+    public ?string $amountFee;
 
     /**
      * @var IdentificationFormatAsset|null $amountFeeAsset The asset in which fees are calculated in. Must be present if the deposit/withdraw was made using non-equivalent assets.
@@ -124,11 +124,11 @@ abstract class Sep24TransactionResponse
      * @param string $id Unique, anchor-generated id for the deposit/withdrawal.
      * @param string $kind 'deposit' or 'withdrawal'.
      * @param string $status Processing status of deposit/withdrawal. (see Sep24TransactionStatus)
-     * @param string $moreInfoUrl A URL that is opened by wallets after the interactive flow is complete. It can include banking information for users to start deposits, the status of the transaction, or any other information the user might need to know about the transaction.
-     * @param string $amountIn Amount received by anchor at start of transaction as a string with up to 7 decimals. Excludes any fees charged before the anchor received the funds.
-     * @param string $amountOut Amount sent by anchor to user at end of transaction as a string with up to 7 decimals. Excludes amount converted to XLM to fund account and any external fees.
-     * @param string $amountFee Amount of fee charged by anchor.
      * @param DateTime $startedAt Start date and time of transaction.
+     * @param string|null $amountIn Amount received by anchor at start of transaction as a string with up to 7 decimals. Excludes any fees charged before the anchor received the funds.
+     * @param string|null $amountOut Amount sent by anchor to user at end of transaction as a string with up to 7 decimals. Excludes amount converted to XLM to fund account and any external fees.
+     * @param string|null $amountFee Amount of fee charged by anchor.
+     * @param string|null $moreInfoUrl A URL that is opened by wallets after the interactive flow is complete. It can include banking information for users to start deposits, the status of the transaction, or any other information the user might need to know about the transaction.
      * @param string|null $stellarTransactionId transaction id on Stellar network of the transfer that either completed the deposit or started the withdrawal.
      * @param int|null $statusEta Estimated number of seconds until a status change is expected.
      * @param bool|null $kycVerified true, if the anchor has verified the user's KYC information for this transaction.
@@ -147,11 +147,11 @@ abstract class Sep24TransactionResponse
         string $id,
         string $kind,
         string $status,
-        string $moreInfoUrl,
-        string $amountIn,
-        string $amountOut,
-        string $amountFee,
         DateTime $startedAt,
+        ?string $amountIn = null,
+        ?string $amountOut = null,
+        ?string $amountFee = null,
+        ?string $moreInfoUrl = null,
         ?string $stellarTransactionId = null,
         ?int $statusEta = null,
         ?bool $kycVerified = null,
