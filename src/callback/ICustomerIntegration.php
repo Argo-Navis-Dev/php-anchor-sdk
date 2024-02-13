@@ -9,6 +9,8 @@ declare(strict_types=1);
 namespace ArgoNavis\PhpAnchorSdk\callback;
 
 use ArgoNavis\PhpAnchorSdk\exception\AnchorFailure;
+use ArgoNavis\PhpAnchorSdk\exception\CustomerNotFoundForId;
+use ArgoNavis\PhpAnchorSdk\exception\SepNotAuthorized;
 
 /**
  * The interface for the customer endpoint of the callback API.
@@ -22,8 +24,11 @@ interface ICustomerIntegration
      *
      * @return GetCustomerResponse The GET customer response.
      *
-     * @throws AnchorFailure if error happens. For requests containing an id parameter value
-     * that does not exist or exists for a customer created by another anchor throw CustomerNotFoundForId
+     * @throws CustomerNotFoundForId For requests containing an id parameter value
+     *  that does not exist.
+     * @throws SepNotAuthorized For requests containing an id parameter value
+     *  that does not match to the given account and memo from the jwt token.
+     * @throws AnchorFailure if any other error happens.
      */
     public function getCustomer(GetCustomerRequest $request): GetCustomerResponse;
 
@@ -34,7 +39,11 @@ interface ICustomerIntegration
      *
      * @return PutCustomerResponse The PUT customer response.
      *
-     * @throws AnchorFailure if error happens.
+     * @throws CustomerNotFoundForId For requests containing an id parameter value
+     *  that does not exist.
+     * @throws SepNotAuthorized For requests containing an id parameter value
+     *  that does not match to the given account and memo from the jwt token.
+     * @throws AnchorFailure if any other error happens.
      */
     public function putCustomer(PutCustomerRequest $request): PutCustomerResponse;
 
@@ -45,7 +54,10 @@ interface ICustomerIntegration
      *
      * @return GetCustomerResponse the response.
      *
-     * @throws AnchorFailure if error happens.
+     * @throws CustomerNotFoundForId if the customer was not found for the given id.
+     * @throws SepNotAuthorized If the given customer 'id' parameter value
+     * that does not match to the given account and memo from the jwt token.
+     * @throws AnchorFailure if any other error happens.
      */
     public function putCustomerVerification(PutCustomerVerificationRequest $request): GetCustomerResponse;
 
@@ -54,7 +66,21 @@ interface ICustomerIntegration
      *
      * @param string $id The id of the customer to be deleted.
      *
-     * @throws AnchorFailure if error happens.
+     * @throws CustomerNotFoundForId if the customer was not found for the given id.
+     * @throws AnchorFailure if any other error happens.
      */
     public function deleteCustomer(string $id): void;
+
+    /**
+     * Sets the callback url for a customer.
+     *
+     * @param PutCustomerCallbackRequest $request the request to put the callback url.
+     *
+     * @throws CustomerNotFoundForId For requests containing an id parameter value
+     *  that does not exist.
+     * @throws SepNotAuthorized For requests containing an id parameter value
+     *  that does not match to the given account and memo from the jwt token.
+     * @throws AnchorFailure if any other error happens.
+     */
+    public function putCustomerCallback(PutCustomerCallbackRequest $request): void;
 }

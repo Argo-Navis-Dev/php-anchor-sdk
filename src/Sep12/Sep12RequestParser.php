@@ -8,7 +8,9 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\Sep12;
 
+use ArgoNavis\PhpAnchorSdk\Sep10\Sep10Jwt;
 use ArgoNavis\PhpAnchorSdk\callback\GetCustomerRequest;
+use ArgoNavis\PhpAnchorSdk\callback\PutCustomerCallbackRequest;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerRequest;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerVerificationRequest;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSepRequest;
@@ -16,8 +18,14 @@ use Psr\Http\Message\UploadedFileInterface;
 
 use function array_key_exists;
 use function array_keys;
+use function filter_var;
+use function intval;
+use function is_int;
+use function is_numeric;
 use function is_string;
 use function str_ends_with;
+
+use const FILTER_VALIDATE_URL;
 
 class Sep12RequestParser
 {
@@ -46,21 +54,28 @@ class Sep12RequestParser
             }
         }
 
-        $memo = null;
-        if (isset($requestData['memo'])) {
-            if (is_string($requestData['memo'])) {
-                $memo = $requestData['memo'];
-            } else {
-                throw new InvalidSepRequest('memo must be a string');
-            }
-        }
-
-        $memoType = null;
         if (isset($requestData['memo_type'])) {
             if (is_string($requestData['memo_type'])) {
                 $memoType = $requestData['memo_type'];
+                if ($memoType !== 'id') {
+                    throw new InvalidSepRequest('only memo type id supported.');
+                }
             } else {
                 throw new InvalidSepRequest('memo_type must be a string');
+            }
+        }
+
+        $memo = null;
+        if (isset($requestData['memo'])) {
+            if (is_string($requestData['memo'])) {
+                $memoStr = $requestData['memo'];
+                if (is_numeric($memoStr) && is_int($memoStr + 0)) {
+                    $memo = intval($memoStr);
+                } else {
+                    throw new InvalidSepRequest('invalid memo value: ' . $memoStr);
+                }
+            } else {
+                throw new InvalidSepRequest('memo must be a string');
             }
         }
 
@@ -77,17 +92,17 @@ class Sep12RequestParser
             $id,
             $account,
             $memo,
-            $memoType,
             $type,
         );
     }
 
     /**
      * @param array<array-key, mixed> $requestData the array to parse the data from.
+     * @param Sep10Jwt $token the token obtained via sep-10.
      *
      * @throws InvalidSepRequest
      */
-    public static function getCustomerRequestFromRequestData(array $requestData): GetCustomerRequest
+    public static function getCustomerRequestFromRequestData(array $requestData, Sep10Jwt $token): GetCustomerRequest
     {
         $base = self::getBaseFromRequestData($requestData);
 
@@ -100,32 +115,52 @@ class Sep12RequestParser
             }
         }
 
+        if ($base->account === null) {
+            $base->account = $token->muxedAccountId;
+            if ($base->account === null) {
+                $base->account = $token->accountId;
+            }
+        }
+
+        if ($base->account === null) {
+            throw new InvalidSepRequest('invalid jwt token');
+        }
+
         return new GetCustomerRequest(
-            $base->id,
             $base->account,
             $base->memo,
-            $base->memoType,
+            $base->id,
             $base->type,
             $lang,
         );
     }
 
     /**
+     * @param Sep10Jwt $token the token obtained via sep-10.
      * @param array<array-key, mixed> $requestData the array to parse the data from.
      * @param array<string, UploadedFileInterface>|null $uploadedFiles the array of uploaded files by the client.
      *
      * @throws InvalidSepRequest
      */
     public static function putCustomerRequestFormRequestData(
+        Sep10Jwt $token,
         array $requestData,
         ?array $uploadedFiles = null,
     ): PutCustomerRequest {
         $base = self::getBaseFromRequestData($requestData);
+        if ($base->account === null) {
+            $base->account = $token->muxedAccountId;
+            if ($base->account === null) {
+                $base->account = $token->accountId;
+            }
+            if ($base->account === null) {
+                throw new InvalidSepRequest('invalid jwt token');
+            }
+        }
         $result = new PutCustomerRequest(
-            $base->id,
             $base->account,
             $base->memo,
-            $base->memoType,
+            $base->id,
             $base->type,
         );
         $additionalData = $requestData;
@@ -152,11 +187,53 @@ class Sep12RequestParser
     }
 
     /**
+     * @param Sep10Jwt $token the token obtained via sep-10.
+     * @param array<array-key, mixed> $requestData the array to parse the data from.
+     *
+     * @throws InvalidSepRequest
+     */
+    public static function putCustomerCallbackRequestFormRequestData(
+        Sep10Jwt $token,
+        array $requestData,
+    ): PutCustomerCallbackRequest {
+        $base = self::getBaseFromRequestData($requestData);
+        if ($base->account === null) {
+            $base->account = $token->muxedAccountId;
+            if ($base->account === null) {
+                $base->account = $token->accountId;
+            }
+            if ($base->account === null) {
+                throw new InvalidSepRequest('invalid jwt token');
+            }
+        }
+        $url = null;
+        if (isset($requestData['url'])) {
+            if (is_string($requestData['url'])) {
+                $url = $requestData['url'];
+                if (!filter_var($url, FILTER_VALIDATE_URL)) {
+                    throw new InvalidSepRequest('invalid url');
+                }
+            } else {
+                throw new InvalidSepRequest('url must be a string');
+            }
+        }
+
+        return new PutCustomerCallbackRequest(
+            $base->account,
+            $base->memo,
+            $base->id,
+            $url,
+        );
+    }
+
+    /**
+     * @param Sep10Jwt $token the token obtained via sep-10.
      * @param array<array-key, mixed> $requestData the array to parse the data from.
      *
      * @throws InvalidSepRequest
      */
     public static function putCustomerVerificationRequestFormRequestData(
+        Sep10Jwt $token,
         array $requestData,
     ): PutCustomerVerificationRequest {
         $data = $requestData;
@@ -187,6 +264,36 @@ class Sep12RequestParser
             $verificationFields[$key] = $value;
         }
 
-        return new PutCustomerVerificationRequest($id, $verificationFields);
+        $account = $token->muxedAccountId;
+        if ($account === null) {
+            $account = $token->accountId;
+        }
+
+        if ($account === null) {
+            throw new InvalidSepRequest('invalid jwt token');
+        }
+
+        return new PutCustomerVerificationRequest(
+            $id,
+            $verificationFields,
+            $account,
+            self::tokenAccountMemoAsInt($token),
+        );
+    }
+
+    /**
+     * @throws InvalidSepRequest
+     */
+    public static function tokenAccountMemoAsInt(Sep10Jwt $token): ?int
+    {
+        if ($token->accountMemo === null) {
+            return null;
+        }
+        $memoStr = $token->accountMemo;
+        if (is_numeric($memoStr) && is_int($memoStr + 0)) {
+            return intval($memoStr);
+        } else {
+            throw new InvalidSepRequest('invalid jwt token memo value: ' . $memoStr);
+        }
     }
 }

@@ -42,8 +42,14 @@ class Sep12Test extends TestCase
 {
     private string $customerEndpoint = 'https://test.com/sep12/customer';
     private string $customerVerificationEndpoint = 'https://test.com/sep12/customer/verification';
+    private string $customerCallbackEndpoint = 'https://test.com/sep12/customer/callback';
     private string $customerId = 'd1ce2f48-3ff1-495d-9240-7a50d806cfed';
-    private string $accountId = 'GCUIGD4V6U7ATOUSC6IYSJCK7ZBKGN73YXN5VBMAKUY44FAASJBO6H2M';
+    private string $account1Id = 'GCUIGD4V6U7ATOUSC6IYSJCK7ZBKGN73YXN5VBMAKUY44FAASJBO6H2M';
+    private string $account2Id = 'GCCEXZJSFH4X2L5OJWXPVV3JGFCEYWYKVIV4326L6S45KXLG6PFP5RMC';
+    private string $account3Id = 'GCV3PQRO2BZVFZ47V7XTSPNVETFKFRTTOFAVSYMIN7GGBIV276BBCU7M';
+    private string $account4Id = 'GCBQLFEJBH7YFASYYTRJKKT2GOEZR5EMPJWIK2CEG3JY46OC2NK4IG3Q';
+    private string $account5Id = 'GDA7IDTVMELUBL6VMMKVCOUYZDTCBND26ZNRAFDBSXSK5LDOTHXFOYYK';
+    private string $account6Id = 'GBXNQWOUWKUFDG3TIUJB3UNDFO4T7YY26HNEJFH75IMO6GZ3GHWUO46T';
     private string $idFrontPath = 'tests/kyc/id_front.png';
     private string $idBackPath = 'tests/kyc/id_back.png';
 
@@ -52,9 +58,9 @@ class Sep12Test extends TestCase
         $customerIntegration = new CustomerIntegration();
         $sep12Service = new Sep12Service($customerIntegration);
 
-        $sep10Jwt = $this->createSep10Jwt($this->accountId);
+        $sep10Jwt = $this->createSep10Jwt($this->account6Id);
 
-        $data = ['account' => $this->accountId];
+        $data = ['account' => $this->account6Id];
         $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
         $responseData = $this->getCustomerInfo($response);
@@ -91,9 +97,9 @@ class Sep12Test extends TestCase
         $customerIntegration = new CustomerIntegration();
         $sep12Service = new Sep12Service($customerIntegration);
 
-        $sep10Jwt = $this->createSep10Jwt($this->accountId);
+        $sep10Jwt = $this->createSep10Jwt($this->account1Id);
 
-        $data = ['account' => $this->accountId, 'memo' => '1'];
+        $data = ['account' => $this->account1Id];
         $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
         $responseData = $this->getCustomerInfo($response);
@@ -141,9 +147,9 @@ class Sep12Test extends TestCase
         $customerIntegration = new CustomerIntegration();
         $sep12Service = new Sep12Service($customerIntegration);
 
-        $sep10Jwt = $this->createSep10Jwt($this->accountId);
+        $sep10Jwt = $this->createSep10Jwt($this->account2Id);
 
-        $data = ['account' => $this->accountId, 'memo' => '2'];
+        $data = ['account' => $this->account2Id];
         $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
         $responseData = $this->getCustomerInfo($response);
@@ -185,9 +191,9 @@ class Sep12Test extends TestCase
         $customerIntegration = new CustomerIntegration();
         $sep12Service = new Sep12Service($customerIntegration);
 
-        $sep10Jwt = $this->createSep10Jwt($this->accountId);
+        $sep10Jwt = $this->createSep10Jwt($this->account3Id);
 
-        $data = ['account' => $this->accountId, 'memo' => '3'];
+        $data = ['account' => $this->account3Id];
         $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
         $responseData = $this->getCustomerInfo($response);
@@ -215,9 +221,9 @@ class Sep12Test extends TestCase
         $customerIntegration = new CustomerIntegration();
         $sep12Service = new Sep12Service($customerIntegration);
 
-        $sep10Jwt = $this->createSep10Jwt($this->accountId);
+        $sep10Jwt = $this->createSep10Jwt($this->account4Id);
 
-        $data = ['account' => $this->accountId, 'memo' => '4'];
+        $data = ['account' => $this->account4Id];
         $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
         $responseData = $this->getCustomerInfo($response);
@@ -234,9 +240,9 @@ class Sep12Test extends TestCase
         $customerIntegration = new CustomerIntegration();
         $sep12Service = new Sep12Service($customerIntegration);
 
-        $sep10Jwt = $this->createSep10Jwt($this->accountId);
+        $sep10Jwt = $this->createSep10Jwt($this->account5Id);
 
-        $data = ['account' => $this->accountId, 'memo' => '5'];
+        $data = ['account' => $this->account5Id];
         $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
         $responseData = $this->getCustomerInfo($response);
@@ -260,10 +266,10 @@ class Sep12Test extends TestCase
         $customerIntegration = new CustomerIntegration();
         $sep12Service = new Sep12Service($customerIntegration);
 
-        $sep10Jwt = $this->createSep10Jwt($this->accountId);
+        $sep10Jwt = $this->createSep10Jwt($this->account6Id);
 
         // lang must be a string
-        $data = ['account' => $this->accountId, 'lang' => 12344];
+        $data = ['account' => $this->account6Id, 'lang' => 12344];
         $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
         $this->checkError($response, 400, 'lang must be a string');
@@ -272,14 +278,14 @@ class Sep12Test extends TestCase
         $data = ['account' => 'GB6E3WGW6HJBZHUNR6Z5PBDNUERIQYJOKPTG2XG46O4AZUVPEA342UU5'];
         $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
-        $this->checkError($response, 400, 'The account specified does not match authorization token');
+        $this->checkError($response, 401, 'The account specified does not match authorization token');
 
         // The memo specified does not match the memo ID authorized via SEP-10
-        $sep10JwtMemo = $this->createSep10Jwt($this->accountId . ':' . '1234');
-        $data = ['account' => $this->accountId, 'memo' => '39393'];
+        $sep10JwtMemo = $this->createSep10Jwt($this->account6Id . ':' . '1234');
+        $data = ['account' => $this->account6Id, 'memo' => '39393'];
         $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
         $response = $sep12Service->handleRequest($request, $sep10JwtMemo);
-        $this->checkError($response, 400, 'The memo specified does not match the memo ID authorized via SEP-10');
+        $this->checkError($response, 401, 'The memo specified does not match the memo ID authorized via SEP-10');
 
         $sep10JwtMemo = $this->createSep10Jwt('MCUIGD4V6U7ATOUSC6IYSJCK7ZBKGN73YXN5VBMAKUY44FAASJBO6AAAAAAAAAAE2LE36');
         $data = ['account' => 'MCUIGD4V6U7ATOUSC6IYSJCK7ZBKGN73YXN5VBMAKUY44FAASJBO6AAAAAAAAAAE2LE36',
@@ -287,26 +293,7 @@ class Sep12Test extends TestCase
         ];
         $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
         $response = $sep12Service->handleRequest($request, $sep10JwtMemo);
-        $this->checkError($response, 400, 'The memo specified does not match the memo ID authorized via SEP-10');
-
-        // 'Invalid memo ' . $memo . ' of type: id'
-        $data = ['account' => $this->accountId, 'memo' => 'blub', 'memo_type' => 'id'];
-        $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
-        $response = $sep12Service->handleRequest($request, $sep10Jwt);
-        $this->checkError($response, 400, 'Invalid memo blub of type: id');
-
-        // 'Invalid memo ' . $memo . ' of type: text'
-        $data = ['account' => $this->accountId,
-            'memo' => 'this is a very long memo, having more than 28 characters',
-            'memo_type' => 'text',
-        ];
-        $request = ServerRequestBuilder::getServerRequest($this->customerEndpoint, $data);
-        $response = $sep12Service->handleRequest($request, $sep10Jwt);
-        $this->checkError(
-            $response,
-            400,
-            'Invalid memo this is a very long memo, having more than 28 characters of type: text',
-        );
+        $this->checkError($response, 401, 'The memo specified does not match the memo ID authorized via SEP-10');
 
         // customer not found for id
         $data = ['id' => '7e285e7d-d984-412c-97bc-909d0e399fbf'];
@@ -320,9 +307,9 @@ class Sep12Test extends TestCase
         $customerIntegration = new CustomerIntegration();
         $sep12Service = new Sep12Service($customerIntegration);
 
-        $sep10Jwt = $this->createSep10Jwt($this->accountId);
+        $sep10Jwt = $this->createSep10Jwt($this->account6Id);
 
-        $data = ['account' => $this->accountId];
+        $data = ['account' => $this->account6Id];
 
         $request = $this->putServerRequest($data, $this->customerEndpoint, 'application/json');
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
@@ -362,20 +349,20 @@ class Sep12Test extends TestCase
         $customerIntegration = new CustomerIntegration();
         $sep12Service = new Sep12Service($customerIntegration);
 
-        $sep10Jwt = $this->createSep10Jwt($this->accountId);
+        $sep10Jwt = $this->createSep10Jwt($this->account6Id);
 
         // The account specified does not match authorization token
         $data = ['account' => 'GB6E3WGW6HJBZHUNR6Z5PBDNUERIQYJOKPTG2XG46O4AZUVPEA342UU5'];
         $request = $this->putServerRequest($data, $this->customerEndpoint, 'application/json');
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
-        $this->checkError($response, 400, 'The account specified does not match authorization token');
+        $this->checkError($response, 401, 'The account specified does not match authorization token');
 
         // The memo specified does not match the memo ID authorized via SEP-10
-        $sep10JwtMemo = $this->createSep10Jwt($this->accountId . ':' . '1234');
-        $data = ['account' => $this->accountId, 'memo' => '39393'];
+        $sep10JwtMemo = $this->createSep10Jwt($this->account6Id . ':' . '1234');
+        $data = ['account' => $this->account6Id, 'memo' => '39393'];
         $request = $this->putServerRequest($data, $this->customerEndpoint, 'multipart/form-data');
         $response = $sep12Service->handleRequest($request, $sep10JwtMemo);
-        $this->checkError($response, 400, 'The memo specified does not match the memo ID authorized via SEP-10');
+        $this->checkError($response, 401, 'The memo specified does not match the memo ID authorized via SEP-10');
 
         $sep10JwtMemo = $this->createSep10Jwt('MCUIGD4V6U7ATOUSC6IYSJCK7ZBKGN73YXN5VBMAKUY44FAASJBO6AAAAAAAAAAE2LE36');
         $data = ['account' => 'MCUIGD4V6U7ATOUSC6IYSJCK7ZBKGN73YXN5VBMAKUY44FAASJBO6AAAAAAAAAAE2LE36',
@@ -383,26 +370,7 @@ class Sep12Test extends TestCase
         ];
         $request = $this->putServerRequest($data, $this->customerEndpoint, 'application/x-www-form-urlencoded');
         $response = $sep12Service->handleRequest($request, $sep10JwtMemo);
-        $this->checkError($response, 400, 'The memo specified does not match the memo ID authorized via SEP-10');
-
-        // 'Invalid memo ' . $memo . ' of type: id'
-        $data = ['account' => $this->accountId, 'memo' => 'blub', 'memo_type' => 'id'];
-        $request = $this->putServerRequest($data, $this->customerEndpoint, 'application/json');
-        $response = $sep12Service->handleRequest($request, $sep10Jwt);
-        $this->checkError($response, 400, 'Invalid memo blub of type: id');
-
-        // 'Invalid memo ' . $memo . ' of type: text'
-        $data = ['account' => $this->accountId,
-            'memo' => 'this is a very long memo, having more than 28 characters',
-            'memo_type' => 'text',
-        ];
-        $request = $this->putServerRequest($data, $this->customerEndpoint, 'application/json');
-        $response = $sep12Service->handleRequest($request, $sep10Jwt);
-        $this->checkError(
-            $response,
-            400,
-            'Invalid memo this is a very long memo, having more than 28 characters of type: text',
-        );
+        $this->checkError($response, 401, 'The memo specified does not match the memo ID authorized via SEP-10');
 
         // customer not found for id
         $data = ['id' => '7e285e7d-d984-412c-97bc-909d0e399fbf'];
@@ -416,7 +384,7 @@ class Sep12Test extends TestCase
         $customerIntegration = new CustomerIntegration();
         $sep12Service = new Sep12Service($customerIntegration);
 
-        $sep10Jwt = $this->createSep10Jwt($this->accountId);
+        $sep10Jwt = $this->createSep10Jwt($this->account6Id);
 
         $data = ['id' => $this->customerId, 'mobile_number_verification' => '2735021'];
         $request = $this->putServerRequest($data, $this->customerVerificationEndpoint, 'application/json');
@@ -430,7 +398,7 @@ class Sep12Test extends TestCase
         $customerIntegration = new CustomerIntegration();
         $sep12Service = new Sep12Service($customerIntegration);
 
-        $sep10Jwt = $this->createSep10Jwt($this->accountId);
+        $sep10Jwt = $this->createSep10Jwt($this->account6Id);
 
         // missing id
         $data = ['mobile_number_verification' => '2735021'];
@@ -455,23 +423,65 @@ class Sep12Test extends TestCase
         $this->checkError($response, 404, 'customer not found for id: 7e285e7d-d984-412c-97bc-909d0e399fbf');
     }
 
+    public function testPutCustomerCallbackSuccess(): void
+    {
+        $customerIntegration = new CustomerIntegration();
+        $sep12Service = new Sep12Service($customerIntegration);
+
+        $sep10Jwt = $this->createSep10Jwt($this->account6Id);
+
+        $data = ['url' => 'https://test.com/cu'];
+        $request = $this->putServerRequest($data, $this->customerCallbackEndpoint, 'multipart/form-data');
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        assertEquals(200, $response->getStatusCode());
+    }
+
+    public function testPutCustomerCallbackErrors(): void
+    {
+        $customerIntegration = new CustomerIntegration();
+        $sep12Service = new Sep12Service($customerIntegration);
+
+        $sep10Jwt = $this->createSep10Jwt($this->account6Id);
+
+        // customer not found for id
+        $data = ['id' => '7e285e7d-d984-412c-97bc-909d0e399fbf', 'url' => 'https://test.com/cu'];
+        $request = $this->putServerRequest($data, $this->customerCallbackEndpoint, 'multipart/form-data');
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        $this->checkError($response, 404, 'customer not found for id: 7e285e7d-d984-412c-97bc-909d0e399fbf');
+
+        // The account specified does not match authorization token
+        $data = ['account' => 'GB6E3WGW6HJBZHUNR6Z5PBDNUERIQYJOKPTG2XG46O4AZUVPEA342UU5',
+            'url' => 'https://test.com/cu',
+        ];
+        $request = $this->putServerRequest($data, $this->customerCallbackEndpoint, 'application/json');
+        $response = $sep12Service->handleRequest($request, $sep10Jwt);
+        $this->checkError($response, 401, 'The account specified does not match authorization token');
+
+        // The memo specified does not match the memo ID authorized via SEP-10
+        $sep10JwtMemo = $this->createSep10Jwt($this->account6Id . ':' . '1234');
+        $data = ['account' => $this->account6Id, 'memo' => '39393', 'url' => 'https://test.com/cu'];
+        $request = $this->putServerRequest($data, $this->customerCallbackEndpoint, 'application/x-www-form-urlencoded');
+        $response = $sep12Service->handleRequest($request, $sep10JwtMemo);
+        $this->checkError($response, 401, 'The memo specified does not match the memo ID authorized via SEP-10');
+    }
+
     public function testDeleteCustomerSuccess(): void
     {
         $customerIntegration = new CustomerIntegration();
         $sep12Service = new Sep12Service($customerIntegration);
 
-        $sep10Jwt = $this->createSep10Jwt($this->accountId);
+        $sep10Jwt = $this->createSep10Jwt($this->account6Id . ':' . '100');
 
         $data = ['memo' => '100'];
-        $request = $this->deleteServerRequest($data, $this->accountId, 'application/json');
+        $request = $this->deleteServerRequest($data, $this->account6Id, 'application/json');
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
         self::assertEquals(200, $response->getStatusCode());
 
-        $request = $this->deleteServerRequest($data, $this->accountId, 'application/x-www-form-urlencoded');
+        $request = $this->deleteServerRequest($data, $this->account6Id, 'application/x-www-form-urlencoded');
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
         self::assertEquals(200, $response->getStatusCode());
 
-        $request = $this->deleteServerRequest($data, $this->accountId, 'multipart/form-data');
+        $request = $this->deleteServerRequest($data, $this->account6Id, 'multipart/form-data');
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
         self::assertEquals(200, $response->getStatusCode());
     }
@@ -481,7 +491,7 @@ class Sep12Test extends TestCase
         $customerIntegration = new CustomerIntegration();
         $sep12Service = new Sep12Service($customerIntegration);
 
-        $sep10Jwt = $this->createSep10Jwt($this->accountId);
+        $sep10Jwt = $this->createSep10Jwt($this->account6Id . ':1234');
 
         $data = [];
         $request = $this->deleteServerRequest(
@@ -492,14 +502,14 @@ class Sep12Test extends TestCase
         $response = $sep12Service->handleRequest($request, $sep10Jwt);
         $this->checkError($response, 401, 'Not authorized to delete account.');
 
-        $sep10JwtMemo = $this->createSep10Jwt($this->accountId . ':' . '1234');
+        $sep10JwtMemo = $this->createSep10Jwt($this->account6Id . ':' . '1234');
         $data = ['memo' => '39393'];
-        $request = $this->deleteServerRequest($data, $this->accountId, 'application/x-www-form-urlencoded');
+        $request = $this->deleteServerRequest($data, $this->account6Id, 'application/x-www-form-urlencoded');
         $response = $sep12Service->handleRequest($request, $sep10JwtMemo);
         $this->checkError($response, 401, 'Not authorized to delete account.');
 
         $data = ['memo' => '1234'];
-        $request = $this->deleteServerRequest($data, $this->accountId, 'multipart/form-data');
+        $request = $this->deleteServerRequest($data, $this->account6Id, 'multipart/form-data');
         $response = $sep12Service->handleRequest($request, $sep10JwtMemo);
         self::assertEquals(200, $response->getStatusCode());
     }

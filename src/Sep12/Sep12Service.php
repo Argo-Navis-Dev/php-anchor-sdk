@@ -12,6 +12,7 @@ use ArgoNavis\PhpAnchorSdk\Sep10\Sep10Jwt;
 use ArgoNavis\PhpAnchorSdk\callback\GetCustomerRequest;
 use ArgoNavis\PhpAnchorSdk\callback\GetCustomerResponse;
 use ArgoNavis\PhpAnchorSdk\callback\ICustomerIntegration;
+use ArgoNavis\PhpAnchorSdk\callback\PutCustomerCallbackRequest;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerRequest;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerResponse;
 use ArgoNavis\PhpAnchorSdk\config\ISep12Config;
@@ -20,20 +21,20 @@ use ArgoNavis\PhpAnchorSdk\exception\CustomerNotFoundForId;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidRequestData;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSepRequest;
 use ArgoNavis\PhpAnchorSdk\exception\SepNotAuthorized;
-use ArgoNavis\PhpAnchorSdk\util\MemoHelper;
 use Laminas\Diactoros\Response;
 use Laminas\Diactoros\Response\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Soneso\StellarSDK\Crypto\KeyPair;
-use Soneso\StellarSDK\Xdr\XdrMemoType;
 use Throwable;
 
 use function array_pop;
 use function explode;
+use function intval;
+use function is_int;
+use function is_numeric;
 use function is_string;
 use function str_contains;
-use function strval;
 use function trim;
 
 class Sep12Service
@@ -64,23 +65,25 @@ class Sep12Service
         if ($request->getMethod() === 'GET') {
             try {
                 $queryParams = $request->getQueryParams();
-                $customerRequest = Sep12RequestParser::getCustomerRequestFromRequestData($queryParams);
+                $customerRequest = Sep12RequestParser::getCustomerRequestFromRequestData($queryParams, $token);
                 $customer = $this->getCustomer($token, $customerRequest);
 
                 return new JsonResponse($customer->toJson(), 200);
             } catch (CustomerNotFoundForId $e) {
                 return new JsonResponse(['error' => $e->getMessage()], 404);
+            } catch (SepNotAuthorized $e) {
+                return new JsonResponse(['error' => $e->getMessage()], 401);
             } catch (InvalidSepRequest | InvalidSepRequest | AnchorFailure $e) {
                 return new JsonResponse(['error' => $e->getMessage()], 400);
             }
         } elseif ($request->getMethod() === 'PUT') {
             $requestTarget = $request->getRequestTarget();
             if (str_contains($requestTarget, '/customer/verification')) {
-                return $this->handlePutCustomerVerification($request);
+                return $this->handlePutCustomerVerification($token, $request);
+            } elseif (str_contains($requestTarget, '/customer/callback')) {
+                return $this->handlePutCustomerCallback($token, $request);
             } elseif (str_contains($requestTarget, '/customer')) {
                 return $this->handlePutCustomer($token, $request);
-            } elseif (str_contains($requestTarget, '/customer/callback')) {
-                return new JsonResponse(['error' => 'Not implemented.'], 404);
             } else {
                 return new JsonResponse(['error' => 'Invalid request. Unknown endpoint.'], 404);
             }
@@ -104,12 +107,18 @@ class Sep12Service
                 $uploadedFiles = $requestData->uploadedFiles;
                 $requestData = $requestData->bodyParams;
             }
-            $putCustomerRequest = Sep12RequestParser::putCustomerRequestFormRequestData($requestData, $uploadedFiles);
+            $putCustomerRequest = Sep12RequestParser::putCustomerRequestFormRequestData(
+                $token,
+                $requestData,
+                $uploadedFiles,
+            );
             $response = $this->putCustomer($token, $putCustomerRequest);
 
             return new JsonResponse($response->toJson(), 200);
         } catch (CustomerNotFoundForId $e) {
             return new JsonResponse(['error' => $e->getMessage()], 404);
+        } catch (SepNotAuthorized $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 401);
         } catch (InvalidRequestData | InvalidSepRequest | AnchorFailure $e) {
             return new JsonResponse(['error' => $e->getMessage()], 400);
         } catch (Throwable $e) {
@@ -119,7 +128,39 @@ class Sep12Service
         }
     }
 
-    private function handlePutCustomerVerification(ServerRequestInterface $request): ResponseInterface
+    private function handlePutCustomerCallback(Sep10Jwt $token, ServerRequestInterface $request): ResponseInterface
+    {
+        try {
+            $requestData = RequestBodyDataParser::getParsedBodyData(
+                $request,
+                $this->uploadFileMaxSize,
+                $this->uploadFileMaxCount,
+            );
+            if ($requestData instanceof MultipartFormDataset) {
+                $requestData = $requestData->bodyParams;
+            }
+            $putCustomerCallbackRequest = Sep12RequestParser::putCustomerCallbackRequestFormRequestData(
+                $token,
+                $requestData,
+            );
+
+            $this->putCustomerCallback($token, $putCustomerCallbackRequest);
+
+            return new Response\EmptyResponse(200);
+        } catch (CustomerNotFoundForId $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 404);
+        } catch (SepNotAuthorized $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 401);
+        } catch (InvalidRequestData | InvalidSepRequest | AnchorFailure $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 400);
+        } catch (Throwable $e) {
+            $msg = 'Failed to put customer callback. ' . $e->getMessage();
+
+            return new JsonResponse(['error' => $msg], 500);
+        }
+    }
+
+    private function handlePutCustomerVerification(Sep10Jwt $token, ServerRequestInterface $request): ResponseInterface
     {
         try {
             $requestData = RequestBodyDataParser::getParsedBodyData(
@@ -131,12 +172,15 @@ class Sep12Service
                 $requestData = $requestData->bodyParams;
             }
             $putCustomerValidationRequest =
-                Sep12RequestParser::putCustomerVerificationRequestFormRequestData($requestData);
+                Sep12RequestParser::putCustomerVerificationRequestFormRequestData($token, $requestData);
+
             $response = $this->customerIntegration->putCustomerVerification($putCustomerValidationRequest);
 
             return new JsonResponse($response->toJson(), 200);
         } catch (CustomerNotFoundForId $e) {
             return new JsonResponse(['error' => $e->getMessage()], 404);
+        } catch (SepNotAuthorized $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 401);
         } catch (InvalidRequestData | InvalidSepRequest | AnchorFailure $e) {
             return new JsonResponse(['error' => $e->getMessage()], 400);
         } catch (Throwable $e) {
@@ -157,21 +201,29 @@ class Sep12Service
             if ($data instanceof MultipartFormDataset) {
                 $data = $data->bodyParams;
             }
-            $memo = null;
-            if (isset($data['memo'])) {
-                if (is_string($data['memo'])) {
-                    $memo = $data['memo'];
-                } else {
-                    throw new InvalidSepRequest('memo must be a string');
-                }
-            }
 
-            $memoType = null;
             if (isset($data['memo_type'])) {
                 if (is_string($data['memo_type'])) {
                     $memoType = $data['memo_type'];
+                    if ($memoType !== 'id') {
+                        throw new InvalidSepRequest('only memo type id supported');
+                    }
                 } else {
                     throw new InvalidSepRequest('memo_type must be a string');
+                }
+            }
+
+            $memo = null;
+            if (isset($data['memo'])) {
+                if (is_string($data['memo'])) {
+                    $memoStr = $data['memo'];
+                    if (is_numeric($memoStr) && is_int($memoStr + 0)) {
+                        $memo = intval($memoStr);
+                    } else {
+                        throw new InvalidSepRequest('invalid memo value: ' . $memoStr);
+                    }
+                } else {
+                    throw new InvalidSepRequest('memo must be a string');
                 }
             }
 
@@ -185,7 +237,7 @@ class Sep12Service
             }
 
             if (trim($account) !== '') {
-                $this->deleteCustomer($token, $account, $memo, $memoType);
+                $this->deleteCustomer($token, $account, $memo);
 
                 return new Response\EmptyResponse(200);
             } else {
@@ -213,11 +265,9 @@ class Sep12Service
     {
         $sep12RequestBase = Sep12CustomerRequestBase::fromGetCustomerRequest($request);
         $this->validateGetOrPutRequest($sep12RequestBase, $token);
-        $request->memo = $sep12RequestBase->memo;
-        $request->memoType = $sep12RequestBase->memoType;
-        if ($request->id === null && $request->account === null && $token->accountId !== null) {
-            $request->account = $token->accountId;
-        }
+
+        // ignore memo from initial request as it matches the tokens memo or is irrelevant.
+        $request->memo = Sep12RequestParser::tokenAccountMemoAsInt($token);
 
         return $this->customerIntegration->getCustomer($request);
     }
@@ -231,13 +281,27 @@ class Sep12Service
     {
         $sep12RequestBase = Sep12CustomerRequestBase::fromPutCustomerRequest($request);
         $this->validateGetOrPutRequest($sep12RequestBase, $token);
-        $request->memo = $sep12RequestBase->memo;
-        $request->memoType = $sep12RequestBase->memoType;
-        if ($request->account === null && $token->accountId !== null) {
-            $request->account = $token->accountId;
-        }
+
+        // ignore memo from initial request as it matches the tokens memo or is irrelevant.
+        $request->memo = Sep12RequestParser::tokenAccountMemoAsInt($token);
 
         return $this->customerIntegration->putCustomer($request);
+    }
+
+    /**
+     * @throws SepNotAuthorized
+     * @throws AnchorFailure
+     * @throws CustomerNotFoundForId
+     */
+    private function putCustomerCallback(Sep10Jwt $token, PutCustomerCallbackRequest $request): void
+    {
+        $sep12RequestBase = Sep12CustomerRequestBase::fromPutCustomerCallbackRequest($request);
+        $this->validateGetOrPutRequest($sep12RequestBase, $token);
+
+        // ignore memo from initial request as it matches the tokens memo or is irrelevant.
+        $request->memo = Sep12RequestParser::tokenAccountMemoAsInt($token);
+
+        $this->customerIntegration->putCustomerCallback($request);
     }
 
     /**
@@ -247,28 +311,24 @@ class Sep12Service
     private function deleteCustomer(
         Sep10Jwt $sep10Jwt,
         string $accountId,
-        ?string $memo = null,
-        ?string $memoType = null,
+        ?int $memo = null,
     ): void {
         $isAccountAuthenticated = ($sep10Jwt->accountId === $accountId || $sep10Jwt->muxedAccountId === $accountId);
         $isMemoMissingAuthentication = false;
         $muxedId = $sep10Jwt->muxedId;
         if ($muxedId !== null) {
             if ($sep10Jwt->muxedAccountId !== $accountId) {
-                $isMemoMissingAuthentication = (strval($muxedId) !== $memo);
+                $isMemoMissingAuthentication = ($muxedId !== $memo);
             }
         } elseif ($sep10Jwt->accountMemo !== null) {
-            $isMemoMissingAuthentication = (strval($sep10Jwt->accountMemo) !== $memo);
+            $isMemoMissingAuthentication = (Sep12RequestParser::tokenAccountMemoAsInt($sep10Jwt) !== $memo);
         }
 
         if (!$isAccountAuthenticated || $isMemoMissingAuthentication) {
             throw new SepNotAuthorized('Not authorized to delete account.');
         }
 
-        $getCustomerRequest = new GetCustomerRequest();
-        $getCustomerRequest->account = $accountId;
-        $getCustomerRequest->memo = $memo;
-        $getCustomerRequest->memoType = $memoType;
+        $getCustomerRequest = new GetCustomerRequest($accountId, $memo);
 
         // in future (e.g. when implementing sep-31) this must be extended with a loop
         // that deletes the customer for all types. (the customer can have different ids depending on the type).
@@ -288,16 +348,6 @@ class Sep12Service
      */
     private function validateGetOrPutRequest(Sep12CustomerRequestBase $request, Sep10Jwt $token): void
     {
-        $this->validateRequestAndTokenAccounts($request, $token);
-        $this->validateRequestAndTokenMemos($request, $token);
-        $this->updateRequestMemoAndMemoType($request, $token);
-    }
-
-    /**
-     * @throws SepNotAuthorized
-     */
-    private function validateRequestAndTokenAccounts(Sep12CustomerRequestBase $request, Sep10Jwt $token): void
-    {
         $tokenAccountId = $token->accountId;
         $tokenMuxedAccountId = $token->muxedAccountId;
         $customerAccountId = $request->account;
@@ -308,14 +358,8 @@ class Sep12Service
         ) {
             throw new SepNotAuthorized('The account specified does not match authorization token');
         }
-    }
 
-    /**
-     * @throws SepNotAuthorized
-     */
-    private function validateRequestAndTokenMemos(Sep12CustomerRequestBase $request, Sep10Jwt $token): void
-    {
-        $tokenSubMemo = $token->accountMemo;
+        $tokenSubMemo = Sep12RequestParser::tokenAccountMemoAsInt($token);
         $tokenMuxedId = $token->muxedId;
         $tokenMemo = $tokenMuxedId ?? $tokenSubMemo;
 
@@ -324,44 +368,8 @@ class Sep12Service
 
         if ($tokenMemo === null) {
             return;
+        } elseif ($request->memo !== null && $tokenMemo !== $request->memo) {
+            throw new SepNotAuthorized('The memo specified does not match the memo ID authorized via SEP-10');
         }
-
-        // SEP-12 says: If a memo is present in the decoded SEP-10 JWT's `sub` value, it must match this
-        // parameter value. If a muxed account is used as the JWT's `sub` value, memos sent in requests
-        // must match the 64-bit integer subaccount ID of the muxed account. See the Shared Account's
-        // section for more information.
-
-        $requestMemo = $request->memo;
-        if ($tokenMemo === $requestMemo) {
-            return;
-        }
-
-        throw new SepNotAuthorized('The memo specified does not match the memo ID authorized via SEP-10');
-    }
-
-    /**
-     * @throws InvalidSepRequest
-     */
-    private function updateRequestMemoAndMemoType(Sep12CustomerRequestBase $request, Sep10Jwt $token): void
-    {
-        $memo = $request->memo;
-        if ($memo === null) {
-            $request->memoType = null;
-
-            return;
-        }
-
-        $memoType = $request->memoType;
-        if ($memoType === null) {
-            $memoType = MemoHelper::memoTypeAsString(XdrMemoType::MEMO_ID);
-        }
-        // SEP-12 says: If a memo is present in the decoded SEP-10 JWT's `sub` value, this parameter
-        // (memoType) can be ignored:
-        if ($token->accountMemo !== null || $token->muxedAccountId !== null) {
-            $memoType = MemoHelper::memoTypeAsString(XdrMemoType::MEMO_ID);
-        }
-        MemoHelper::makeMemoFromSepRequestData($memo, $memoType);
-        $request->memo = $memo;
-        $request->memoType = $memoType;
     }
 }

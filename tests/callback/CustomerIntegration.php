@@ -11,6 +11,7 @@ namespace ArgoNavis\Test\PhpAnchorSdk\callback;
 use ArgoNavis\PhpAnchorSdk\callback\GetCustomerRequest;
 use ArgoNavis\PhpAnchorSdk\callback\GetCustomerResponse;
 use ArgoNavis\PhpAnchorSdk\callback\ICustomerIntegration;
+use ArgoNavis\PhpAnchorSdk\callback\PutCustomerCallbackRequest;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerRequest;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerResponse;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerVerificationRequest;
@@ -30,28 +31,28 @@ class CustomerIntegration implements ICustomerIntegration
 
     public function getCustomer(GetCustomerRequest $request): GetCustomerResponse
     {
-        if ($request->memo === '1') {
+        if ($request->id !== null && $request->id !== $this->id) {
+            throw new CustomerNotFoundForId($request->id);
+        }
+
+        if ($request->account === 'GCUIGD4V6U7ATOUSC6IYSJCK7ZBKGN73YXN5VBMAKUY44FAASJBO6H2M') {
             return $this->getCustomerNeedsInfo();
         }
 
-        if ($request->memo === '2') {
+        if ($request->account === 'GCCEXZJSFH4X2L5OJWXPVV3JGFCEYWYKVIV4326L6S45KXLG6PFP5RMC') {
             return $this->getCustomerUnknown();
         }
 
-        if ($request->memo === '3') {
+        if ($request->account === 'GCV3PQRO2BZVFZ47V7XTSPNVETFKFRTTOFAVSYMIN7GGBIV276BBCU7M') {
             return $this->getCustomerProcessing();
         }
 
-        if ($request->memo === '4') {
+        if ($request->account === 'GCBQLFEJBH7YFASYYTRJKKT2GOEZR5EMPJWIK2CEG3JY46OC2NK4IG3Q') {
             return $this->getCustomerRejected();
         }
 
-        if ($request->memo === '5') {
+        if ($request->account === 'GDA7IDTVMELUBL6VMMKVCOUYZDTCBND26ZNRAFDBSXSK5LDOTHXFOYYK') {
             return $this->getCustomerVerificationRequired();
-        }
-
-        if ($request->id !== null && $request->id !== $this->id) {
-            throw new CustomerNotFoundForId($request->id);
         }
 
         return $this->getCustomerSuccess();
@@ -59,12 +60,6 @@ class CustomerIntegration implements ICustomerIntegration
 
     public function putCustomer(PutCustomerRequest $request): PutCustomerResponse
     {
-        $account = $request->account;
-        $id = $request->id;
-        if ($account === null && $id === null) {
-            throw new AnchorFailure('missing account or id');
-        }
-
         if ($request->id !== null && $request->id !== $this->id) {
             throw new CustomerNotFoundForId($request->id);
         }
@@ -86,13 +81,24 @@ class CustomerIntegration implements ICustomerIntegration
             throw new CustomerNotFoundForId($request->id);
         }
 
-        return $this->getCustomer(new GetCustomerRequest($this->id));
+        return $this->getCustomer(new GetCustomerRequest($request->account, $request->memo, $this->id));
     }
 
     public function deleteCustomer(string $id): void
     {
         if ($id !== $this->id) {
             throw new CustomerNotFoundForId($id);
+        }
+    }
+
+    public function putCustomerCallback(PutCustomerCallbackRequest $request): void
+    {
+        if ($request->url !== 'https://test.com/cu') {
+            throw new AnchorFailure('test');
+        }
+
+        if ($request->id !== null && $request->id !== $this->id) {
+            throw new CustomerNotFoundForId($request->id);
         }
     }
 
