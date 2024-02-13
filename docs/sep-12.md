@@ -1,6 +1,6 @@
 # KYC API - SEP-12
 
-A wallet or other client can use the KYC API ([SEP-12](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0012.md)) to upload KYC (or other) information to anchors and other services. SEP-6 and SEP-31 use this protocol, but it can serve as a stand-alone service as well.
+A wallet or other client can use the KYC API ([SEP-12](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0012.md)) to upload KYC (or other) information to anchors and other services. SEP-24, SEP-6 and SEP-31 use this protocol, but it can serve as a stand-alone service as well.
 
 To use this service, a wallet must first create an authenticated session with the Stellar anchor by proving they, or their users, have sufficient control over a Stellar account. Once authenticated, the wallet application uses a session token provided by the anchor to make requests to the KYC API endpoints. The authentication process is described [here](https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-10.md)
 
@@ -32,7 +32,7 @@ class StellarCustomerController extends Controller
 
         $auth = $this->getStellarAuthData($request);
         if ($auth === null) {
-            return new JsonResponse(['error' => 'Unauthorized! Use SEP-10 to authorize.'], 401);
+            return new JsonResponse(['error' => 'Unauthorized! Use SEP-10 to authenticate.'], 401);
         }
         try {
             $sep10Jwt = Sep10Jwt::fromArray($auth);
@@ -54,6 +54,7 @@ Next, we have to link our routes:
 Route::get('customer', [StellarCustomerController::class, 'customer'])->middleware(StellarAuthMiddleware::class);
 Route::put('customer', [StellarCustomerController::class, 'customer'])->middleware(StellarAuthMiddleware::class);
 Route::put('customer/verification', [StellarCustomerController::class, 'customer'])->middleware(StellarAuthMiddleware::class);
+Route::put('customer/callback', [StellarCustomerController::class, 'customer'])->middleware(StellarAuthMiddleware::class);
 Route::delete('customer/{account_id}', [StellarCustomerController::class, 'customer'])->middleware(StellarAuthMiddleware::class);
 ```
 

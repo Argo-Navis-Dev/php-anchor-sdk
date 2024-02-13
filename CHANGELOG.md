@@ -18,3 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - SEP-09 Support
 - SEP-12 Support
+
+## [0.3.0] - 2024-02-13
+
+### Added
+
+- SEP-24 Support
+
+### Updated
+
+- SEP-12 Support
