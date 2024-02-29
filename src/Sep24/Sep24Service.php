@@ -34,6 +34,22 @@ use function is_string;
 use function str_contains;
 use function trim;
 
+/**
+ * The Sep24Service handles Hosted Deposit and Withdrawal requests as defined by
+ * <a href="https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0024.md">SEP-24</a>
+ *
+ * To create an instance of the service, you have to pass a business logic callback class that implements
+ * IInteractiveFlowIntegration to the service constructor. This is needed, so that the service can load
+ * supported assets, fees, load and store transaction data and more. You must also pass a config class implementing
+ * ISep24Config. It defines SEP-24 features supported by the server.
+ *
+ * After initializing the service it can be used within the server implementation by passing all
+ * SEP-24 requests to its method handleRequest. It will handle them and return the corresponding response
+ * that can be sent back to the client. During the handling it will call methods from the callback implementation
+ * (IInteractiveFlowIntegration) and the sep 24 config provided by the server.
+ *
+ * See: <a href="https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-24.md">SDK SEP-24 docs</a>
+ */
 class Sep24Service
 {
     public ISep24Config $sep24Config;
@@ -41,6 +57,13 @@ class Sep24Service
     private int $uploadFileMaxSize = 2097152; // 2 MB
     private int $uploadFileMaxCount = 6;
 
+    /**
+     * Constructor.
+     *
+     * @param ISep24Config $sep24Config SEP-24 config containing info about the supported features.
+     * @param IInteractiveFlowIntegration $sep24Integration the callback class containing the needed business
+     * supported assets, fees, load and store transaction data and more. See IInteractiveFlowIntegration description.
+     */
     public function __construct(
         ISep24Config $sep24Config,
         IInteractiveFlowIntegration $sep24Integration,
@@ -58,6 +81,18 @@ class Sep24Service
         }
     }
 
+    /**
+     * Handles a forwarded client request specified by SEP-24. Builds and returns the corresponding response,
+     * that can be sent back to the client.
+     *
+     * @param ServerRequestInterface $request the request from the client as defined in
+     * <a href="https://www.php-fig.org/psr/psr-7/">PSR 7</a>.
+     * @param Sep10Jwt|null $token the validated jwt token obtained earlier by SEP-10.
+     * Only relevant for endpoints that require authentication.
+     *
+     * @return ResponseInterface the response that should be sent back to the client.
+     * As defined in <a href="https://www.php-fig.org/psr/psr-7/">PSR 7</a>
+     */
     public function handleRequest(ServerRequestInterface $request, ?Sep10Jwt $token = null): ResponseInterface
     {
         $requestTarget = $request->getRequestTarget();
@@ -102,6 +137,11 @@ class Sep24Service
         }
     }
 
+    /**
+     * Composes the formatted info response by loading the needed data from the server callback and config.
+     *
+     * @return InfoResponse info response that can be sent back to the client.
+     */
     private function getInfo(): InfoResponse
     {
         $supportedAssets = $this->sep24Integration->supportedAssets();
@@ -141,6 +181,13 @@ class Sep24Service
         );
     }
 
+    /**
+     * Handles a fee request.
+     *
+     * @param ServerRequestInterface $request the request as obtained from the client.
+     *
+     * @return ResponseInterface the response that can be sent back to the client.
+     */
     private function handleGetFeeRequest(ServerRequestInterface $request): ResponseInterface
     {
         if ($this->sep24Config->isFeeEndpointSupported()) {
@@ -154,6 +201,14 @@ class Sep24Service
         }
     }
 
+    /**
+     * Handles a withdrawal request.
+     *
+     * @param ServerRequestInterface $request the request as received from the client.
+     * @param Sep10Jwt $token the jwt token previously received from SEP-10
+     *
+     * @return ResponseInterface the response to be sent back to the client.
+     */
     private function handlePostWithdrawalRequest(ServerRequestInterface $request, Sep10Jwt $token): ResponseInterface
     {
         try {
@@ -163,6 +218,14 @@ class Sep24Service
         }
     }
 
+    /**
+     * Handles a deposit request.
+     *
+     * @param ServerRequestInterface $request the request as obtained from the client.
+     * @param Sep10Jwt $token the jwt token previously obtained by SEP-10
+     *
+     * @return ResponseInterface the response to be sent back to the client.
+     */
     private function handlePostDepositRequest(ServerRequestInterface $request, Sep10Jwt $token): ResponseInterface
     {
         try {
@@ -172,6 +235,14 @@ class Sep24Service
         }
     }
 
+    /**
+     * Handles a get transaction request.
+     *
+     * @param ServerRequestInterface $request the request as obtained from the client.
+     * @param Sep10Jwt $token the jwt token previously obtained by SEP-10
+     *
+     * @return ResponseInterface the response to be sent back to the client.
+     */
     private function handleGetTransactionRequest(ServerRequestInterface $request, Sep10Jwt $token): ResponseInterface
     {
         try {
@@ -242,6 +313,14 @@ class Sep24Service
         }
     }
 
+    /**
+     * Handles a get transactions request (transaction history).
+     *
+     * @param ServerRequestInterface $request the request as obtained from the client.
+     * @param Sep10Jwt $token the jwt token previously obtained by SEP-10
+     *
+     * @return ResponseInterface the response that can be sent back to the client.
+     */
     private function handleGetTransactionsRequest(ServerRequestInterface $request, Sep10Jwt $token): ResponseInterface
     {
         try {
@@ -258,7 +337,9 @@ class Sep24Service
             }
             $queryParameters = $request->getQueryParams();
             $request = Sep24RequestParser::getTransactionsRequestFromRequestData($queryParameters);
+
             $result = $this->sep24Integration->getTransactionHistory($request, $accountId, $accountMemo);
+
             if ($result === null || count($result) === 0) {
                 return new JsonResponse([], 200);
             } else {
@@ -275,6 +356,8 @@ class Sep24Service
     }
 
     /**
+     * Extracts the account data (account id and optional memo) from the given jwt token.
+     *
      * @return array<string, string> account id and optional memo.
      *
      * @throws InvalidSepRequest if the account was not found or invalid.
@@ -310,9 +393,16 @@ class Sep24Service
     }
 
     /**
-     * @throws InvalidSepRequest
-     * @throws InvalidRequestData
-     * @throws AnchorFailure
+     * Initiates a withdrawal for the given request. Parses and validates the request data.
+     *
+     * @param ServerRequestInterface $request the request as received from the client.
+     * @param Sep10Jwt $token the jwt token previously received from SEP-10
+     *
+     * @return InteractiveTransactionResponse the response data containing the transaction id and interactive url.
+     *
+     * @throws InvalidSepRequest if the request is invalid.
+     * @throws InvalidRequestData if the request is invalid.
+     * @throws AnchorFailure if the server could not create a withdrawal transaction.
      */
     private function withdraw(ServerRequestInterface $request, Sep10Jwt $token): InteractiveTransactionResponse
     {
@@ -396,9 +486,16 @@ class Sep24Service
     }
 
     /**
-     * @throws InvalidSepRequest
-     * @throws InvalidRequestData
-     * @throws AnchorFailure
+     * Initiates a deposit based on the given request. Extracts the data from the request and validates it.
+     *
+     * @param ServerRequestInterface $request as received from the client
+     * @param Sep10Jwt $token jwt token previously received from SEP-10
+     *
+     * @return InteractiveTransactionResponse the response data containing the transaction id and interactive url.
+     *
+     * @throws InvalidSepRequest if the data is invalid.
+     * @throws InvalidRequestData if the data is invalid.
+     * @throws AnchorFailure if the server failed to store the data.
      */
     private function deposit(ServerRequestInterface $request, Sep10Jwt $token): InteractiveTransactionResponse
     {
@@ -480,10 +577,12 @@ class Sep24Service
     }
 
     /**
+     * Calculates the fee for the requested data. Validates the request data.
+     *
      * @param array<array-key, mixed> $requestData the array to parse the data from.
      *
-     * @throws AnchorFailure
-     * @throws InvalidSepRequest
+     * @throws AnchorFailure if the server failed to calculate a complex fee.
+     * @throws InvalidSepRequest if the request or its data is invalid.
      */
     private function getFee(array $requestData): float
     {

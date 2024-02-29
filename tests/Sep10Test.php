@@ -230,7 +230,7 @@ class Sep10Test extends TestCase
         $response = $sep10Service->handleRequest($request, new Client());
         self::assertEquals(400, $response->getStatusCode());
         self::assertEquals('{"error":"client_domain must not be specified if ' .
-            'the account is an custodial-wallet account"}', $response->getBody()->__toString());
+            'the account is a custodial-wallet account"}', $response->getBody()->__toString());
 
         $sep10Config->custodialAccountList = null;
         $sep10Config->clientAttributionRequired = true;

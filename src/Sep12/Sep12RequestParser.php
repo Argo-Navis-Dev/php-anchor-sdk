@@ -30,9 +30,13 @@ use const FILTER_VALIDATE_URL;
 class Sep12RequestParser
 {
     /**
+     * Parses and validates the base request data.
+     *
      * @param array<array-key, mixed> $requestData the array to parse the data from.
      *
-     * @throws InvalidSepRequest
+     * @return Sep12CustomerRequestBase the parsed and validated base request data.
+     *
+     * @throws InvalidSepRequest if the data is invalid.
      */
     public static function getBaseFromRequestData(array $requestData): Sep12CustomerRequestBase
     {
@@ -97,10 +101,12 @@ class Sep12RequestParser
     }
 
     /**
+     * Parses and validates the request data and composes a GetCustomerRequest from it.
+     *
      * @param array<array-key, mixed> $requestData the array to parse the data from.
      * @param Sep10Jwt $token the token obtained via sep-10.
      *
-     * @throws InvalidSepRequest
+     * @throws InvalidSepRequest if the data is invalid.
      */
     public static function getCustomerRequestFromRequestData(array $requestData, Sep10Jwt $token): GetCustomerRequest
     {
@@ -136,11 +142,15 @@ class Sep12RequestParser
     }
 
     /**
+     * Parses and validates the put customer request data.
+     *
      * @param Sep10Jwt $token the token obtained via sep-10.
      * @param array<array-key, mixed> $requestData the array to parse the data from.
      * @param array<string, UploadedFileInterface>|null $uploadedFiles the array of uploaded files by the client.
      *
-     * @throws InvalidSepRequest
+     * @return PutCustomerRequest the parsed and validated data.
+     *
+     * @throws InvalidSepRequest if the request data is invalid.
      */
     public static function putCustomerRequestFormRequestData(
         Sep10Jwt $token,
@@ -187,10 +197,14 @@ class Sep12RequestParser
     }
 
     /**
+     * Parses and validates the customer callback request data.
+     *
      * @param Sep10Jwt $token the token obtained via sep-10.
      * @param array<array-key, mixed> $requestData the array to parse the data from.
      *
-     * @throws InvalidSepRequest
+     * @return PutCustomerCallbackRequest the parsed and validated data.
+     *
+     * @throws InvalidSepRequest if the request data is invalid.
      */
     public static function putCustomerCallbackRequestFormRequestData(
         Sep10Jwt $token,
@@ -227,10 +241,14 @@ class Sep12RequestParser
     }
 
     /**
+     * Parses and validates the customer verification request data.
+     *
      * @param Sep10Jwt $token the token obtained via sep-10.
      * @param array<array-key, mixed> $requestData the array to parse the data from.
      *
-     * @throws InvalidSepRequest
+     * @return PutCustomerVerificationRequest the parsed and validated data.
+     *
+     * @throws InvalidSepRequest if the request data is invalid.
      */
     public static function putCustomerVerificationRequestFormRequestData(
         Sep10Jwt $token,
@@ -282,7 +300,10 @@ class Sep12RequestParser
     }
 
     /**
-     * @throws InvalidSepRequest
+     * Extracts the memo value from the token if any.
+     * The memo must be an integer (memo type id), otherwise it throws an exception.
+     *
+     * @throws InvalidSepRequest if the included memo is not an integer
      */
     public static function tokenAccountMemoAsInt(Sep10Jwt $token): ?int
     {

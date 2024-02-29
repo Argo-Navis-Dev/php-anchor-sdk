@@ -57,6 +57,22 @@ use function str_starts_with;
 use function strlen;
 use function strval;
 
+/**
+ * The Sep10Service handles Stellar Web Authentication requests as defined by
+ * <a href="https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0010.md">SEP-10</a>
+ *
+ * To create an instance of the service you have to pass an app config (IAppConfig) and a sep 10 config
+ * (ISep10Config) to its constructor. The app config defines the network to be used (such as mainnet, testnet) for
+ * signing the SEP-10 challenge transaction and the sep 10 config contains config values specific for
+ * the SEP-10 implementation, such as the signing keys for the challenge and the jwt token,
+ * timeouts for the jwt token and challenge, etc.
+ *
+ * After initializing the service it can be used within the server implementation by passing all
+ * SEP-10 auth requests to its method handleRequest. It will handle them and return the corresponding response
+ * that can be sent back to the client. No further interaction or callback is needed.
+ *
+ * See also: <a href="https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-10.md">SDK SEP-10 docs</a>
+ */
 class Sep10Service
 {
     public IAppConfig $appConfig;
@@ -64,7 +80,15 @@ class Sep10Service
     public string $serverAccountId;
 
     /**
-     * @throws InvalidConfig
+     * Constructor.
+     *
+     * @param IAppConfig $appConfig app config containing the information about the network (mainnet, testnet, etc.)
+     * to be used for signing the SEP-10 transaction challenge.
+     * @param ISep10Config $sep10Config sep 10 config containing the config values specific for
+     *  the SEP-10 implementation, such as the signing keys for the challenge and the jwt token,
+     *  timeouts for the jwt token and challenge, etc.
+     *
+     * @throws InvalidConfig if the sep 10 config contains invalid values.
      */
     public function __construct(
         IAppConfig $appConfig,
@@ -86,9 +110,23 @@ class Sep10Service
         }
     }
 
+    /**
+     * Handles a forwarded client request specified by SEP-10. Builds and returns the corresponding response,
+     * that can be sent back to the client.
+     *
+     * @param ServerRequestInterface $request the request from the client as defined in
+     * <a href="https://www.php-fig.org/psr/psr-7/">PSR 7</a>.
+     * @param ClientInterface $httpClient the http client that will be used to make network requests if needed.
+     * For example if it needs to load the client signing key for a given client domain in the request.
+     * As defined in <a href="https://www.php-fig.org/psr/psr-7/">PSR 7</a>. For example Guzzle HTTP Client.
+     *
+     * @return ResponseInterface the response that should be sent back to the client.
+     * As defined in <a href="https://www.php-fig.org/psr/psr-7/">PSR 7</a>
+     */
     public function handleRequest(ServerRequestInterface $request, ClientInterface $httpClient): ResponseInterface
     {
         if ($request->getMethod() === 'GET') {
+            // Challenge
             try {
                 $queryParams = $request->getQueryParams();
                 $challengeRequest = ChallengeRequest::fromQueryParameters($queryParams);
@@ -98,9 +136,9 @@ class Sep10Service
                 return new JsonResponse(['error' => 'Invalid request. ' . $invalid->getMessage()], 400);
             }
         } elseif ($request->getMethod() === 'POST') {
-            $url = $request->getUri()->__toString();
-
+            // Token
             try {
+                $url = $request->getUri()->__toString();
                 $contentType = $request->getHeaderLine('Content-Type');
                 $validationRequest = null;
                 if ($contentType === 'application/x-www-form-urlencoded') {
@@ -134,8 +172,14 @@ class Sep10Service
     }
 
     /**
+     * Handles the validation request containing the transaction signed by the client/user.
+     *
+     * @param ValidationRequest $request request data containing the signed transaction.
+     *
+     * @return ResponseInterface the response to be sent back to the client. It contains the generated jwt token.
+     *
      * @throws AccountNotLoaded
-     * @throws InvalidRequestData
+     * @throws InvalidRequestData if the signed transaction is invalid.
      */
     private function handleValidationRequest(ValidationRequest $request): ResponseInterface
     {
@@ -144,6 +188,8 @@ class Sep10Service
         $clientDomainData = $challenge->clientDomainData;
         $clientAccountId = $challenge->clientAccountId;
         $challengeTx = $challenge->transaction;
+
+        // load the client account if exists. we need it later to be able to check the signatures.
         $clientAccount = $this->fetchAccount($clientAccountId, $this->appConfig->getHorizonUrl());
 
         // if the user account does not exist we need to check if there is only one valid user signature.
@@ -164,7 +210,12 @@ class Sep10Service
     }
 
     /**
-     * @throws InvalidRequestData
+     * Verifies that the transaction is correctly signed by the client (user) account id and server account id.
+     * If the client domain is set it also verifies that the transaction has been signed by the client domain id.
+     *
+     * This is for the case that the client account exist on the stellar network.
+     *
+     * @throws InvalidRequestData if the transaction was not signed correctly.
      */
     private function validateSignaturesForExistentClientAccount(
         Transaction $tx,
@@ -255,7 +306,16 @@ class Sep10Service
     }
 
     /**
-     * @throws InvalidRequestData
+     * Verifies that the transaction is correctly signed by the client (user) account id and server account id.
+     * If the client domain is set it also verifies that the transaction has been signed by the client domain id.
+     *
+     * This is for the case that the client account does not exist on the stellar network.
+     *
+     * @param Transaction $tx the transaction to verify if correctly signed by the client
+     * @param string $clientAccountId the account id of the client that should have signed the transaction
+     * @param string $serverAccountId the server account id
+     *
+     * @throws InvalidRequestData if not correctly signed.
      */
     private function validateSignaturesForNonExistentClientAccount(
         Transaction $tx,
@@ -372,7 +432,14 @@ class Sep10Service
     }
 
     /**
-     * @throws InvalidRequestData
+     * Parses the data from the signed transaction included in the request.
+     * Also validates the transaction data.
+     *
+     * @param ValidationRequest $request the request data containing the signed transaction.
+     *
+     * @return ChallengeTransaction containing the parsed data
+     *
+     * @throws InvalidRequestData if the transaction data is invalid.
      */
     private function parseChallenge(ValidationRequest $request): ChallengeTransaction
     {
@@ -385,11 +452,13 @@ class Sep10Service
         }
         $tx = null;
         try {
+            // decode the received input as a base64-urlencoded XDR representation of Stellar transaction envelope
             $tx = Transaction::fromEnvelopeBase64XdrString($request->transaction);
         } catch (Throwable $e) {
             throw new InvalidRequestData('Transaction could not be parsed', 0, $e);
         }
 
+        // verify that transaction is not a fee bump transaction
         if (!($tx instanceof Transaction)) {
             throw new InvalidRequestData('Transaction cannot be a fee bump transaction');
         }
@@ -404,11 +473,13 @@ class Sep10Service
             throw new InvalidRequestData('The transaction sequence number should be zero.');
         }
 
+        // if the transaction contains a memo, then verify that the memo is of type id.
         $memo = $tx->getMemo();
         if ($memo->getType() !== Memo::MEMO_TYPE_NONE && $memo->getType() !== Memo::MEMO_TYPE_ID) {
             throw new InvalidRequestData('Only memo type `id` is supported');
         }
 
+        // verify that transaction has time bounds set, and that current time is between the minimum and maximum bounds
         $maxTime = $tx->getTimeBounds()?->getMaxTime();
         $minTime = $tx->getTimeBounds()?->getMinTime();
         if ($maxTime === null || $minTime === null) {
@@ -426,6 +497,7 @@ class Sep10Service
             throw new InvalidRequestData('Transaction is not within range of the specified timebounds.');
         }
 
+        // verify that transaction contains at least one operation
         if (count($tx->getOperations()) < 1) {
             throw new InvalidRequestData('Transaction requires at least one ManageData operation.');
         }
@@ -441,6 +513,7 @@ class Sep10Service
             throw new InvalidRequestData('Operation must have a source account.');
         }
 
+        // verify that the first operations key value matches to one of our home domains.
         $matchedDomainName = null;
         foreach ($domainNames as $homeDomain) {
             if ($homeDomain . ' auth' === $op->getKey()) {
@@ -454,7 +527,7 @@ class Sep10Service
             throw new InvalidRequestData($msg);
         }
 
-        // verify manage data value
+        // verify first operations data value
         $dataValue = $op->getValue();
         if ($dataValue === null) {
             throw new InvalidRequestData('The transaction operation value should not be null.');
@@ -475,16 +548,20 @@ class Sep10Service
             if (!($operation instanceof ManageDataOperation)) {
                 throw new InvalidRequestData('Operation type should be ManageData.');
             }
+            // verify that the operation has a source account
             $sourceAccount = $operation->getSourceAccount();
             if ($sourceAccount === null) {
                 throw new InvalidRequestData('Operation should have a source account.');
             }
+            // if the operations key is client_domain then the source account should not be the server account id.
             if (
                 $operation->getKey() !== 'client_domain'
                 && $sourceAccount->getAccountId() !== $serverAccountId
             ) {
                 throw new InvalidRequestData('Subsequent operations are unrecognized.');
             }
+
+            // if the operation key is web_auth_domain then verify that the value contains our web auth domain.
             if ($operation->getKey() === 'web_auth_domain') {
                 if ($operation->getValue() === null) {
                     throw new InvalidRequestData('web_auth_domain operation value should not be null.');
@@ -493,6 +570,8 @@ class Sep10Service
                     throw new InvalidRequestData('web_auth_domain operation value does not match ' . $webAuthDomain);
                 }
             }
+
+            // collect client domain data needed later for signature verification.
             if ($operation->getKey() === 'client_domain') {
                 $clientDomain = $operation->getValue();
                 $clientDomainAccountId = $operation->getSourceAccount()?->getEd25519AccountId();
@@ -509,13 +588,20 @@ class Sep10Service
             }
         }
 
+        // verify that transaction envelope has a correct signature by the Server Account
         $this->verifyServerSignature($tx, $serverAccountId, $network);
 
         return new ChallengeTransaction($tx, $clientAccountId->getAccountId(), $matchedDomainName, $clientDomainData);
     }
 
     /**
-     * @throws InvalidRequestData
+     * Verifies that the given transaction has been signed by the given server account id.
+     *
+     * @param Transaction $tx the transaction to verify if it was signed by the server account id.
+     * @param string $serverAccountId the server account id that must match the signature.
+     * @param Network $network the network, that the transaction was signed for.
+     *
+     * @throws InvalidRequestData if the transaction was not signed by the given server account id.
      */
     private function verifyServerSignature(Transaction $tx, string $serverAccountId, Network $network): void
     {
@@ -539,6 +625,16 @@ class Sep10Service
         }
     }
 
+    /**
+     * Creates the SEP-10 auth challenge transaction that needs to be signed by the client.
+     * Before creating the challenge transaction it validates the given request data.
+     *
+     * @param ChallengeRequest $request containing the data from the client request.
+     * @param ClientInterface $httpClient http client to be used for network requests if needed.
+     *
+     * @return ResponseInterface the response containing the SEP-10 auth challenge transaction.
+     * The response can be sent back to the client.
+     */
     private function createChallenge(ChallengeRequest $request, ClientInterface $httpClient): ResponseInterface
     {
         $memo = Memo::none();
@@ -553,11 +649,23 @@ class Sep10Service
     }
 
     /**
-     * @throws InvalidRequestData
+     * Checks if the data from the request is valid and supported, and we can process it.
+     * - if a home domain was specified in the request, we check if we support it
+     * - we check the given account id to see if it is a valid stellar account id
+     * - we check if the given account belongs to our known custodial accounts list. If yes, the request comes
+     * from a known custodial wallet.
+     * - if the request comes from a known custodial wallet, the client domain should not be set in the request
+     * - if the request is not from a known custodial wallet, we must check if the anchor requires client attribution.
+     * If yes, the client domain must be available in the request data. If available, we must also check if the given
+     * client domain is blacklisted by the anchor.
+     *
+     * @throws InvalidRequestData if data is not valid or supported. Such as invalid account id or blacklisted
+     * client domain.
      */
     private function validateChallengeRequestFormat(ChallengeRequest $request): void
     {
-        // validate home domain
+        // Validate home domain
+        // If a home domain was specified in the request, we check if we support it
         $homeDomain = $request->homeDomain;
         if ($homeDomain === null) {
             $request->homeDomain = $this->sep10Config->getHomeDomains()[0];
@@ -565,23 +673,27 @@ class Sep10Service
             throw new InvalidRequestData('home_domain ' . $homeDomain . ' not supported', 400);
         }
 
-        // validate account
+        // Validate account to see if it is a valid stellar account id
         try {
             KeyPair::fromAccountId($request->account);
         } catch (Throwable $e) {
             throw new InvalidRequestData('client wallet account ' . $request->account . ' is invalid', 400);
         }
 
-        // validate client
+        // Validate client. Is the request coming from a known custodial wallet?
         $custodialAccountList = $this->sep10Config->getKnownCustodialAccountList() ?? [];
         $custodialWallet = in_array($request->account, $custodialAccountList);
 
+        // If the request comes from a known custodial wallet, the client domain should not be set in the request.
         if ($custodialWallet && $request->clientDomain !== null) {
-            $errorMsg = 'client_domain must not be specified if the account is an custodial-wallet account';
+            $errorMsg = 'client_domain must not be specified if the account is a custodial-wallet account';
 
             throw new InvalidRequestData($errorMsg, 400);
         }
 
+        // If not a known custodial wallet, and client attribution is required by the anchor
+        // then we must check if the request contains a client domain and if the contained client domain
+        // is not blacklisted by the anchor.
         if (!$custodialWallet && $this->sep10Config->isClientAttributionRequired()) {
             if ($request->clientDomain === null) {
                 throw new InvalidRequestData('client_domain is required', 400);
@@ -595,17 +707,26 @@ class Sep10Service
     }
 
     /**
-     * @throws InvalidRequestData
+     * If the client challenge request contains a memo, then checks if the given memo is valid and supported:
+     * - if the account from the client request is a muxed account, then no memo is allowed in the request because the
+     * account already contains the memo.
+     * - the given memo must be numeric so that we can create a Memo object from it of type id.
+     * Otherwise, the memo is not supported.
+     *
+     * @throws InvalidRequestData if the request data contains a memo which is invalid or not supported.
      */
     public function validateChallengeRequestMemo(ChallengeRequest $request): Memo
     {
         // validate memo
         $memo = Memo::none();
         if ($request->memo !== null) {
+            // If the given account id from the request data is a muxed account id, then no memo is accepted
+            // in the request because the account id already contains the memo.
             if (str_starts_with($request->account, 'M')) {
                 throw new InvalidRequestData('memo not allowed for muxed accounts', 400);
             }
             try {
+                // check if the memo is an integer. We only support memos of type id.
                 if (is_numeric($request->memo) && is_int($request->memo + 0)) {
                     $value = intval($request->memo);
                     $memo = Memo::id($value);
@@ -620,6 +741,16 @@ class Sep10Service
         return $memo;
     }
 
+    /**
+     * Composes the SEP-10 auth challenge transaction from the given client request data.
+     * Requires already validated request data. Loads the client signing key by http request if needed.
+     *
+     * @param ChallengeRequest $request the request data
+     * @param Memo $memo the memo from the request data as Memo object.
+     * @param ClientInterface $httpClient the http client to make network requests if needed.
+     *
+     * @return ResponseInterface the response for the client containing the challenge transaction.
+     */
     private function createChallengeResponse(
         ChallengeRequest $request,
         Memo $memo,
@@ -627,6 +758,7 @@ class Sep10Service
     ): ResponseInterface {
         $clientSigningKey = null;
         try {
+            // load the client signing key by http request if needed.
             if ($request->clientDomain !== null) {
                 $msg = 'client signing key not found for domain ' . $request->clientDomain;
                 try {
@@ -674,7 +806,11 @@ class Sep10Service
     }
 
     /**
-     * @throws Exception
+     * Composes the SEP auth challenge transaction by using the given data that was extracted from
+     * the client request, the config data and loaded by http request if needed (client signing key).
+     * The given data must be completely validated and supported.
+     *
+     * @throws Exception if an error occurs while creating and signing the transaction.
      */
     private function newChallenge(
         KeyPair $signer,
@@ -687,31 +823,58 @@ class Sep10Service
         ?string $clientDomain = null,
         ?string $clientSigningKey = null,
     ): ResponseInterface {
+        // set tx source account to the Server Account
+        // set invalid sequence number (set to 0) so the transaction cannot be run on the Stellar network
+        // here we set it to -1 because the classic php sdk will automatically increment it when preparing the transaction.
         $sourceAccount = new Account($signer->getAccountId(), new BigInteger(-1));
+
+        // client account (account of the user).
         $clientAccount = MuxedAccount::fromAccountId($clientAccountId);
+
+        // Operations:
+
+        // 1. manage_data(source: client account, key: '<home domain> auth', value: random_nonce())
+        // The value of key is the Home Domain, followed by auth.
+        // The value must be 64 bytes long. It contains a 48 byte cryptographic-quality random string
+        // encoded using base64 (for a total of 64 bytes after encoding).
         $nonce = random_bytes(48);
         $builder = new ManageDataOperationBuilder($domainName . ' auth', base64_encode($nonce));
         $builder->setMuxedSourceAccount($clientAccount);
         $domainNameOperation = $builder->build();
 
+        // 2. manage_data(source: server account, key: 'web_auth_domain', value: web_auth_domain)
+        // The source account is the Server Account
+        // The value is the Server's domain.
         $builder = new ManageDataOperationBuilder('web_auth_domain', $webAuthDomain);
         $builder->setSourceAccount($signer->getAccountId());
         $webAuthDomainOperation = $builder->build();
 
+        // prepare the transaction
         $txBuilder = (new TransactionBuilder($sourceAccount))
             ->addOperation($domainNameOperation)
             ->addOperation($webAuthDomainOperation)
             ->addMemo($memo)
             ->setTimeBounds($timeBounds);
 
+        // Operation 3. (optional) manage_data(source: client domain account, key: 'client_domain', value: client_domain)
+        // SEP-10 says : Add this operation if the server supports Verifying the Client Domain and the client provided
+        // a client_domain parameter in the request.
+        // => If we have the needed data, we also add this operation
         if ($clientDomain !== null && $clientSigningKey !== null) {
             $builder = new ManageDataOperationBuilder('client_domain', $clientDomain);
+            // The source account is the Client Domain Account
             $builder->setSourceAccount($clientSigningKey);
             $txBuilder->addOperation($builder->build());
         }
 
+        // build the transaction
         $tx = $txBuilder->build();
+
+        // sign the transaction. SEP-10: signature by the Server Account
+        // we use the network given by the app config here.
         $tx->sign($signer, $network);
+
+        // build the response for the client containing the
         $response = ['transaction' => $tx->toEnvelopeXdrBase64(),
             'network_passphrase' => $network->getNetworkPassphrase(),
         ];
@@ -719,14 +882,36 @@ class Sep10Service
         return new JsonResponse($response, 200);
     }
 
+    /**
+     * Generates the jwt token by using the given (verified) request and config data.
+     *
+     * @param string $url the request url (the principal that issued a token)
+     * @param ChallengeTransaction $challenge the challenge transaction data.
+     * @param string|null $homeDomain the home domain to be added to the jwt token if any
+     * @param ClientDomainData|null $clientDomainData the client domain data to be added to the jwt token if any.
+     *
+     * @return string the jwt token
+     */
     private function generateSep10Jwt(
         string $url,
         ChallengeTransaction $challenge,
         ?string $homeDomain = null,
         ?ClientDomainData $clientDomainData = null,
     ): string {
+        // iat (the time at which the JWT was issued RFC7519, Section 4.1.6)
+        // SEP-10 says: The Server should not provide more than one JWT for a specific challenge transaction.
+        // therefore we take the issued time from the transaction.
         $issuedAt = $challenge->transaction->getTimeBounds()?->getMinTime()->getTimestamp();
         $memo = $challenge->transaction->getMemo();
+
+        // (sub: the principal that is the subject of the JWT, RFC7519, Section 4.1.2) —
+        // there are several possible formats:
+        //
+        // If the Client Account is a muxed account (M...), the sub value should be the muxed account (M...).
+        // If the Client Account is a stellar account (G...):
+        //  - And, a memo was attached to the challenge transaction, the sub should be the stellar account appended
+        //    with the memo, separated by a colon (G...:17509749319012223907).
+        //  - Otherwise, the sub value should be Stellar account (G...).
         $sub = $challenge->clientAccountId;
         if ($memo->getType() === Memo::MEMO_TYPE_ID) {
             if (is_int($memo->getValue())) {
@@ -735,7 +920,11 @@ class Sep10Service
             }
         }
         $jwtTimeOut = $this->sep10Config->getJwtTimeout();
+
+        // the expiration time
         $exp = $issuedAt + $jwtTimeOut;
+
+        // transaction hash
         $txHash = $challenge->transaction->hash($this->appConfig->getStellarNetwork());
 
         $sep10Jwt = new Sep10Jwt(
@@ -748,6 +937,7 @@ class Sep10Service
             $clientDomainData?->clientDomain,
         );
 
+        // sign the jwt token with the signing key from config
         return $sep10Jwt->sign($this->sep10Config->getSep10JWTSigningKey());
     }
 }

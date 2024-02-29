@@ -34,9 +34,14 @@ use const DATE_ATOM;
 class Sep24RequestParser
 {
     /**
-     * @param array<array-key, mixed> $requestData
+     * Extracts the asset data from the request data, validates it and creates an IdentificationFormatAsset
+     * from the extracted data.
      *
-     * @throws InvalidSepRequest
+     * @param array<array-key, mixed> $requestData parsed request data.
+     *
+     * @return IdentificationFormatAsset the asset
+     *
+     * @throws InvalidSepRequest if the request data is invalid. e.g. missing asset code.
      */
     public static function getAssetFromRequestData(array $requestData): IdentificationFormatAsset
     {
@@ -81,9 +86,14 @@ class Sep24RequestParser
     }
 
     /**
-     * @param array<array-key, mixed> $requestData
+     * Extracts the destination asset data from the request data, validates it and creates an IdentificationFormatAsset
+     * from the extracted data.
      *
-     * @throws InvalidSepRequest
+     * @param array<array-key, mixed> $requestData parsed request data.
+     *
+     * @return IdentificationFormatAsset|null the destination asset if found.
+     *
+     * @throws InvalidSepRequest if the request data is invalid.
      */
     public static function getDestinationAssetFromRequestData(array $requestData): ?IdentificationFormatAsset
     {
@@ -105,9 +115,14 @@ class Sep24RequestParser
     }
 
     /**
-     * @param array<array-key, mixed> $requestData
+     * Extracts the source asset data from the request data if available,
+     * validates it and creates an IdentificationFormatAsset from the extracted data.
      *
-     * @throws InvalidSepRequest
+     * @param array<array-key, mixed> $requestData parsed request data.
+     *
+     * @return IdentificationFormatAsset|null the source asset if found.
+     *
+     * @throws InvalidSepRequest if the request data is invalid.
      */
     public static function getSourceAssetFromRequestData(array $requestData): ?IdentificationFormatAsset
     {
@@ -129,9 +144,13 @@ class Sep24RequestParser
     }
 
     /**
-     * @param array<array-key, mixed> $requestData
+     * Extracts the amount from the request data.
      *
-     * @throws InvalidSepRequest
+     * @param array<array-key, mixed> $requestData parsed request data.
+     *
+     * @return float|null the amount if found.
+     *
+     * @throws InvalidSepRequest if the request data is invalid. E.g. amount is not a float.
      */
     public static function getAmountFromRequestData(array $requestData): ?float
     {
@@ -148,9 +167,13 @@ class Sep24RequestParser
     }
 
     /**
-     * @param array<array-key, mixed> $requestData
+     * Extracts the claimable balance supported flag from the request data.
      *
-     * @throws InvalidSepRequest
+     * @param array<array-key, mixed> $requestData parsed request data.
+     *
+     * @return bool true if claimable balances are supported by the client.
+     *
+     * @throws InvalidSepRequest if the request data is invalid. E.g. flag is not a boolean.
      */
     public static function getClaimableBalanceSupportedRequestData(array $requestData): bool
     {
@@ -167,9 +190,13 @@ class Sep24RequestParser
     }
 
     /**
-     * @param array<array-key, mixed> $requestData
+     * Extracts the quote id from the request data if available
      *
-     * @throws InvalidSepRequest
+     * @param array<array-key, mixed> $requestData parsed request data.
+     *
+     * @return string|null the quote id if found.
+     *
+     * @throws InvalidSepRequest if the request data is invalid.
      */
     public static function getQuoteIdFromRequestData(array $requestData): ?string
     {
@@ -186,9 +213,13 @@ class Sep24RequestParser
     }
 
     /**
-     * @param array<array-key, mixed> $requestData
+     * Extracts the wallet name from the request data if available
      *
-     * @throws InvalidSepRequest
+     * @param array<array-key, mixed> $requestData parsed request data.
+     *
+     * @return string|null the wallet name if found.
+     *
+     * @throws InvalidSepRequest if the request data is invalid.
      */
     public static function getWalletNameFromRequestData(array $requestData): ?string
     {
@@ -205,9 +236,13 @@ class Sep24RequestParser
     }
 
     /**
-     * @param array<array-key, mixed> $requestData
+     * Extracts the wallet url from the request data if available
      *
-     * @throws InvalidSepRequest
+     * @param array<array-key, mixed> $requestData parsed request data.
+     *
+     * @return string|null the wallet url if found.
+     *
+     * @throws InvalidSepRequest if the request data is invalid.
      */
     public static function getWalletUrlFromRequestData(array $requestData): ?string
     {
@@ -224,9 +259,13 @@ class Sep24RequestParser
     }
 
     /**
-     * @param array<array-key, mixed> $requestData
+     * Extracts the language from the request data if available
      *
-     * @throws InvalidSepRequest
+     * @param array<array-key, mixed> $requestData parsed request data.
+     *
+     * @return string|null the language if found.
+     *
+     * @throws InvalidSepRequest if the request data is invalid.
      */
     public static function getLangFromRequestData(array $requestData): ?string
     {
@@ -243,9 +282,13 @@ class Sep24RequestParser
     }
 
     /**
-     * @param array<array-key, mixed> $requestData
+     * Extracts the customer id from the request data if available
      *
-     * @throws InvalidSepRequest
+     * @param array<array-key, mixed> $requestData parsed request data.
+     *
+     * @return string|null the customer id if found.
+     *
+     * @throws InvalidSepRequest if the request data is invalid.
      */
     public static function getCustomerIdFromRequestData(array $requestData): ?string
     {
@@ -262,9 +305,14 @@ class Sep24RequestParser
     }
 
     /**
-     * @param array<array-key, mixed> $requestData
+     * Extracts the account id from the request data
      *
-     * @throws InvalidSepRequest
+     * @param array<array-key, mixed> $requestData parsed request data.
+     * @param Sep10Jwt $token the SEP-10 jwt token.
+     *
+     * @return string the account id.
+     *
+     * @throws InvalidSepRequest if the request data is invalid. E.g. not a stellar account id.
      */
     public static function getAccountFromRequestData(array $requestData, Sep10Jwt $token): string
     {
@@ -293,9 +341,13 @@ class Sep24RequestParser
     }
 
     /**
-     * @param array<array-key, mixed> $requestData
+     * Extracts the memo from the request data if available
      *
-     * @throws InvalidSepRequest
+     * @param array<array-key, mixed> $requestData parsed request data.
+     *
+     * @return Memo|null the memo if found.
+     *
+     * @throws InvalidSepRequest if the request data is invalid or not supported
      */
     public static function getMemoFromRequestData(array $requestData): ?Memo
     {
@@ -333,9 +385,13 @@ class Sep24RequestParser
     }
 
     /**
-     * @param array<array-key, mixed> $requestData
+     * Extracts the refund memo from the request data if available
      *
-     * @throws InvalidSepRequest
+     * @param array<array-key, mixed> $requestData parsed request data.
+     *
+     * @return Memo|null the refund memo if found.
+     *
+     * @throws InvalidSepRequest if the request data is invalid
      */
     public static function getRefundMemoFromRequestData(array $requestData): ?Memo
     {
@@ -370,7 +426,9 @@ class Sep24RequestParser
     }
 
     /**
-     * @param array<array-key, mixed> $requestData
+     * Extracts the kyc fields from the request data if available
+     *
+     * @param array<array-key, mixed> $requestData parsed request data.
      *
      * @return array<array-key, mixed>|null the found kyc fields if any.
      */
@@ -397,9 +455,11 @@ class Sep24RequestParser
     }
 
     /**
-     * @param array<array-key, mixed> $requestData
+     * Validates the given request data and creates a Sep24TransactionHistoryRequest from it.
      *
-     * @throws InvalidSepRequest
+     * @param array<array-key, mixed> $requestData the get transactions request data to validate and use.
+     *
+     * @throws InvalidSepRequest if the request data is invalid.
      */
     public static function getTransactionsRequestFromRequestData(array $requestData): Sep24TransactionHistoryRequest
     {

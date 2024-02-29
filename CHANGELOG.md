@@ -28,3 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Updated
 
 - SEP-12 Support
+
+## [0.3.1] - 2024-02-29
+
+### Added
+
+- improve src comments and docs
+- fix typo in error message
+- 
+### Updated
+
+- update classic php sdk dependency

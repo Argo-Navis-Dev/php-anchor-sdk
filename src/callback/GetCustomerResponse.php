@@ -24,7 +24,7 @@ class GetCustomerResponse
     public ?string $id;
 
     /**
-     * @var string (optional) ID of the customer, if the customer has already been created via a PUT /customer request.
+     * @var string Status of the customers KYC process.
      */
     public string $status;
 

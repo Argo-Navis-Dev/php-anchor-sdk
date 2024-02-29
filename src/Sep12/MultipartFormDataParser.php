@@ -96,8 +96,6 @@ class MultipartFormDataParser
         $boundary = $matches[1];
 
         $rawBody = $request->getBody()->__toString();
-        // $rawBody = file_get_contents('/Users/body.txt', false);
-        //file_put_contents('/Users/body.txt', $rawBody);
         if (strlen($rawBody) === 0) {
             throw new InvalidRequestData('body is empty');
         }

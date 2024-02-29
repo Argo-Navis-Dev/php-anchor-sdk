@@ -13,6 +13,9 @@ use ArgoNavis\PhpAnchorSdk\callback\PutCustomerCallbackRequest;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerRequest;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerVerificationRequest;
 
+/**
+ * Base data contained in all request. Used to make the validation implementation easier.
+ */
 class Sep12CustomerRequestBase
 {
     /**
@@ -52,6 +55,13 @@ class Sep12CustomerRequestBase
         $this->type = $type;
     }
 
+    /**
+     * Extracts the base data from the request.
+     *
+     * @param GetCustomerRequest $request the request data to extract the base information from.
+     *
+     * @return Sep12CustomerRequestBase an object containing the essential data extracted from the request.
+     */
     public static function fromGetCustomerRequest(GetCustomerRequest $request): Sep12CustomerRequestBase
     {
         return new Sep12CustomerRequestBase(
@@ -62,6 +72,13 @@ class Sep12CustomerRequestBase
         );
     }
 
+    /**
+     * Extracts the base data from the request.
+     *
+     * @param PutCustomerRequest $request the request data to extract the base information from.
+     *
+     * @return Sep12CustomerRequestBase an object containing the essential data extracted from the request.
+     */
     public static function fromPutCustomerRequest(PutCustomerRequest $request): Sep12CustomerRequestBase
     {
         return new Sep12CustomerRequestBase(
@@ -72,6 +89,13 @@ class Sep12CustomerRequestBase
         );
     }
 
+    /**
+     * Extracts the base data from the request.
+     *
+     * @param PutCustomerCallbackRequest $request the request data to extract the base information from.
+     *
+     * @return Sep12CustomerRequestBase an object containing the essential data extracted from the request.
+     */
     public static function fromPutCustomerCallbackRequest(PutCustomerCallbackRequest $request): Sep12CustomerRequestBase
     {
         return new Sep12CustomerRequestBase(
@@ -81,6 +105,13 @@ class Sep12CustomerRequestBase
         );
     }
 
+    /**
+     * Extracts the base data from the request.
+     *
+     * @param PutCustomerVerificationRequest $request the request data to extract the base information from.
+     *
+     * @return Sep12CustomerRequestBase an object containing the essential data extracted from the request.
+     */
     public static function fromPutCustomerVerificationRequest(
         PutCustomerVerificationRequest $request,
     ): Sep12CustomerRequestBase {

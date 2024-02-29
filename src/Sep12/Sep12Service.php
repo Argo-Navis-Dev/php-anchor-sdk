@@ -37,6 +37,22 @@ use function is_string;
 use function str_contains;
 use function trim;
 
+/**
+ * The Sep12Service handles KYC requests as defined by
+ * <a href="https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0012.md">SEP-12 KYC API</a>
+ *
+ * To create an instance of the service, you have to pass a business logic callback class that implements
+ * ICustomerIntegration to the service constructor. This is needed, so that the service can load and store customer data.
+ * Optionally, you can also pass a class implementing ISep12Config. It defines the maximum size and number
+ * of files that can be uploaded. If not provided, default values will be used.
+ *
+ * After initializing the service it can be used within the server implementation by passing all
+ * SEP-12 kyc requests to its method handleRequest. It will handle them and return the corresponding response
+ * that can be sent back to the client. During the handling it will call methods from the callback implementation
+ * (ICustomerIntegration) provided by the server.
+ *
+ *  See: <a href="https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-12.md">SDK SEP-12 docs</a>
+ */
 class Sep12Service
 {
     public ICustomerIntegration $customerIntegration;
@@ -44,6 +60,14 @@ class Sep12Service
     private int $uploadFileMaxSize = 2097152; // 2 MB
     private int $uploadFileMaxCount = 6;
 
+    /**
+     * Constructor.
+     *
+     * @param ICustomerIntegration $customerIntegration the callback class containing the needed business
+     * logic to load and store data, etc. See ICustomerIntegration description.
+     * @param ISep12Config|null $config SEP-12 config containing info about the max size and number of files
+     * allowed to be uploaded.
+     */
     public function __construct(ICustomerIntegration $customerIntegration, ?ISep12Config $config = null)
     {
         $this->customerIntegration = $customerIntegration;
@@ -60,6 +84,17 @@ class Sep12Service
         }
     }
 
+    /**
+     * Handles a forwarded client request specified by SEP-12. Builds and returns the corresponding response,
+     * that can be sent back to the client.
+     *
+     * @param ServerRequestInterface $request the request from the client as defined in
+     * <a href="https://www.php-fig.org/psr/psr-7/">PSR 7</a>.
+     * @param Sep10Jwt $token the validated jwt token obtained earlier by SEP-10
+     *
+     * @return ResponseInterface the response that should be sent back to the client.
+     * As defined in <a href="https://www.php-fig.org/psr/psr-7/">PSR 7</a>
+     */
     public function handleRequest(ServerRequestInterface $request, Sep10Jwt $token): ResponseInterface
     {
         if ($request->getMethod() === 'GET') {
@@ -94,6 +129,14 @@ class Sep12Service
         }
     }
 
+    /**
+     * Handles a put customer request.
+     *
+     * @param Sep10Jwt $token the jwt token previously obtained by SEP-10.
+     * @param ServerRequestInterface $request the request from the client.
+     *
+     * @return ResponseInterface the response to be sent back to the client.
+     */
     private function handlePutCustomer(Sep10Jwt $token, ServerRequestInterface $request): ResponseInterface
     {
         try {
@@ -128,6 +171,14 @@ class Sep12Service
         }
     }
 
+    /**
+     * Handles a put customer callback request.
+     *
+     * @param Sep10Jwt $token the jwt token previously obtained by SEP-10.
+     * @param ServerRequestInterface $request the request from the client.
+     *
+     * @return ResponseInterface the response to be sent back to the client.
+     */
     private function handlePutCustomerCallback(Sep10Jwt $token, ServerRequestInterface $request): ResponseInterface
     {
         try {
@@ -160,6 +211,14 @@ class Sep12Service
         }
     }
 
+    /**
+     * Handles a customer data verification request.
+     *
+     * @param Sep10Jwt $token the jwt token previously obtained by SEP-10.
+     * @param ServerRequestInterface $request the request from the client.
+     *
+     * @return ResponseInterface the response to be sent back to the client.
+     */
     private function handlePutCustomerVerification(Sep10Jwt $token, ServerRequestInterface $request): ResponseInterface
     {
         try {
@@ -190,6 +249,14 @@ class Sep12Service
         }
     }
 
+    /**
+     * Handles a delete customer request.
+     *
+     * @param Sep10Jwt $token the jwt token previously obtained by SEP-10.
+     * @param ServerRequestInterface $request the request from the client.
+     *
+     * @return ResponseInterface the response to be sent back to the client.
+     */
     private function handleDeleteCustomer(Sep10Jwt $token, ServerRequestInterface $request): ResponseInterface
     {
         try {
@@ -257,9 +324,17 @@ class Sep12Service
     }
 
     /**
-     * @throws SepNotAuthorized
-     * @throws InvalidSepRequest
-     * @throws AnchorFailure
+     * Creates the get customer response for the given request data.
+     * Checks if the caller is allowed to obtain the data.
+     *
+     * @param Sep10Jwt $token the token previously obtained by SEP-10
+     * @param GetCustomerRequest $request the request data.
+     *
+     * @return GetCustomerResponse containing the data to be sent back to the caller.
+     *
+     * @throws SepNotAuthorized if the caller is not authorized to obtain the requested data.
+     * @throws InvalidSepRequest if the request data is invalid.
+     * @throws AnchorFailure if the server failed to load the data from its data source.
      */
     private function getCustomer(Sep10Jwt $token, GetCustomerRequest $request): GetCustomerResponse
     {
@@ -273,9 +348,17 @@ class Sep12Service
     }
 
     /**
-     * @throws SepNotAuthorized
-     * @throws AnchorFailure
-     * @throws InvalidSepRequest
+     * Creates the put customer response for the given request data.
+     * Checks if the caller is allowed to put the data.
+     *
+     * @param Sep10Jwt $token the token previously obtained by SEP-10
+     * @param PutCustomerRequest $request the request data.
+     *
+     * @return PutCustomerResponse containing the data to be sent back to the caller.
+     *
+     * @throws SepNotAuthorized if the caller is not authorized to put the data.
+     * @throws AnchorFailure if the server failed to put the data into its data source.
+     * @throws InvalidSepRequest if the request data is invalid.
      */
     private function putCustomer(Sep10Jwt $token, PutCustomerRequest $request): PutCustomerResponse
     {
@@ -289,9 +372,14 @@ class Sep12Service
     }
 
     /**
-     * @throws SepNotAuthorized
-     * @throws AnchorFailure
-     * @throws CustomerNotFoundForId
+     * Stores the customer callback from the request data.
+     *
+     * @param Sep10Jwt $token the token previously obtained by SEP-10
+     * @param PutCustomerCallbackRequest $request the request data.
+     *
+     * @throws SepNotAuthorized if the caller is not authorized to put the data.
+     * @throws AnchorFailure if the server failed to put the data into its data source.
+     * @throws CustomerNotFoundForId if there is no customer for the defined customer id in the request.
      */
     private function putCustomerCallback(Sep10Jwt $token, PutCustomerCallbackRequest $request): void
     {
@@ -305,15 +393,24 @@ class Sep12Service
     }
 
     /**
-     * @throws SepNotAuthorized
-     * @throws AnchorFailure
+     * Deletes the customer data for the given account id and memo.
+     *
+     * @param Sep10Jwt $sep10Jwt the token previously obtained by SEP-10
+     * @param string $accountId the stellar account id of the customer
+     * @param int|null $memo memo if the customer is identified by account id and memo
+     *
+     * @throws SepNotAuthorized if the caller is not authorized to delete the data.
+     * @throws AnchorFailure if the server failed to delete the customer data.
      */
     private function deleteCustomer(
         Sep10Jwt $sep10Jwt,
         string $accountId,
         ?int $memo = null,
     ): void {
+        // check if the account id of the customer to delete the data for matches tho the account id from the jwt token.
         $isAccountAuthenticated = ($sep10Jwt->accountId === $accountId || $sep10Jwt->muxedAccountId === $accountId);
+
+        // if the customer is identified by account and memo we also need to check the memo.
         $isMemoMissingAuthentication = false;
         $muxedId = $sep10Jwt->muxedId;
         if ($muxedId !== null) {
@@ -343,8 +440,14 @@ class Sep12Service
     }
 
     /**
-     * @throws SepNotAuthorized
-     * @throws InvalidSepRequest
+     * Validates the base request data by checking if the caller data corresponds to the
+     * jwt token data (account id + memo)
+     *
+     * @param Sep12CustomerRequestBase $request base request data.
+     * @param Sep10Jwt $token jwt token previously received by SEP-10
+     *
+     * @throws SepNotAuthorized if the caller is not authorized.
+     * @throws InvalidSepRequest if the jwt token contains an invalid memo
      */
     private function validateGetOrPutRequest(Sep12CustomerRequestBase $request, Sep10Jwt $token): void
     {
@@ -352,6 +455,9 @@ class Sep12Service
         $tokenMuxedAccountId = $token->muxedAccountId;
         $customerAccountId = $request->account;
 
+        // check if the caller is authorized to obtain the data.
+        // not authorized if the customer from the jwt token does not match the data customer data from the request
+        // account id + memo must match
         if (
             $customerAccountId !== null
             && ($tokenAccountId !== $customerAccountId && $tokenMuxedAccountId !== $customerAccountId)

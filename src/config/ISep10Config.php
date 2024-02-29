@@ -31,7 +31,8 @@ interface ISep10Config
     /**
      * Set the authentication challenge transaction timeout in seconds. An expired signed transaction
      * will be rejected. This is the timeout period the client must finish the authentication process.
-     * (ie: sign and respond the challenge transaction).
+     * (ie: sign and respond the challenge transaction). We recommend expiration of 15 minutes (900 seconds) to
+     * give the Client time to sign transaction.
      *
      * @return int auth timeout in seconds.
      */
@@ -52,8 +53,12 @@ interface ISep10Config
     public function getSep10JWTSigningKey(): string;
 
     /**
-     *  Set the timeout in seconds of the authenticated JSON Web Token. An expired JWT will be
-     *  rejected. This is the timeout period after the client has authenticated.
+     * Set the timeout in seconds of the authenticated JSON Web Token. An expired JWT will be
+     * rejected. This is the timeout period after the client received the SEP-10 authentication challenge
+     * transaction. Because the SEP-10 spec says: The Server should not provide more than one JWT for a specific
+     * challenge transaction we can not use the current timestamp to generate the jwt token's issued at value.
+     * Therefore, we must use the timestamp from the challenge transaction. So the value returned here
+     * should be higher than the authentication challenge transaction timeout.
      *
      * @return int jwt token timeout in seconds.
      */

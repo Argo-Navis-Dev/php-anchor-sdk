@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+// Copyright 2024 Argo Navis Dev. All rights reserved.
+// Use of this source code is governed by a license that can be
+// found in the LICENSE file.
+
 namespace ArgoNavis\PhpAnchorSdk\Sep12;
 
 use ArgoNavis\PhpAnchorSdk\exception\InvalidRequestData;
@@ -16,11 +20,16 @@ use function strlen;
 class RequestBodyDataParser
 {
     /**
+     * Parses the data from the request. It supports following content types:
+     * - application/x-www-form-urlencoded
+     * - multipart/form-data
+     * - application/json
+     *
      * @param ServerRequestInterface $request the request
      * @param int $uploadFileMaxSize the maximum size of a file to be uploaded in bytes.
      * @param int $uploadFileMaxCount the maximum number of allowed files to be uploaded.
      *
-     * @return array<array-key, mixed> | MultipartFormDataset the body data
+     * @return array<array-key, mixed> | MultipartFormDataset the parsed body data
      *
      * @throws InvalidRequestData if the body data could not be parsed.
      */
@@ -40,6 +49,8 @@ class RequestBodyDataParser
 
             return $parsedArray;
         } elseif (str_starts_with($contentType, 'multipart/form-data')) {
+            // we have to implement an own parser for put requests.
+            // see: https://bugs.php.net/bug.php?id=55815
             $parser = new MultipartFormDataParser($uploadFileMaxSize, $uploadFileMaxCount);
             try {
                 return $parser->parse($request);
@@ -54,9 +65,13 @@ class RequestBodyDataParser
     }
 
     /**
-     * @return array<array-key, mixed>
+     * Parses the json data from the body if the request is of type application/json.
      *
-     * @throws InvalidRequestData
+     * @param string $content the body of the request.
+     *
+     * @return array<array-key, mixed> the parsed data.
+     *
+     * @throws InvalidRequestData if the data is not json or invalid json
      */
     private static function jsonDataFromRequestString(string $content): array
     {

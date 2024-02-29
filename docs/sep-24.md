@@ -195,4 +195,4 @@ Note that you'll need to create another file for your production deployment that
 ## Example source code
 
 The source code of this example can be found in the [anchor reference server](https://github.com/Argo-Navis-Dev/anchor-reference-server) implementation.
-
+It already contains demo business logic that can easily be extended for your own needs.
