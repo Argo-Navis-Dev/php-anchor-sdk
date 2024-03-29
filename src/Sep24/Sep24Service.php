@@ -18,13 +18,12 @@ use ArgoNavis\PhpAnchorSdk\callback\InteractiveWithdrawRequest;
 use ArgoNavis\PhpAnchorSdk\config\ISep24Config;
 use ArgoNavis\PhpAnchorSdk\exception\AnchorFailure;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidRequestData;
+use ArgoNavis\PhpAnchorSdk\exception\InvalidSep10JwtData;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSepRequest;
 use Laminas\Diactoros\Response\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UploadedFileInterface;
-use Soneso\StellarSDK\Crypto\KeyPair;
-use Throwable;
 
 use function count;
 use function floatval;
@@ -247,7 +246,7 @@ class Sep24Service
     {
         try {
             $result = null;
-            $accountData = $this->accountDataFromToken($token);
+            $accountData = $token->getValidatedAccountData();
             $accountId = null;
             $accountMemo = null;
             if (isset($accountData['account_id'])) {
@@ -308,7 +307,7 @@ class Sep24Service
             } else {
                 return new JsonResponse(['error' => 'transaction not found'], 404);
             }
-        } catch (InvalidSepRequest | AnchorFailure $e) {
+        } catch (InvalidSep10JwtData | InvalidSepRequest | AnchorFailure $e) {
             return new JsonResponse(['error' => $e->getMessage()], 400);
         }
     }
@@ -324,7 +323,7 @@ class Sep24Service
     private function handleGetTransactionsRequest(ServerRequestInterface $request, Sep10Jwt $token): ResponseInterface
     {
         try {
-            $accountData = $this->accountDataFromToken($token);
+            $accountData = $token->getValidatedAccountData();
             $accountId = null;
             $accountMemo = null;
             if (isset($accountData['account_id'])) {
@@ -350,46 +349,9 @@ class Sep24Service
 
                 return new JsonResponse(['transactions' => $transactionsJson], 200);
             }
-        } catch (InvalidSepRequest | AnchorFailure $e) {
+        } catch (InvalidSep10JwtData | InvalidSepRequest | AnchorFailure $e) {
                 return new JsonResponse(['error' => $e->getMessage()], 400);
         }
-    }
-
-    /**
-     * Extracts the account data (account id and optional memo) from the given jwt token.
-     *
-     * @return array<string, string> account id and optional memo.
-     *
-     * @throws InvalidSepRequest if the account was not found or invalid.
-     */
-    private function accountDataFromToken(Sep10Jwt $token): array
-    {
-        /**
-         * @var array<string, string> $accountData
-         */
-        $accountData = [];
-        if ($token->muxedAccountId !== null) {
-            try {
-                KeyPair::fromAccountId($token->muxedAccountId);
-            } catch (Throwable) {
-                throw new InvalidSepRequest('invalid account id in jwt token');
-            }
-            $accountData['account_id'] = $token->muxedAccountId;
-        } elseif ($token->accountId !== null) {
-            try {
-                KeyPair::fromAccountId($token->accountId);
-            } catch (Throwable) {
-                throw new InvalidSepRequest('invalid account id in jwt token');
-            }
-            $accountData['account_id'] = $token->accountId;
-            if ($token->accountMemo !== null) {
-                $accountData['account_memo'] = $token->accountMemo;
-            }
-        } else {
-            throw new InvalidSepRequest('account id not found in jwt token');
-        }
-
-        return $accountData;
     }
 
     /**

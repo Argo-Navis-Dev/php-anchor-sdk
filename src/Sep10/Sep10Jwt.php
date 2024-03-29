@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace ArgoNavis\PhpAnchorSdk\Sep10;
 
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSep10JwtData;
+use ArgoNavis\PhpAnchorSdk\util\MemoHelper;
 use DomainException;
 use Firebase\JWT\BeforeValidException;
 use Firebase\JWT\ExpiredException;
@@ -16,6 +17,7 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Firebase\JWT\SignatureInvalidException;
 use InvalidArgumentException;
+use Soneso\StellarSDK\Crypto\KeyPair;
 use Soneso\StellarSDK\MuxedAccount;
 use Throwable;
 use UnexpectedValueException;
@@ -315,5 +317,50 @@ class Sep10Jwt
             homeDomain: $homeDomain,
             clientDomain: $clientDomain,
         );
+    }
+
+    /**
+     * Extracts the account data (account id and optional memo) from the given jwt token.
+     * Checks if the account id exists and if the account id and optional memo are valid.
+     * If not, it throws InvalidSep10JwtData.
+     *
+     * @return array<string, string> account id and optional memo. Keys: 'account_id' and 'account_memo'
+     *
+     * @throws InvalidSep10JwtData if the account was not found or invalid or if there is a memo, but it is invalid.
+     */
+    public function getValidatedAccountData(): array
+    {
+        /**
+         * @var array<string, string> $accountData
+         */
+        $accountData = [];
+        if ($this->muxedAccountId !== null) {
+            try {
+                KeyPair::fromAccountId($this->muxedAccountId);
+            } catch (Throwable) {
+                throw new InvalidSep10JwtData('invalid account id in jwt token');
+            }
+            $accountData['account_id'] = $this->muxedAccountId;
+        } elseif ($this->accountId !== null) {
+            try {
+                KeyPair::fromAccountId($this->accountId);
+            } catch (Throwable) {
+                throw new InvalidSep10JwtData('invalid account id in jwt token');
+            }
+            $accountData['account_id'] = $this->accountId;
+            if ($this->accountMemo !== null) {
+                try {
+                    MemoHelper::makeMemoFromSepRequestData($this->accountMemo, 'id');
+                } catch (Throwable $t) {
+                    throw new InvalidSep10JwtData($t->getMessage());
+                }
+
+                $accountData['account_memo'] = $this->accountMemo;
+            }
+        } else {
+            throw new InvalidSep10JwtData('account id not found in jwt token');
+        }
+
+        return $accountData;
     }
 }

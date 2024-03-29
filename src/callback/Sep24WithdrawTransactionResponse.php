@@ -95,13 +95,13 @@ class Sep24WithdrawTransactionResponse extends Sep24TransactionResponse
         ?Sep24Refunds $refunds = null,
     ) {
         parent::__construct(
-            id:$id,
-            kind:'withdrawal',
-            status:$status,
+            id: $id,
+            kind: 'withdrawal',
+            status: $status,
+            startedAt: $startedAt,
             amountIn: $amountIn,
             amountOut: $amountOut,
             amountFee: $amountFee,
-            startedAt: $startedAt,
             moreInfoUrl: $moreInfoUrl,
             stellarTransactionId: $stellarTransactionId,
             statusEta: $statusEta,
