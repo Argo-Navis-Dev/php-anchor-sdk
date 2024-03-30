@@ -233,6 +233,68 @@ class Sep24Test extends TestCase
         $txResponse = $this->getSep24TransactionResponse($response);
         assertEquals($txId, $txResponse->transaction->id);
 
+        // add quote id
+        $depositData = [
+            'asset_code' => 'ETH',
+            'asset_issuer' => 'GDLW7I64UY2HG4PWVJB2KYLG5HWPRCIDD3WUVRFJMJASX4CB7HJVDOYP',
+            'source_asset' => $usd->getStringRepresentation(),
+            'amount' => '542',
+            'quote_id' => 'de762cda-a193-4961-861e-57b31fed6eb3',
+        ];
+        $request = $this->postServerRequest(
+            $depositData,
+            $this->depositEndpoint,
+            ServerRequestBuilder::CONTENT_TYPE_MULTIPART_FORM_DATA,
+        );
+        $response = $sep24Service->handleRequest($request, $sep10Jwt);
+        $interactiveResponse = $this->getSep24InteractiveResponse($response);
+        self::assertEquals('interactive_customer_info_needed', $interactiveResponse->type);
+
+        // check quote errors
+        $depositData = [
+            'asset_code' => 'ETH',
+            'source_asset' => $usd->getStringRepresentation(),
+            'amount' => '542',
+            'quote_id' => 'de762cda-a193-4961-861e-57b31fed6eb3',
+        ];
+        $request = $this->postServerRequest(
+            $depositData,
+            $this->depositEndpoint,
+            ServerRequestBuilder::CONTENT_TYPE_MULTIPART_FORM_DATA,
+        );
+        $response = $sep24Service->handleRequest($request, $sep10Jwt);
+        assert($response->getStatusCode() === 400);
+
+        $depositData = [
+            'asset_code' => 'ETH',
+            'asset_issuer' => 'GDLW7I64UY2HG4PWVJB2KYLG5HWPRCIDD3WUVRFJMJASX4CB7HJVDOYP',
+            'source_asset' => $usd->getStringRepresentation(),
+            'amount' => '999',
+            'quote_id' => 'de762cda-a193-4961-861e-57b31fed6eb3',
+        ];
+        $request = $this->postServerRequest(
+            $depositData,
+            $this->depositEndpoint,
+            ServerRequestBuilder::CONTENT_TYPE_MULTIPART_FORM_DATA,
+        );
+        $response = $sep24Service->handleRequest($request, $sep10Jwt);
+        assert($response->getStatusCode() === 400);
+
+        $depositData = [
+            'asset_code' => 'ETH',
+            'asset_issuer' => 'GDLW7I64UY2HG4PWVJB2KYLG5HWPRCIDD3WUVRFJMJASX4CB7HJVDOYP',
+            'source_asset' => 'stellar:native',
+            'amount' => '542',
+            'quote_id' => 'de762cda-a193-4961-861e-57b31fed6eb3',
+        ];
+        $request = $this->postServerRequest(
+            $depositData,
+            $this->depositEndpoint,
+            ServerRequestBuilder::CONTENT_TYPE_MULTIPART_FORM_DATA,
+        );
+        $response = $sep24Service->handleRequest($request, $sep10Jwt);
+        assert($response->getStatusCode() === 400);
+
         // withdraw
         $usd = new IdentificationFormatAsset(IdentificationFormatAsset::ASSET_SCHEMA_ISO4217, 'USD');
         $withdrawData = ['asset_code' => 'native', 'destination_asset' => $usd->getStringRepresentation()];
@@ -280,6 +342,51 @@ class Sep24Test extends TestCase
         $response = $sep24Service->handleRequest($request, $sep10Jwt);
         $txsResponse = $this->getSep24TransactionsResponse($response);
         assertCount(3, $txsResponse->transactions);
+
+        // add quote id
+        $withdrawData = [
+            'asset_code' => 'native',
+            'destination_asset' => $usd->getStringRepresentation(),
+            'amount' => '100',
+            'quote_id' => 'aa332xdr-a123-9999-543t-57b31fed6eb3',
+        ];
+        $request = $this->postServerRequest(
+            $withdrawData,
+            $this->withdrawEndpoint,
+            ServerRequestBuilder::CONTENT_TYPE_APPLICATION_JSON,
+        );
+        $response = $sep24Service->handleRequest($request, $sep10Jwt);
+        $interactiveResponse = $this->getSep24InteractiveResponse($response);
+        self::assertEquals('interactive_customer_info_needed', $interactiveResponse->type);
+
+        // check quote errors.
+        $withdrawData = [
+            'asset_code' => 'native',
+            'destination_asset' => $usd->getStringRepresentation(),
+            'amount' => '101',
+            'quote_id' => 'aa332xdr-a123-9999-543t-57b31fed6eb3',
+        ];
+        $request = $this->postServerRequest(
+            $withdrawData,
+            $this->withdrawEndpoint,
+            ServerRequestBuilder::CONTENT_TYPE_APPLICATION_JSON,
+        );
+        $response = $sep24Service->handleRequest($request, $sep10Jwt);
+        assert($response->getStatusCode() === 400);
+
+        $withdrawData = [
+            'asset_code' => $usd->getStringRepresentation(),
+            'destination_asset' => 'native',
+            'amount' => '100',
+            'quote_id' => 'aa332xdr-a123-9999-543t-57b31fed6eb3',
+        ];
+        $request = $this->postServerRequest(
+            $withdrawData,
+            $this->withdrawEndpoint,
+            ServerRequestBuilder::CONTENT_TYPE_APPLICATION_JSON,
+        );
+        $response = $sep24Service->handleRequest($request, $sep10Jwt);
+        assert($response->getStatusCode() === 400);
     }
 
     private function getSep24InfoResponse(ResponseInterface $response): SEP24InfoResponse

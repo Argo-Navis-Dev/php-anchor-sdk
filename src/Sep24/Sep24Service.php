@@ -20,6 +20,7 @@ use ArgoNavis\PhpAnchorSdk\exception\AnchorFailure;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidRequestData;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSep10JwtData;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSepRequest;
+use ArgoNavis\PhpAnchorSdk\shared\IdentificationFormatAsset;
 use Laminas\Diactoros\Response\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -426,6 +427,17 @@ class Sep24Service
             }
         }
 
+        // if a quote id is provided, validate it
+        if ($quoteId !== null) {
+            $this->validateQuoteAgainstRequestData(
+                quoteId: $quoteId,
+                jwtToken: $token,
+                sellAsset: $asset,
+                buyAsset: $destinationAsset,
+                sellAmount: $amount,
+            );
+        }
+
         $withdrawRequest = new InteractiveWithdrawRequest(
             $sourceAccount,
             $clientSupportsClaimableBalance,
@@ -516,6 +528,17 @@ class Sep24Service
             if ($amount > $maxAmount) {
                 throw new InvalidSepRequest("amount exceeds asset's maximum limit of: " . $maxAmount);
             }
+        }
+
+        // if a quote id is provided, validate it
+        if ($quoteId !== null) {
+            $this->validateQuoteAgainstRequestData(
+                quoteId: $quoteId,
+                jwtToken: $token,
+                sellAsset: $sourceAsset,
+                buyAsset: $asset,
+                sellAmount: $amount,
+            );
         }
 
         $depositRequest = new InteractiveDepositRequest(
@@ -648,6 +671,81 @@ class Sep24Service
         } else {
             // complex fee calculation
             return $this->sep24Integration->getFee($operation, $assetCode, $amount, type: $type);
+        }
+    }
+
+    /**
+     * Validates if a given quote id is valid and if the quote data matches the request data.
+     *
+     * @throws AnchorFailure if an anchor failure occurred while loading the quote.
+     * @throws InvalidSep10JwtData if the jwt token is invalid.
+     * @throws InvalidRequestData if the quote was not found or the request data is not valid in regards of the quote.
+     */
+    private function validateQuoteAgainstRequestData(
+        string $quoteId,
+        Sep10Jwt $jwtToken,
+        ?IdentificationFormatAsset $sellAsset = null,
+        ?IdentificationFormatAsset $buyAsset = null,
+        ?float $sellAmount = null,
+    ): void {
+        // get account id and memo of the user from jwt token if provided.
+        $accountId = null;
+        $accountMemo = null;
+
+        $accountData = $jwtToken->getValidatedAccountData();
+        if (isset($accountData['account_id'])) {
+            $accountId = $accountData['account_id'];
+        }
+        if (isset($accountData['account_memo'])) {
+            $accountMemo = $accountData['account_memo'];
+        }
+        if ($accountId === null) {
+            throw new InvalidSep10JwtData('invalid jwt token');
+        }
+
+        $quote = $this->sep24Integration->getQuoteById(
+            quoteId: $quoteId,
+            accountId: $accountId,
+            accountMemo: $accountMemo,
+        );
+
+        if (
+            $sellAsset !== null &&
+            $sellAsset->getStringRepresentation() !== $quote->sellAsset->getStringRepresentation()
+        ) {
+            throw new InvalidRequestData(
+                'source asset (' .
+                $sellAsset->getStringRepresentation() .
+                ') does not match quote sell asset (' .
+                $quote->sellAsset->getStringRepresentation() .
+                ')',
+            );
+        }
+
+        if (
+            $buyAsset !== null &&
+            $buyAsset->getStringRepresentation() !== $quote->buyAsset->getStringRepresentation()
+        ) {
+            throw new InvalidRequestData(
+                'destination asset (' .
+                $buyAsset->getStringRepresentation() .
+                ') does not match quote buy asset (' .
+                $quote->buyAsset->getStringRepresentation() .
+                ')',
+            );
+        }
+
+        if (
+            $sellAmount !== null &&
+            is_numeric($quote->sellAmount) &&
+            $sellAmount !== floatval($quote->sellAmount)
+        ) {
+            throw new InvalidRequestData(
+                'amount (' . $sellAmount .
+                ') does not match quote sell amount (' .
+                $quote->sellAmount .
+                ')',
+            );
         }
     }
 }

@@ -17,15 +17,22 @@ use ArgoNavis\PhpAnchorSdk\callback\Sep24TransactionHistoryRequest;
 use ArgoNavis\PhpAnchorSdk\callback\Sep24TransactionResponse;
 use ArgoNavis\PhpAnchorSdk\callback\Sep24WithdrawTransactionResponse;
 use ArgoNavis\PhpAnchorSdk\exception\AnchorFailure;
+use ArgoNavis\PhpAnchorSdk\exception\InvalidAsset;
+use ArgoNavis\PhpAnchorSdk\exception\QuoteNotFoundForId;
 use ArgoNavis\PhpAnchorSdk\shared\DepositOperation;
 use ArgoNavis\PhpAnchorSdk\shared\IdentificationFormatAsset;
 use ArgoNavis\PhpAnchorSdk\shared\Sep24AssetInfo;
 use ArgoNavis\PhpAnchorSdk\shared\Sep24TransactionStatus;
+use ArgoNavis\PhpAnchorSdk\shared\Sep38Fee;
+use ArgoNavis\PhpAnchorSdk\shared\Sep38FeeDetails;
+use ArgoNavis\PhpAnchorSdk\shared\Sep38Quote;
 use ArgoNavis\PhpAnchorSdk\shared\WithdrawOperation;
 use DateTime;
 
 use function strval;
 use function uniqid;
+
+use const DATE_ATOM;
 
 class InteractiveFlowIntegration implements IInteractiveFlowIntegration
 {
@@ -37,6 +44,10 @@ class InteractiveFlowIntegration implements IInteractiveFlowIntegration
      * @var array<Sep24TestTransaction> $transactions cache of transactions.
      */
     private array $transactions = [];
+
+    public static string $stellarNativeStr = 'stellar:native';
+    public static string $stellarETHStr = 'stellar:ETH:GDLW7I64UY2HG4PWVJB2KYLG5HWPRCIDD3WUVRFJMJASX4CB7HJVDOYP';
+    public static string $iso4217USDStr = 'iso4217:USD';
 
     public function __construct()
     {
@@ -300,5 +311,88 @@ class InteractiveFlowIntegration implements IInteractiveFlowIntegration
         }
 
         return new Sep24TestTransaction($request->asset, $data, $account, $accountMemo);
+    }
+
+    public function getQuoteById(string $quoteId, string $accountId, ?string $accountMemo = null): Sep38Quote
+    {
+        if ($quoteId === 'de762cda-a193-4961-861e-57b31fed6eb3') {
+            return self::composeDepositQuote();
+        } elseif ($quoteId === 'aa332xdr-a123-9999-543t-57b31fed6eb3') {
+            return self::composeWithdrawalQuote();
+        } else {
+            throw new QuoteNotFoundForId(id:$quoteId);
+        }
+    }
+
+    /**
+     * Composes a deposit quote for testing.
+     *
+     * @return Sep38Quote the composed quote.
+     *
+     * @throws AnchorFailure
+     */
+    private static function composeDepositQuote(): Sep38Quote
+    {
+        $expiresAt = DateTime::createFromFormat(DATE_ATOM, '2028-04-30T07:42:23Z');
+        if ($expiresAt === false) {
+            throw new AnchorFailure('Error composing quote: invalid date format');
+        }
+        try {
+            return new Sep38Quote(
+                id: 'de762cda-a193-4961-861e-57b31fed6eb3',
+                expiresAt: $expiresAt,
+                totalPrice: '5.42',
+                price: '5.00',
+                sellAsset: IdentificationFormatAsset::fromString(self::$iso4217USDStr),
+                sellAmount: '542',
+                buyAsset: IdentificationFormatAsset::fromString(self::$stellarETHStr),
+                buyAmount: '100',
+                fee: new Sep38Fee(
+                    total: '15.00',
+                    asset: IdentificationFormatAsset::fromString(self::$iso4217USDStr),
+                    details: [
+                        new Sep38FeeDetails(name: 'Service fee', amount: '15.00'),
+                    ],
+                ),
+            );
+        } catch (InvalidAsset $e) {
+            throw new AnchorFailure('Error composing quote: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Composes a withdrawal quote for testing.
+     *
+     * @return Sep38Quote the composed quote.
+     *
+     * @throws AnchorFailure
+     */
+    private static function composeWithdrawalQuote(): Sep38Quote
+    {
+        $expiresAt = DateTime::createFromFormat(DATE_ATOM, '2028-04-30T07:42:23Z');
+        if ($expiresAt === false) {
+            throw new AnchorFailure('Error composing quote: invalid date format');
+        }
+        try {
+            return new Sep38Quote(
+                id: 'aa332xdr-a123-9999-543t-57b31fed6eb3',
+                expiresAt: $expiresAt,
+                totalPrice: '5.42',
+                price: '5.00',
+                sellAsset: IdentificationFormatAsset::fromString(self::$stellarNativeStr),
+                sellAmount: '100',
+                buyAsset: IdentificationFormatAsset::fromString(self::$iso4217USDStr),
+                buyAmount: '542',
+                fee: new Sep38Fee(
+                    total: '15.00',
+                    asset: IdentificationFormatAsset::fromString(self::$iso4217USDStr),
+                    details: [
+                        new Sep38FeeDetails(name: 'Service fee', amount: '15.00'),
+                    ],
+                ),
+            );
+        } catch (InvalidAsset $e) {
+            throw new AnchorFailure('Error composing quote: ' . $e->getMessage());
+        }
     }
 }

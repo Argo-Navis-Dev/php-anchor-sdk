@@ -9,7 +9,9 @@ declare(strict_types=1);
 namespace ArgoNavis\PhpAnchorSdk\callback;
 
 use ArgoNavis\PhpAnchorSdk\exception\AnchorFailure;
+use ArgoNavis\PhpAnchorSdk\exception\QuoteNotFoundForId;
 use ArgoNavis\PhpAnchorSdk\shared\Sep24AssetInfo;
+use ArgoNavis\PhpAnchorSdk\shared\Sep38Quote;
 
 /**
  * The interface for the sep-24 endpoints of the callback API.
@@ -158,4 +160,20 @@ interface IInteractiveFlowIntegration
         string $accountId,
         ?string $accountMemo = null,
     ): ?array;
+
+    /**
+     * Returns the SEP-38 Quote for the given id. If SEP-38 is not supported or no quote for the id was found
+     * returns null.
+     *
+     * @param string $quoteId the id of the SEP-38 quote to return.
+     * @param string $accountId account id of the user authenticated by SEP 10.
+     * @param string|null $accountMemo (optional) account memo of the user authenticated by SEP 10.
+     * If available it should be used together with the $accountId to identify the user.
+     *
+     * @return Sep38Quote the requested quote if SEP-38 is supported and the quote was found.
+     *
+     * @throws QuoteNotFoundForId if the quote could not be found for the given id.
+     * @throws AnchorFailure if any other error occurs. E.g. SEP-38 is not supported.
+     */
+    public function getQuoteById(string $quoteId, string $accountId, ?string $accountMemo = null): Sep38Quote;
 }
