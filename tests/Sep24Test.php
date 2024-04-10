@@ -252,7 +252,7 @@ class Sep24Test extends TestCase
 
         // check quote errors
         $depositData = [
-            'asset_code' => 'ETH',
+            'asset_code' => 'ETHA',
             'source_asset' => $usd->getStringRepresentation(),
             'amount' => '542',
             'quote_id' => 'de762cda-a193-4961-861e-57b31fed6eb3',

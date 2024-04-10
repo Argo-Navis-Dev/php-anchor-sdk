@@ -44,7 +44,7 @@ An example from the reference server can be found [here](https://github.com/Argo
 
 ## Using the SDK Service
 
-In this example we create a controller named `StellarInteractiveFlowController` that handles incoming Stellar KYC requests:
+In this example we create a controller named `StellarInteractiveFlowController` that handles incoming requests:
 
 ```php
 class StellarInteractiveFlowController extends Controller
@@ -146,16 +146,16 @@ $sep24Service = new Sep24Service($sep24Config, $sep24Integration);
 ```
 The callback will be used by the Service to access the business logic.
 
-Next we can pass the incoming request together with the jwt to the `Sep12Service`:
+Next we can pass the incoming request together with the jwt to the `Sep24Service`:
 
 ```php
 return $sep24Service->handleRequest($request, $sep10Jwt);
 ```
 The `Sep24Service` will parse the request and validate it, so that it can reject invalid requests. For example, it handles all defined content types, validates if the request data matches the jwt data, extracts uploaded files and then executes the corresponding business logic. After calling the business logic via the provided callback class, the Service composes the response, so that it can be sent back to the client.
 
-## Modifing the Stellar Info File
+## Modifying the Stellar Info File
 
-Wallets need to know that SEP-24 functionality is supported by your business, and they also need to know all currencies you support. Therefore 
+Wallets need to know that SEP-24 functionality is supported by your business, and they also need to know all currencies you support. Therefore, 
 we must modify the `stellar.toml` file created [earlier](https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-01.md).
 
 ```toml

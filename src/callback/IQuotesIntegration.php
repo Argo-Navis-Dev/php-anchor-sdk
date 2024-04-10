@@ -48,7 +48,6 @@ interface IQuotesIntegration
      * Returns the indicative price for a given asset pair.
      *
      * @param Sep38PriceRequest $request The request data.
-     * If available, it can be used to personalize the response.
      *
      * @return Sep38Price The response containing the price info.
      *

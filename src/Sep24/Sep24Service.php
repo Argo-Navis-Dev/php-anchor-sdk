@@ -709,10 +709,7 @@ class Sep24Service
             accountMemo: $accountMemo,
         );
 
-        if (
-            $sellAsset !== null &&
-            $sellAsset->getStringRepresentation() !== $quote->sellAsset->getStringRepresentation()
-        ) {
+        if ($sellAsset !== null && !$this->assetEqualsQuoteAsset($sellAsset, $quote->sellAsset)) {
             throw new InvalidRequestData(
                 'source asset (' .
                 $sellAsset->getStringRepresentation() .
@@ -722,10 +719,7 @@ class Sep24Service
             );
         }
 
-        if (
-            $buyAsset !== null &&
-            $buyAsset->getStringRepresentation() !== $quote->buyAsset->getStringRepresentation()
-        ) {
+        if ($buyAsset !== null && !$this->assetEqualsQuoteAsset($buyAsset, $quote->buyAsset)) {
             throw new InvalidRequestData(
                 'destination asset (' .
                 $buyAsset->getStringRepresentation() .
@@ -747,5 +741,19 @@ class Sep24Service
                 ')',
             );
         }
+    }
+
+    private function assetEqualsQuoteAsset(
+        IdentificationFormatAsset $asset,
+        IdentificationFormatAsset $quoteAsset,
+    ): bool {
+        if ($asset->getSchema() !== $quoteAsset->getSchema()) {
+            return false;
+        }
+        if ($asset->getCode() !== $quoteAsset->getCode()) {
+            return false;
+        }
+
+        return $asset->getIssuer() === null || $asset->getIssuer() === $quoteAsset->getIssuer();
     }
 }
