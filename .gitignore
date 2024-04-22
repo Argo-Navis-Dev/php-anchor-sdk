@@ -6,3 +6,6 @@
 .idea/phpunit.xml
 .idea/vcs.xml
 .idea/inspectionProfiles/Project_Default.xml
+vendor/**
+composer.lock
+.php-cs-fixer.cache
