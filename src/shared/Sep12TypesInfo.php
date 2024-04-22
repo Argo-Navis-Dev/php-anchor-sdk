@@ -43,18 +43,10 @@ class Sep12TypesInfo
     {
         $result = [];
         //Prepare the sender data
-        $senderTypes = [];
-        foreach ($this->senderTypes as $key => $value) {
-            $senderTypes[$key] = ['description' => $value];
-        }
-        $result['sender'] = ['types' => $senderTypes];
+        $result['sender'] = ['types' => $this->senderTypes];
 
         //Prepare the receiver data
-        $receiverTypes = [];
-        foreach ($this->receiverTypes as $key => $value) {
-            $receiverTypes[$key] = ['description' => $value];
-        }
-        $result['receiver'] = ['types' => $receiverTypes];
+        $result['receiver'] = ['types' => $this->receiverTypes];
 
         return $result;
     }

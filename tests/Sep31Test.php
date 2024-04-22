@@ -55,37 +55,27 @@ class Sep31Test extends TestCase
 
         $sep31Sender = $senderTypes['sep31-sender'];
         self::assertNotNull($sep31Sender);
-        assert(is_array($sep31Sender));
-        self::assertCount(1, $sep31Sender);
         self::assertEquals(
             'U.S. citizens limited to sending payments of less than $10,000 in value',
-            $sep31Sender['description'],
+            $sep31Sender,
         );
         $sep31LargeSender = $senderTypes['sep31-large-sender'];
         self::assertNotNull($sep31LargeSender);
-        assert(is_array($sep31LargeSender));
-        self::assertEquals(1, count($sep31LargeSender));
-        self::assertEquals('U.S. citizens that do not have sending limits', $sep31LargeSender['description']);
+        self::assertEquals('U.S. citizens that do not have sending limits', $sep31LargeSender);
         $sep31ForeignSender = $senderTypes['sep31-foreign-sender'];
         self::assertNotNull($sep31ForeignSender);
-        assert(is_array($sep31ForeignSender));
-        self::assertEquals(1, count($sep31ForeignSender));
         self::assertEquals(
             'non-U.S. citizens sending payments of less than $10,000 in value',
-            $sep31ForeignSender['description'],
+            $sep31ForeignSender,
         );
 
         $receiverTypes = $usdcInfo->sep12Info->receiverTypes;
         $sep31Receiver = $receiverTypes['sep31-receiver'];
         self::assertNotNull($sep31Receiver);
-        assert(is_array($sep31Receiver));
-        self::assertEquals(1, count($sep31Receiver));
-        self::assertEquals('U.S. citizens receiving USD', $sep31Receiver['description']);
+        self::assertEquals('U.S. citizens receiving USD', $sep31Receiver);
         $sep31ForeignReceiver = $receiverTypes['sep31-foreign-receiver'];
         self::assertNotNull($sep31ForeignReceiver);
-        assert(is_array($sep31ForeignReceiver));
-        self::assertEquals(1, count($sep31ForeignReceiver));
-        self::assertEquals('non-U.S. citizens receiving USD', $sep31ForeignReceiver['description']);
+        self::assertEquals('non-U.S. citizens receiving USD', $sep31ForeignReceiver);
     }
 
     private function createSep10Jwt(string $sub): Sep10Jwt
