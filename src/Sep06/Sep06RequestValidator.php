@@ -127,7 +127,7 @@ class Sep06RequestValidator
             }
         }
         if ($sourceAsset === null) {
-            throw new InvalidSepRequest('invalid operation for asset ' . $sourceAsset);
+            throw new InvalidSepRequest('invalid operation for asset null');
         }
 
         return $sourceAsset;
