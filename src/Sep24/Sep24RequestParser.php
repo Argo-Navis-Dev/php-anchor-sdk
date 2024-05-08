@@ -9,7 +9,7 @@ declare(strict_types=1);
 namespace ArgoNavis\PhpAnchorSdk\Sep24;
 
 use ArgoNavis\PhpAnchorSdk\Sep10\Sep10Jwt;
-use ArgoNavis\PhpAnchorSdk\callback\Sep24TransactionHistoryRequest;
+use ArgoNavis\PhpAnchorSdk\callback\TransactionHistoryRequest;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidAsset;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSepRequest;
 use ArgoNavis\PhpAnchorSdk\shared\IdentificationFormatAsset;
@@ -461,7 +461,7 @@ class Sep24RequestParser
      *
      * @throws InvalidSepRequest if the request data is invalid.
      */
-    public static function getTransactionsRequestFromRequestData(array $requestData): Sep24TransactionHistoryRequest
+    public static function getTransactionsRequestFromRequestData(array $requestData): TransactionHistoryRequest
     {
         $assetCode = null;
         if (isset($requestData['asset_code'])) {
@@ -527,6 +527,6 @@ class Sep24RequestParser
             }
         }
 
-        return new Sep24TransactionHistoryRequest($assetCode, $noOlderThan, $limit, $kind, $pagingId, $lang);
+        return new TransactionHistoryRequest($assetCode, $noOlderThan, $limit, $kind, $pagingId, $lang);
     }
 }

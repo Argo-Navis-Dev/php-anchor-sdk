@@ -10,7 +10,7 @@ declare(strict_types=1);
 namespace ArgoNavis\PhpAnchorSdk\callback;
 
 use ArgoNavis\PhpAnchorSdk\shared\IdentificationFormatAsset;
-use ArgoNavis\PhpAnchorSdk\shared\Sep24Refunds;
+use ArgoNavis\PhpAnchorSdk\shared\TransactionRefunds;
 use DateTime;
 
 class Sep24DepositTransactionResponse extends Sep24TransactionResponse
@@ -65,7 +65,7 @@ class Sep24DepositTransactionResponse extends Sep24TransactionResponse
      * @param string|null $externalTransactionId ID of transaction on external network that either started the deposit.
      * @param string|null $message Human-readable explanation of transaction status, if needed.
      * @param bool|null $refunded True if the transaction was refunded in full. False if the transaction was partially refunded or not refunded.
-     * @param Sep24Refunds|null $refunds An object describing any on or off-chain refund associated with this transaction.
+     * @param TransactionRefunds|null $refunds An object describing any on or off-chain refund associated with this transaction.
      */
     public function __construct(
         string $id,
@@ -92,7 +92,7 @@ class Sep24DepositTransactionResponse extends Sep24TransactionResponse
         ?string $externalTransactionId = null,
         ?string $message = null,
         ?bool $refunded = null,
-        ?Sep24Refunds $refunds = null,
+        ?TransactionRefunds $refunds = null,
     ) {
         parent::__construct(
             id:$id,

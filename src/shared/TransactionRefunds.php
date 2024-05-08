@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\shared;
 
-class Sep24Refunds
+class TransactionRefunds
 {
     /**
      * @var string $amountRefunded The total amount refunded to the user, in units of amountInAsset. If a full refund was issued, this amount should match amountIn.
@@ -19,14 +19,14 @@ class Sep24Refunds
      */
     public string $amountFee;
     /**
-     * @var array<Sep24RefundPayment> $payments A list of Sep24RefundPayment objects containing information on the individual payments made back to the user as refunds.
+     * @var array<TransactionRefundPayment> $payments A list of TransactionRefundPayment objects containing information on the individual payments made back to the user as refunds.
      */
     public array $payments;
 
     /**
      * @param string $amountRefunded The total amount refunded to the user, in units of amountInAsset. If a full refund was issued, this amount should match amountIn.
      * @param string $amountFee The total amount charged in fees for processing all refund payments, in units of amountInAsset. The sum of all fee values in the payments object list should equal this value.
-     * @param array<Sep24RefundPayment> $payments A list of Sep24RefundPayment objects containing information on the individual payments made back to the user as refunds.
+     * @param array<TransactionRefundPayment> $payments A list of TransactionRefundPayment objects containing information on the individual payments made back to the user as refunds.
      */
     public function __construct(string $amountRefunded, string $amountFee, array $payments)
     {
@@ -52,9 +52,10 @@ class Sep24Refunds
          */
         $paymentsData = [];
         foreach ($this->payments as $payment) {
-            $paymentsData += $payment->toJson();
+            $paymentsData[] = $payment->toJson();
         }
+        $json['payments'] = $paymentsData;
 
-        return $json + ['payments' => $paymentsData];
+        return $json;
     }
 }

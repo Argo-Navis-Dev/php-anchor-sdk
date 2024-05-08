@@ -20,10 +20,10 @@ use ArgoNavis\PhpAnchorSdk\shared\IdentificationFormatAsset;
 use ArgoNavis\PhpAnchorSdk\shared\Sep38AssetInfo;
 use ArgoNavis\PhpAnchorSdk\shared\Sep38BuyAsset;
 use ArgoNavis\PhpAnchorSdk\shared\Sep38DeliveryMethod;
-use ArgoNavis\PhpAnchorSdk\shared\Sep38Fee;
-use ArgoNavis\PhpAnchorSdk\shared\Sep38FeeDetails;
 use ArgoNavis\PhpAnchorSdk\shared\Sep38Price;
 use ArgoNavis\PhpAnchorSdk\shared\Sep38Quote;
+use ArgoNavis\PhpAnchorSdk\shared\TransactionFeeInfo;
+use ArgoNavis\PhpAnchorSdk\shared\TransactionFeeInfoDetail;
 use DateTime;
 
 use const DATE_ATOM;
@@ -67,7 +67,7 @@ class QuotesIntegration implements IQuotesIntegration
                     ),
                 ];
             } else {
-                throw new AnchorFailure('Error getting prices: invalid test request');
+                return [];
             }
         } catch (InvalidAsset $e) {
             throw new AnchorFailure('Error getting prices: ' . $e->getMessage());
@@ -90,7 +90,7 @@ class QuotesIntegration implements IQuotesIntegration
                     price: '5.00',
                     sellAmount: '542',
                     buyAmount: '100',
-                    fee: new Sep38Fee(
+                    fee: new TransactionFeeInfo(
                         total: '42.00',
                         asset: IdentificationFormatAsset::fromString(self::$iso4217BRLStr),
                     ),
@@ -108,10 +108,10 @@ class QuotesIntegration implements IQuotesIntegration
                     price: '5.00',
                     sellAmount: '542',
                     buyAmount: '100',
-                    fee: new Sep38Fee(
+                    fee: new TransactionFeeInfo(
                         total: '8.40',
                         asset: IdentificationFormatAsset::fromString(self::$stellarUSDCStr),
-                        details: [new Sep38FeeDetails(name: 'Service fee', amount: '8.40')],
+                        details: [new TransactionFeeInfoDetail(name: 'Service fee', amount: '8.40')],
                     ),
                 );
             } elseif (
@@ -127,11 +127,11 @@ class QuotesIntegration implements IQuotesIntegration
                     price: '0.18',
                     sellAmount: '100',
                     buyAmount: '500',
-                    fee: new Sep38Fee(
+                    fee: new TransactionFeeInfo(
                         total: '55.5556',
                         asset: IdentificationFormatAsset::fromString(self::$iso4217BRLStr),
                         details: [
-                            new Sep38FeeDetails(
+                            new TransactionFeeInfoDetail(
                                 name: 'PIX fee',
                                 amount: '55.5556',
                                 description: 'Fee charged in order to process the outgoing PIX transaction.',
@@ -152,12 +152,12 @@ class QuotesIntegration implements IQuotesIntegration
                     price: '0.18',
                     sellAmount: '100',
                     buyAmount: '500',
-                    fee: new Sep38Fee(
+                    fee: new TransactionFeeInfo(
                         total: '10.00',
                         asset: IdentificationFormatAsset::fromString(self::$stellarUSDCStr),
                         details: [
-                            new Sep38FeeDetails(name: 'Service fee', amount: '5.00'),
-                            new Sep38FeeDetails(
+                            new TransactionFeeInfoDetail(name: 'Service fee', amount: '5.00'),
+                            new TransactionFeeInfoDetail(
                                 name: 'PIX fee',
                                 amount: '5.00',
                                 description: 'Fee charged in order to process the outgoing BRL PIX transaction.',
@@ -178,10 +178,25 @@ class QuotesIntegration implements IQuotesIntegration
         return self::composeQuote();
     }
 
+    /**
+     * @throws AnchorFailure
+     * @throws QuoteNotFoundForId
+     */
     public function getQuoteById(string $id, string $accountId, ?string $accountMemo = null): Sep38Quote
     {
         if ($id === 'de762cda-a193-4961-861e-57b31fed6eb3') {
             return self::composeQuote();
+        } elseif ($id === 'sep6test-a193-4961-861e-57b31fed6eb3') {
+            try {
+                // for sep6 withdraw exchange test.
+                $quote = self::composeQuote();
+                $quote->sellAsset = IdentificationFormatAsset::fromString(self::$stellarUSDCStr);
+                $quote->buyAsset = IdentificationFormatAsset::fromString(self::$iso4217BRLStr);
+
+                return $quote;
+            } catch (InvalidAsset $e) {
+                throw new AnchorFailure('Error composing quote: ' . $e->getMessage());
+            }
         } else {
             throw new QuoteNotFoundForId(id:$id);
         }
@@ -210,21 +225,21 @@ class QuotesIntegration implements IQuotesIntegration
                 sellAmount: '542',
                 buyAsset: IdentificationFormatAsset::fromString(self::$stellarUSDCStr),
                 buyAmount: '100',
-                fee: new Sep38Fee(
+                fee: new TransactionFeeInfo(
                     total: '42.00',
                     asset: IdentificationFormatAsset::fromString(self::$iso4217BRLStr),
                     details: [
-                        new Sep38FeeDetails(
+                        new TransactionFeeInfoDetail(
                             name: 'PIX fee',
                             amount: '12.00',
                             description: 'Fee charged in order to process the outgoing PIX transaction.',
                         ),
-                        new Sep38FeeDetails(
+                        new TransactionFeeInfoDetail(
                             name: 'Brazilian conciliation fee',
                             amount: '15.00',
                             description: 'Fee charged in order to process conciliation costs with intermediary banks.',
                         ),
-                        new Sep38FeeDetails(name: 'Service fee', amount: '15.00'),
+                        new TransactionFeeInfoDetail(name: 'Service fee', amount: '15.00'),
                     ],
                 ),
             );

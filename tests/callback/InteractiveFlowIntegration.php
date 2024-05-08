@@ -13,9 +13,9 @@ use ArgoNavis\PhpAnchorSdk\callback\InteractiveDepositRequest;
 use ArgoNavis\PhpAnchorSdk\callback\InteractiveTransactionResponse;
 use ArgoNavis\PhpAnchorSdk\callback\InteractiveWithdrawRequest;
 use ArgoNavis\PhpAnchorSdk\callback\Sep24DepositTransactionResponse;
-use ArgoNavis\PhpAnchorSdk\callback\Sep24TransactionHistoryRequest;
 use ArgoNavis\PhpAnchorSdk\callback\Sep24TransactionResponse;
 use ArgoNavis\PhpAnchorSdk\callback\Sep24WithdrawTransactionResponse;
+use ArgoNavis\PhpAnchorSdk\callback\TransactionHistoryRequest;
 use ArgoNavis\PhpAnchorSdk\exception\AnchorFailure;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidAsset;
 use ArgoNavis\PhpAnchorSdk\exception\QuoteNotFoundForId;
@@ -23,9 +23,9 @@ use ArgoNavis\PhpAnchorSdk\shared\DepositOperation;
 use ArgoNavis\PhpAnchorSdk\shared\IdentificationFormatAsset;
 use ArgoNavis\PhpAnchorSdk\shared\Sep24AssetInfo;
 use ArgoNavis\PhpAnchorSdk\shared\Sep24TransactionStatus;
-use ArgoNavis\PhpAnchorSdk\shared\Sep38Fee;
-use ArgoNavis\PhpAnchorSdk\shared\Sep38FeeDetails;
 use ArgoNavis\PhpAnchorSdk\shared\Sep38Quote;
+use ArgoNavis\PhpAnchorSdk\shared\TransactionFeeInfo;
+use ArgoNavis\PhpAnchorSdk\shared\TransactionFeeInfoDetail;
 use ArgoNavis\PhpAnchorSdk\shared\WithdrawOperation;
 use DateTime;
 
@@ -174,7 +174,7 @@ class InteractiveFlowIntegration implements IInteractiveFlowIntegration
      * @inheritDoc
      */
     public function getTransactionHistory(
-        Sep24TransactionHistoryRequest $request,
+        TransactionHistoryRequest $request,
         string $accountId,
         ?string $accountMemo = null,
     ): ?array {
@@ -347,11 +347,11 @@ class InteractiveFlowIntegration implements IInteractiveFlowIntegration
                 sellAmount: '542',
                 buyAsset: IdentificationFormatAsset::fromString(self::$stellarETHStr),
                 buyAmount: '100',
-                fee: new Sep38Fee(
+                fee: new TransactionFeeInfo(
                     total: '15.00',
                     asset: IdentificationFormatAsset::fromString(self::$iso4217USDStr),
                     details: [
-                        new Sep38FeeDetails(name: 'Service fee', amount: '15.00'),
+                        new TransactionFeeInfoDetail(name: 'Service fee', amount: '15.00'),
                     ],
                 ),
             );
@@ -383,11 +383,11 @@ class InteractiveFlowIntegration implements IInteractiveFlowIntegration
                 sellAmount: '100',
                 buyAsset: IdentificationFormatAsset::fromString(self::$iso4217USDStr),
                 buyAmount: '542',
-                fee: new Sep38Fee(
+                fee: new TransactionFeeInfo(
                     total: '15.00',
                     asset: IdentificationFormatAsset::fromString(self::$iso4217USDStr),
                     details: [
-                        new Sep38FeeDetails(name: 'Service fee', amount: '15.00'),
+                        new TransactionFeeInfoDetail(name: 'Service fee', amount: '15.00'),
                     ],
                 ),
             );
