@@ -30,6 +30,7 @@ use function PHPUnit\Framework\assertIsString;
 use function PHPUnit\Framework\assertNotNull;
 use function PHPUnit\Framework\assertTrue;
 use function assert;
+use function error_reporting;
 use function file_get_contents;
 use function intval;
 use function is_array;
@@ -37,6 +38,8 @@ use function is_string;
 use function json_decode;
 use function microtime;
 use function strval;
+
+use const E_ALL;
 
 class Sep12Test extends TestCase
 {
@@ -52,6 +55,12 @@ class Sep12Test extends TestCase
     private string $account6Id = 'GBXNQWOUWKUFDG3TIUJB3UNDFO4T7YY26HNEJFH75IMO6GZ3GHWUO46T';
     private string $idFrontPath = 'tests/kyc/id_front.png';
     private string $idBackPath = 'tests/kyc/id_back.png';
+
+    public function setUp(): void
+    {
+        // Turn on error reporting
+        error_reporting(E_ALL);
+    }
 
     public function testGetCustomerSuccess(): void
     {

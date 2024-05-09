@@ -61,10 +61,10 @@ class Sep38Quote
     public string $buyAmount;
 
     /**
-     * @var Sep38Fee $fee An object describing the fee used to calculate the conversion price. This can be used to
+     * @var TransactionFeeInfo $fee An object describing the fee used to calculate the conversion price. This can be used to
      * detail the price components for the end-user.
      */
-    public Sep38Fee $fee;
+    public TransactionFeeInfo $fee;
 
     /**
      * @param string $id The unique identifier for the quote to be used in other Stellar Ecosystem Proposals (SEPs).
@@ -82,7 +82,7 @@ class Sep38Quote
      * @param string $buyAmount The amount of buyAsset to be exchanged for sellAsset. It could be different from
      * the buyAmount provided in the request, depending on how fees are applied by the Anchor.
      * price * buyAmount = sellAmount must be true up to the number of decimals required for buyAsset
-     * @param Sep38Fee $fee An object describing the fee used to calculate the conversion price. This can be used to
+     * @param TransactionFeeInfo $fee An object describing the fee used to calculate the conversion price. This can be used to
      * detail the price components for the end-user.
      */
     public function __construct(
@@ -94,7 +94,7 @@ class Sep38Quote
         string $sellAmount,
         IdentificationFormatAsset $buyAsset,
         string $buyAmount,
-        Sep38Fee $fee,
+        TransactionFeeInfo $fee,
     ) {
         $this->id = $id;
         $this->expiresAt = $expiresAt;

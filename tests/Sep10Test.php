@@ -66,6 +66,7 @@ use function assert;
 use function base64_decode;
 use function base64_encode;
 use function count;
+use function error_reporting;
 use function fopen;
 use function intval;
 use function is_array;
@@ -80,8 +81,16 @@ use function str_starts_with;
 use function strval;
 use function urlencode;
 
+use const E_ALL;
+
 class Sep10Test extends TestCase
 {
+    public function setUp(): void
+    {
+        // Turn on error reporting
+        error_reporting(E_ALL);
+    }
+
     /**
      * @throws InvalidConfig
      */

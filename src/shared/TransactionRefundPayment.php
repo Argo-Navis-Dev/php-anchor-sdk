@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\shared;
 
-class Sep24RefundPayment
+class TransactionRefundPayment
 {
     /**
      * @var string $id The payment ID that can be used to identify the refund payment. This is either a Stellar transaction hash or an off-chain payment identifier, such as a reference number provided to the user when the refund was initiated. This id is not guaranteed to be unique.

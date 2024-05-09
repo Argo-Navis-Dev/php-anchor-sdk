@@ -23,6 +23,7 @@ use Soneso\StellarSDK\SEP\Quote\SEP38QuoteResponse;
 use function PHPUnit\Framework\assertEquals;
 use function PHPUnit\Framework\assertTrue;
 use function assert;
+use function error_reporting;
 use function intval;
 use function is_array;
 use function is_string;
@@ -31,6 +32,7 @@ use function microtime;
 use function strval;
 
 use const DATE_ATOM;
+use const E_ALL;
 
 class Sep38Test extends TestCase
 {
@@ -40,6 +42,12 @@ class Sep38Test extends TestCase
     private string $quoteEndpoint = 'https://test.com/sep38/quote';
 
     private string $accountId = 'GCUIGD4V6U7ATOUSC6IYSJCK7ZBKGN73YXN5VBMAKUY44FAASJBO6H2M';
+
+    public function setUp(): void
+    {
+        // Turn on error reporting
+        error_reporting(E_ALL);
+    }
 
     public function testGetInfo(): void
     {

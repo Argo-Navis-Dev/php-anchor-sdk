@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\shared;
 
-class Sep38FeeDetails
+class TransactionFeeInfoDetail
 {
     /**
      * @var string $name The name of the fee, for example ACH fee, Brazilian conciliation fee, Service fee, etc.

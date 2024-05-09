@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\shared;
 
-class Sep38Fee
+class TransactionFeeInfo
 {
     /**
      * @var string $total The total amount of fee applied.
@@ -22,7 +22,7 @@ class Sep38Fee
     public IdentificationFormatAsset $asset;
 
     /**
-     * @var array<Sep38FeeDetails>|null $details (optional) An array of objects detailing the fees that were used to
+     * @var array<TransactionFeeInfoDetail>|null $details (optional) An array of objects detailing the fees that were used to
      * calculate the conversion price. This can be used to detail the price components for the end-user.
      */
     public ?array $details = null;
@@ -31,7 +31,7 @@ class Sep38Fee
      * @param string $total The total amount of fee applied.
      * @param IdentificationFormatAsset $asset The asset in which the fee is applied, represented through
      *  the Asset Identification Format.
-     * @param array<Sep38FeeDetails>|null $details (optional) An array of objects detailing the fees that were used to
+     * @param array<TransactionFeeInfoDetail>|null $details (optional) An array of objects detailing the fees that were used to
      *  calculate the conversion price. This can be used to detail the price components for the end-user.
      */
     public function __construct(string $total, IdentificationFormatAsset $asset, ?array $details = null)

@@ -37,10 +37,10 @@ class Sep38Price
     public string $buyAmount;
 
     /**
-     * @var Sep38Fee $fee An object describing the fee used to calculate the conversion price. This can be used to
+     * @var TransactionFeeInfo $fee An object describing the fee used to calculate the conversion price. This can be used to
      * detail the price components for the end-user.
      */
-    public Sep38Fee $fee;
+    public TransactionFeeInfo $fee;
 
     /**
      * @param string $totalPrice The total conversion price offered by the anchor for one unit of buyAsset in terms
@@ -53,7 +53,7 @@ class Sep38Price
      * different from the sellAmount provided in the request, depending on how fees are applied by the Anchor.
      * @param string $buyAmount The amount of buyAsset the anchor will provide with sellAsset. It could be different
      * from the buyAmount provided in the request, depending on how fees are applied by the Anchor.
-     * @param Sep38Fee $fee An object describing the fee used to calculate the conversion price. This can be used to
+     * @param TransactionFeeInfo $fee An object describing the fee used to calculate the conversion price. This can be used to
      * detail the price components for the end-user.
      */
     public function __construct(
@@ -61,7 +61,7 @@ class Sep38Price
         string $price,
         string $sellAmount,
         string $buyAmount,
-        Sep38Fee $fee,
+        TransactionFeeInfo $fee,
     ) {
         $this->totalPrice = $totalPrice;
         $this->price = $price;

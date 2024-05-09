@@ -30,12 +30,15 @@ use function PHPUnit\Framework\assertFalse;
 use function PHPUnit\Framework\assertStringContainsString;
 use function PHPUnit\Framework\assertTrue;
 use function assert;
+use function error_reporting;
 use function intval;
 use function is_array;
 use function is_string;
 use function json_decode;
 use function microtime;
 use function strval;
+
+use const E_ALL;
 
 class Sep24Test extends TestCase
 {
@@ -46,6 +49,12 @@ class Sep24Test extends TestCase
     private string $transactionsEndpoint = 'https://test.com/sep24/transactions';
     private string $transactionEndpoint = 'https://test.com/sep24/transaction';
     private string $accountId = 'GCUIGD4V6U7ATOUSC6IYSJCK7ZBKGN73YXN5VBMAKUY44FAASJBO6H2M';
+
+    public function setUp(): void
+    {
+        // Turn on error reporting
+        error_reporting(E_ALL);
+    }
 
     public function testGetInfo(): void
     {

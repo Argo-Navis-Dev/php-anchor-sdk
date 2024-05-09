@@ -16,6 +16,11 @@ abstract class AssetOperation
     public ?float $feeFixed = null;
     public ?float $feePercent = null;
     public ?float $feeMinimum = null;
+    /**
+     * @var array<string>|null operation methods. Relevant for SEP-06.
+     * E.g. for deposit, type of deposit to make: ["SEPA", "SWIFT", "cash"]
+     */
+    public ?array $methods = null;
 
     /**
      * @param bool $enabled true if deposit/withdraw for this asset is supported
@@ -24,6 +29,8 @@ abstract class AssetOperation
      * @param float|null $feeFixed Optional fixed (base) fee for deposit/withdraw. In units of the deposited asset. This is in addition to any feePercent. Omit if there is no fee or the fee schedule is complex.
      * @param float|null $feePercent Optional percentage fee for deposit/withdraw. In percentage points. This is in addition to any feeFixed. Omit if there is no fee or the fee schedule is complex.
      * @param float|null $feeMinimum Optional minimum fee in units of the deposited/withdrawn asset.
+     * @param array<string>|null $methods operation methods. Relevant for SEP-06.
+     *  E.g. for deposit, type of deposit to make: ["SEPA", "SWIFT", "cash"]
      */
     public function __construct(
         bool $enabled,
@@ -32,6 +39,7 @@ abstract class AssetOperation
         ?float $feeFixed = null,
         ?float $feePercent = null,
         ?float $feeMinimum = null,
+        ?array $methods = null,
     ) {
         $this->enabled = $enabled;
         $this->minAmount = $minAmount;
@@ -39,5 +47,6 @@ abstract class AssetOperation
         $this->feeFixed = $feeFixed;
         $this->feePercent = $feePercent;
         $this->feeMinimum = $feeMinimum;
+        $this->methods = $methods;
     }
 }
