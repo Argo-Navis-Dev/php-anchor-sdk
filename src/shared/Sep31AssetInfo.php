@@ -11,82 +11,142 @@ namespace ArgoNavis\PhpAnchorSdk\shared;
 class Sep31AssetInfo
 {
     /**
-     * Sender and receiver asset key.
+     * @var IdentificationFormatAsset the asset, the info is for.
      */
-    private string $asset;
+    public IdentificationFormatAsset $asset;
 
     /**
-     * (optional) If true, the Receiving Anchor can deliver the off-chain assets listed in the SEP-38 GET
-     * /prices response in exchange for receiving the Stellar asset.
+     * @var array<Sep12Type> $sep12SenderTypes Sep12 sender types to be listed in info.
      */
-    private ?bool $quotesSupported;
+    public array $sep12SenderTypes;
+
     /**
-     * (optional) If true, the Receiving Anchor can only deliver an off-chain asset listed in the SEP-38 GET
-     * /prices response in exchange for receiving the Stellar asset.
+     * @var array<Sep12Type> $sep12ReceiverTypes Sep12 receiver types to be listed in info.
      */
-    private ?bool $quotesRequired;
+    public array $sep12ReceiverTypes;
+
     /**
-     * (optional) A fixed fee in units of the Stellar asset.
+     * @var float|null $minAmount (optional) Minimum amount. No limit if not specified.
+     */
+    public ?float $minAmount = null;
+
+    /**
+     * @var float|null $maxAmount (optional) Maximum amount. No limit if not specified.
+     */
+    public ?float $maxAmount = null;
+
+    /**
+     * @var float|null $feeFixed (optional) A fixed fee in units of the Stellar asset.
      * Leave blank if there is no fee or fee calculation cannot be modeled using a fixed and percentage fee.
      */
-    private ?float $feeFixed;
+    public ?float $feeFixed = null;
+
     /**
-     * (optional) A percentage fee in percentage points.
+     * @var float|null $feePercent (optional) A percentage fee in percentage points.
      * Leave blank if there is no fee or fee calculation cannot be modeled using a fixed and percentage fee.
      */
-    private ?float $feePercent;
-    /**
-     * (optional) Minimum amount. No limit if not specified.
-     */
-    private ?float $minAmount;
-    /**
-     * (optional) Maximum amount. No limit if not specified.
-     */
-    private ?float $maxAmount;
+    public ?float $feePercent = null;
 
-    private Sep12TypesInfo $sep12;
+    /**
+     * @var bool|null $quotesSupported If true, the Receiving Anchor can deliver the off-chain assets listed in the SEP-38 GET
+     *  /prices response in exchange for receiving the Stellar asset. Defaults to false.
+     */
+    public ?bool $quotesSupported = null;
 
+    /**
+     * @var bool|null $quotesRequired (optional) If true, the Receiving Anchor can only deliver an off-chain asset listed in the SEP-38 GET
+     *  /prices response in exchange for receiving the Stellar asset. Defaults to false.
+     */
+    public ?bool $quotesRequired;
+
+    /**
+     * @param IdentificationFormatAsset $asset Supported asset.
+     * @param array<Sep12Type> $sep12SenderTypes Sep12 sender types to be listed in info.
+     * @param array<Sep12Type> $sep12ReceiverTypes Sep12 receiver types to be listed in info.
+     * @param float|null $minAmount (optional) Minimum amount. No limit if not specified.
+     * @param float|null $maxAmount (optional) Maximum amount. No limit if not specified.
+     * @param float|null $feeFixed (optional) A fixed fee in units of the Stellar asset.
+     *  Leave blank if there is no fee or fee calculation cannot be modeled using a fixed and percentage fee.
+     * @param float|null $feePercent (optional) A percentage fee in percentage points.
+     *  Leave blank if there is no fee or fee calculation cannot be modeled using a fixed and percentage fee
+     * @param bool|null $quotesSupported If true, the Receiving Anchor can deliver the off-chain assets listed in the SEP-38 GET
+     *   /prices response in exchange for receiving the Stellar asset. Defaults to false.
+     * @param bool|null $quotesRequired (optional) If true, the Receiving Anchor can only deliver an off-chain asset listed in the SEP-38 GET
+     *   /prices response in exchange for receiving the Stellar asset. Defaults to false.
+     */
     public function __construct(
-        string $asset,
-        bool | null $quotesSupported,
-        bool | null $quotesRequired,
-        float | null $feeFixed,
-        float | null $feePercent,
-        float | null $minAmount,
-        float | null $maxAmount,
-        Sep12TypesInfo $sep12,
+        IdentificationFormatAsset $asset,
+        array $sep12SenderTypes,
+        array $sep12ReceiverTypes,
+        ?float $minAmount = null,
+        ?float $maxAmount = null,
+        ?float $feeFixed = null,
+        ?float $feePercent = null,
+        ?bool $quotesSupported = null,
+        ?bool $quotesRequired = null,
     ) {
         $this->asset = $asset;
-        $this->quotesSupported = $quotesSupported;
-        $this->quotesRequired = $quotesRequired;
-        $this->feeFixed = $feeFixed;
-        $this->feePercent = $feePercent;
+        $this->sep12SenderTypes = $sep12SenderTypes;
+        $this->sep12ReceiverTypes = $sep12ReceiverTypes;
         $this->minAmount = $minAmount;
         $this->maxAmount = $maxAmount;
-        $this->sep12 = $sep12;
+        $this->feeFixed = $feeFixed;
+        $this->feePercent = $feePercent;
+        $this->quotesSupported = $quotesSupported;
+        $this->quotesRequired = $quotesRequired;
     }
 
     /**
      * Converts the object to an array.
      *
-     * @return array<string, mixed> The array representation of the object.
+     * @return array<array-key, mixed> The JSON representation of the object.
      */
     public function toJson(): array
     {
-        $result = [];
-        $result['quotes_supported'] = $this->quotesSupported;
-        $result['quotes_required'] = $this->quotesRequired;
-        $result['fee_fixed'] = $this->feeFixed;
-        $result['fee_percent'] = $this->feePercent;
-        $result['min_amount'] = $this->minAmount;
-        $result['max_amount'] = $this->maxAmount;
-        $result['sep12'] = $this->sep12->toJson();
+        /**
+         * @var array<array-key, mixed> $data
+         */
+        $data = [];
 
-        return $result;
-    }
+        if ($this->minAmount !== null) {
+            $data['min_amount'] = $this->minAmount;
+        }
+        if ($this->maxAmount !== null) {
+            $data['max_amount'] = $this->maxAmount;
+        }
+        if ($this->feeFixed !== null) {
+            $data['fee_fixed'] = $this->feeFixed;
+        }
+        if ($this->feePercent !== null) {
+            $data['fee_percent'] = $this->feePercent;
+        }
+        if ($this->quotesSupported !== null) {
+            $data['quotes_supported'] = $this->quotesSupported;
+        }
+        if ($this->quotesRequired !== null) {
+            $data['quotes_required'] = $this->quotesRequired;
+        }
 
-    public function getAsset(): string
-    {
-        return $this->asset;
+        /**
+         * @var array<array-key, mixed> $senderTypesData
+         */
+        $senderTypesData = [];
+        foreach ($this->sep12SenderTypes as $senderType) {
+            $senderTypesData[$senderType->name] = ['description' => $senderType->description];
+        }
+
+        /**
+         * @var array<array-key, mixed> $receiverTypesData
+         */
+        $receiverTypesData = [];
+        foreach ($this->sep12ReceiverTypes as $receiverType) {
+            $receiverTypesData[$receiverType->name] = ['description' => $receiverType->description];
+        }
+        $data['sep12'] = [
+            'sender' => ['types' => $senderTypesData],
+            'receiver' => ['types' => $receiverTypesData],
+        ];
+
+        return $data;
     }
 }
