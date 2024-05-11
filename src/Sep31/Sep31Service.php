@@ -79,17 +79,13 @@ class Sep31Service
      *
      * @return ResponseInterface the response that should be sent back to the client.
      * As defined in <a href="https://www.php-fig.org/psr/psr-7/">PSR 7</a>
-     *
-     * @throws InvalidSepRequest
      */
     public function handleRequest(ServerRequestInterface $request, Sep10Jwt $jwtToken): ResponseInterface
     {
         $requestTarget = $request->getRequestTarget();
         if ($request->getMethod() === 'GET') {
             if (str_contains($requestTarget, '/info')) {
-                $lang = Sep31RequestParser::getRequestLang($request->getQueryParams());
-
-                return $this->handleGetInfoRequest($jwtToken, $lang);
+                return $this->handleGetInfoRequest(request: $request, jwtToken: $jwtToken);
             } elseif (str_contains($requestTarget, '/transactions')) {
                 return $this->handleGetTransactionsRequest(request: $request, jwtToken: $jwtToken);
             }
@@ -114,14 +110,18 @@ class Sep31Service
      * See:
      * <a href="https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0031.md#get-info">GET info</a>
      *
+     * @param ServerRequestInterface $request the request data.
      * @param Sep10Jwt $jwtToken obtained via SEP-10.
-     * @param string|null $lang the language code for a localized response.
      *
      * @return ResponseInterface response to be sent back to the client
      */
-    private function handleGetInfoRequest(Sep10Jwt $jwtToken, ?string $lang = null): ResponseInterface
-    {
+    private function handleGetInfoRequest(
+        ServerRequestInterface $request,
+        Sep10Jwt $jwtToken,
+    ): ResponseInterface {
         try {
+            $lang = Sep31RequestParser::getRequestLang($request->getQueryParams());
+
             // get account id and memo of the sending anchor from jwt token.
             $accountId = null;
             $accountMemo = null;
