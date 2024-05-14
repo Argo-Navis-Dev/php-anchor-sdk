@@ -1,6 +1,6 @@
 # Cross-Border Payments API
 
-This guide will walk you through integrating with the PHP Anchor SDK for the purpose of handling payments between two financial (Cross-Border Payments API) accounts defined in  [SEP-31](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0031.md).
+This guide will walk you through integrating with the PHP Anchor SDK for the purpose of handling payments between two financial accounts (Cross-Border Payments API) defined in  [SEP-31](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0031.md).
 
 By leveraging the SDK's support for SEP-31, anchors can enable payments between two financial accounts that exist outside the Stellar network.
 
@@ -113,7 +113,7 @@ Next, we need to prepare our business logic and provide a `CrossBorderIntegratio
 
 An example implementation can be found in the anchor reference server: [CrossBorderIntegration.php](https://github.com/Argo-Navis-Dev/anchor-reference-server/blob/main/app/Stellar/Sep31CrossBorder/CrossBorderIntegration.php).
 
-Optionally, if the Anchor supports quotes we need to prepare our business logic and provide a `QuotesIntegration` class that implements the callback interface [IQuotesIntegration](https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/src/callback/IQuotesIntegration.php) defined by the SDK.
+Optionally, if the Anchor supports quotes ([SEP-38](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0038.md)) we need to prepare our business logic and provide a `QuotesIntegration` class that implements the callback interface [IQuotesIntegration](https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/src/callback/IQuotesIntegration.php) defined by the SDK.
 
 An example implementation can be found in the anchor reference server: [QuotesIntegration.php](https://github.com/Argo-Navis-Dev/anchor-reference-server/blob/main/app/Stellar/Sep38Quote/QuotesIntegration.php).
 
@@ -133,7 +133,7 @@ The `Sep31Service` will parse the request and validate it, so that it can reject
 
 ## Modifying the Stellar Info File
 
-The sendining Anchor needs to know that SEP-31 functionality is supported by the receiving Anchor. Therefore,
+The sending Anchor needs to know that SEP-31 functionality is supported by the receiving Anchor. Therefore,
 we must add the `DIRECT_PAYMENT_SERVER` address to the `stellar.toml` file created [earlier](https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-01.md).
 
 ```toml
