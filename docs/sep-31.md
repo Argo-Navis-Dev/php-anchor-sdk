@@ -2,7 +2,7 @@
 
 This guide will walk you through integrating with the PHP Anchor SDK for the purpose of handling payments between two financial accounts (Cross-Border Payments API) defined in  [SEP-31](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0031.md).
 
-By leveraging the SDK's support for SEP-31, anchors can enable payments between two financial accounts that exist outside the Stellar network.
+By leveraging the SDK's support for SEP-31, anchors can enable payments between two financial accounts that exist outside the Stellar network. The PHP Anchor SDK helps you to implement the receiving Anchor functionality. To implement the sending Anchor functionality, one can use the classic [PHP Stellar SDK](https://github.com/Soneso/stellar-php-sdk/blob/main/examples/sep-0031-cross-border-payments.md).  
 
 Before continuing with this section, make sure that you have already configured the necessary features, required by SEP-31: [SEP-1 (Stellar Info File)](https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-01.md) and [SEP-10 (Stellar Authentication)](https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-10.md).
 
@@ -11,7 +11,10 @@ Before continuing with this section, make sure that you have already configured 
 The SDK provides the SEP-31 implementation via the class [`Sep31Service`](https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/src/Sep31/Sep31Service.php). Before usage, it must be initialized by providing the needed business logic callback parameter classes via its constructor:
 
 ```php
-public function __construct(ICrossBorderIntegration $sep31Integration, ?IQuotesIntegration $quotesIntegration = null) {
+public function __construct(
+    ICrossBorderIntegration $sep31Integration,
+    ?IQuotesIntegration $quotesIntegration = null,
+)
 ```
 
 The SDK abstracts stellar specific functionality described in [SEP-31](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0031.md), so that the anchor developer can focus on implementing the business logic.
@@ -74,7 +77,7 @@ Route::put(
 
 ```
 
-All endpoints requires SEP-10 authentication, therefore we need to pass the verified jwt token. We can do this by setting our `StellarAuthMiddleware` class as a middleware to the routes. This process is described [here](https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-10.md).
+All endpoints require SEP-10 authentication, therefore we need to pass the verified jwt token. We can do this by setting our `StellarAuthMiddleware` class as a middleware to the routes. This process is described [here](https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-10.md).
 
 By linking the routes, the incoming request is passed to our controller. Here, we need to extract the validated jwt token auth data from the request to be able to pass it to the `Sep31Service` provided by the SDK.
 
@@ -101,10 +104,20 @@ private function getStellarAuthData(ServerRequestInterface $request) : ?array {
 
 This example implementation can be found in the anchor reference server: [StellarCrossBorderController.php](https://github.com/Argo-Navis-Dev/anchor-reference-server/blob/main/app/Http/Controllers/StellarCrossBorderController.php)
 
-Now, if we have the token data, we want to build an `Sep10Jwt` object from it to be able to pass it to the SDK service:
+If the token data is not available, we have to reject the request:
 
 ```php
-$sep10Jwt = $auth === null ? null : Sep10Jwt::fromArray($auth);
+if ($auth === null) {
+   return new JsonResponse(
+        ['error' => 'Unauthorized! Use SEP-10 to authenticate.'],
+        401,
+    );
+}
+```
+If we received the token data, we build an `Sep10Jwt` object from it to be able to pass it to the SDK service:
+
+```php
+$sep10Jwt = Sep10Jwt::fromArray($auth);
 ```
 
 The [Sep10Jwt](https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/src/Sep10/Sep10Jwt.php) class parses, validates and prepares the SEP-10 auth data from the jwt token, including user account id, memo, and other needed information. If the data is invalid for some reason, it will throw an exception.
@@ -120,16 +133,19 @@ An example implementation can be found in the anchor reference server: [QuotesIn
 Now that we have both callbacks prepared, we use it to initialize our `Sep31Service`:
 
 ```php
-$sep31Service = new Sep31Service($crossBorderIntegration, $quotesIntegration);
+$sep31Service = new Sep31Service(
+    sep31Integration: $crossBorderIntegration,
+    quotesIntegration: $quotesIntegration,
+);
 ```
-The callbacks will be used by the Service to access the business logics. Note that passing the `$quotesIntegration` parameter is optional.
+The callbacks will be used by the Service to access the business logics. Note that passing the `$quotesIntegration` parameter is optional, but it must be provided, if your anchor supports quotes.
 
 Next we can pass the incoming request together with the jwt to the `Sep31Service`:
 
 ```php
 return $sep31Service->handleRequest($request, $sep10Jwt);
 ```
-The `Sep31Service` will parse the request and validate it, so that it can reject invalid requests. After calling the business logic via the provided callback class, the Service composes the response, so that it can be sent back to the client.
+The `Sep31Service` will parse the request and validate it, so that it can reject invalid requests. After calling the business logic via the provided callback class, the Service composes the response, so that it can be sent back to sending Anchor.
 
 ## Modifying the Stellar Info File
 
