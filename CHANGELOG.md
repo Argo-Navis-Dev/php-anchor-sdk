@@ -51,3 +51,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - SEP-06 Support
+
+## [0.6.0] - 2024-05-15
+
+### Added
+
+- SEP-31 Support
+
+## [0.7.0] - 2024-07-07
+
+### Added
+
+- SEP-31 Support

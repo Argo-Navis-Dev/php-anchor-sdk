@@ -6,4 +6,5 @@
 .idea/phpunit.xml
 .idea/vcs.xml
 .idea/inspectionProfiles/Project_Default.xml
+.idea/workspace.xml
 vendor/**

@@ -21,10 +21,10 @@ The Anchor Reference Server using the library can be found [here](https://github
 - Implementation of [SEP-38](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0038.md) Anchor RFQ Service -> **Done**, see [doc](https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-38.md).
 - Implementation of [SEP-06](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0006.md) Deposit and Withdrawal Service -> **Done**, see [doc](https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-06.md).
 - Implementation of [SEP-31](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0031.md) Cross-Border Payments Service -> **Done**, see [doc](https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-31.md).
-- Implementation of [SEP-08](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0008.md) Regulated Assets.
-- Implementation of a transaction watcher to watch for important Stellar transactions such as incoming payments or trustline changes.
-- Implementation of a callback mechanism that will be used by Anchors to notify clients about status changes.
-- Localization and Logging.
+- Implementation of [SEP-08](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0008.md) Regulated Assets -> **Done**, see [doc](https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-08.md).
+- Implementation of a transaction watcher to watch for important Stellar transactions such as incoming payments or trustline changes  -> in progress
+- Implementation of a callback mechanism that will be used by Anchors to notify clients about status changes  -> in progress
+- Localization and Logging -> in progress
 
 ## Installing the SDK:
 
