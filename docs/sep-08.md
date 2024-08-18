@@ -19,7 +19,7 @@ To be able to access the business logic, the SDK defines the callback interface 
 
 ## Using the SDK Service
 
-In this example we create a controller named `StellarCrossBorderController` that handles incoming requests:
+In this example we create a controller named `StellarRegulatedAssetsController` that handles incoming requests:
 
 ```php
 class StellarRegulatedAssetsController extends Controller
