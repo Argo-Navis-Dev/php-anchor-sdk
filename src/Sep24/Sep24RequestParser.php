@@ -23,7 +23,6 @@ use function array_key_exists;
 use function array_keys;
 use function count;
 use function floatval;
-use function is_bool;
 use function is_int;
 use function is_numeric;
 use function is_string;
@@ -178,12 +177,11 @@ class Sep24RequestParser
     public static function getClaimableBalanceSupportedRequestData(array $requestData): bool
     {
         $supported = false;
-        if (isset($requestData['claimable_balance_supported'])) {
-            if (is_bool($requestData['claimable_balance_supported'])) {
-                $supported = $requestData['claimable_balance_supported'];
-            } else {
-                throw new InvalidSepRequest('claimable_balance_supported must be a boolean');
-            }
+        if (
+            isset($requestData['claimable_balance_supported']) &&
+            $requestData['claimable_balance_supported'] === 'true'
+        ) {
+            $supported = true;
         }
 
         return $supported;
