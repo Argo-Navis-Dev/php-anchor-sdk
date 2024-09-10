@@ -15,16 +15,12 @@ use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\ResponseInterface;
 use Soneso\StellarSDK\SEP\Toml\Currencies;
-use Soneso\StellarSDK\SEP\Toml\Currency;
 use Soneso\StellarSDK\SEP\Toml\Documentation;
 use Soneso\StellarSDK\SEP\Toml\GeneralInformation;
-use Soneso\StellarSDK\SEP\Toml\PointOfContact;
 use Soneso\StellarSDK\SEP\Toml\Principals;
-use Soneso\StellarSDK\SEP\Toml\Validator;
 use Soneso\StellarSDK\SEP\Toml\Validators;
 use Yosymfony\Toml\TomlBuilder;
 
-use function assert;
 use function count;
 use function file_get_contents;
 
@@ -235,7 +231,6 @@ class TomlProvider
         }
 
         foreach ($pArr as $poc) {
-            assert($poc instanceof PointOfContact);
             $builder->addArrayOfTable('PRINCIPALS');
             if ($poc->name !== null) {
                 $builder->addValue('name', $poc->name);
@@ -276,7 +271,6 @@ class TomlProvider
         }
 
         foreach ($cArr as $cur) {
-            assert($cur instanceof Currency);
             $builder->addArrayOfTable('CURRENCIES');
             if ($cur->toml !== null) {
                 $builder->addValue('toml', $cur->toml);
@@ -367,7 +361,6 @@ class TomlProvider
         }
 
         foreach ($vArr as $validator) {
-            assert($validator instanceof Validator);
             $builder->addArrayOfTable('VALIDATORS');
             if ($validator->alias !== null) {
                 $builder->addValue('ALIAS', $validator->alias);

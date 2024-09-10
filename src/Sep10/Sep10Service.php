@@ -34,12 +34,10 @@ use Soneso\StellarSDK\StellarSDK;
 use Soneso\StellarSDK\TimeBounds;
 use Soneso\StellarSDK\Transaction;
 use Soneso\StellarSDK\TransactionBuilder;
-use Soneso\StellarSDK\Xdr\XdrDecoratedSignature;
 use Throwable;
 use Yosymfony\Toml\Exception\ParseException;
 use phpseclib3\Math\BigInteger;
 
-use function assert;
 use function base64_decode;
 use function base64_encode;
 use function bin2hex;
@@ -247,7 +245,7 @@ class Sep10Service
         $validClientSignatures = 0;
         $thresholdsSum = 0;
         foreach ($signatures as $signature) {
-            assert($signature instanceof XdrDecoratedSignature);
+            //assert($signature instanceof XdrDecoratedSignature);
             try {
                 $valid = $serverAccountKp->verifySignature($signature->getSignature(), $txHash);
                 if ($valid) {
@@ -349,7 +347,7 @@ class Sep10Service
         $validClientDomainSignatures = 0;
         $validServerSignatures = 0;
         foreach ($signatures as $signature) {
-            assert($signature instanceof XdrDecoratedSignature);
+            //assert($signature instanceof XdrDecoratedSignature);
             try {
                 $valid = $clientAccountKp->verifySignature($signature->getSignature(), $txHash);
                 if ($valid) {
@@ -421,7 +419,7 @@ class Sep10Service
                 $account = $sdk->accounts()->account($accId);
             }
         } catch (Throwable $e) {
-           // could not fetch client account.
+            // could not fetch client account.
             $msg = 'Could not fetch account from horizon ' . $horizonUrl;
             $msg .= ' Error: ' . $e->getMessage();
 
@@ -610,7 +608,7 @@ class Sep10Service
             throw new InvalidRequestData('Transaction has no signatures.');
         }
         $firstSignature = $signatures[0];
-        assert($firstSignature instanceof XdrDecoratedSignature);
+        //assert($firstSignature instanceof XdrDecoratedSignature);
 
         // validate signature
         $serverKeyPair = KeyPair::fromAccountId($serverAccountId);
