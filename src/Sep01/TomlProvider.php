@@ -50,6 +50,7 @@ class TomlProvider
      */
     public function handleFromData(TomlData $data): ResponseInterface
     {
+        $this->logger->info('Handling data for stellar.toml generation.');
         $result = $this->buildFromData($data);
 
         return new TextResponse($result, status: 200);
