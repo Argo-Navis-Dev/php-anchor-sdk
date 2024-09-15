@@ -26,7 +26,7 @@ class Sep01Test extends TestCase
     public function testWithData(): void
     {
         $tomlData = self::composeTomlData();
-        $provider = new TomlProvider();
+        $provider = new TomlProvider(null);
         $tomlResponse = $provider->handleFromData($tomlData);
         $this->assertEquals(200, $tomlResponse->getStatusCode());
 
@@ -39,7 +39,7 @@ class Sep01Test extends TestCase
     {
         $pathToFile = __DIR__ . '/toml/stellar.toml';
         $tomlData = self::composeTomlData();
-        $provider = new TomlProvider();
+        $provider = new TomlProvider(null);
         $tomlResponse = $provider->handleFromFile($pathToFile);
         $this->assertEquals(200, $tomlResponse->getStatusCode());
 
@@ -58,7 +58,7 @@ class Sep01Test extends TestCase
     {
         $tomlData = TomlData::fromDomain('ultrastellar.com', new Client());
         self::assertEquals('2.2.0', $tomlData->generalInformation?->version);
-        $provider = new TomlProvider();
+        $provider = new TomlProvider(null);
         $tomlResponse = $provider->handleFromUrl('https://ultrastellar.com/.well-known/stellar.toml', new Client());
         $tomlString = $tomlResponse->getBody()->__toString();
         $parsed = TomlData::fromString($tomlString);

@@ -9,11 +9,13 @@ declare(strict_types=1);
 namespace ArgoNavis\PhpAnchorSdk\Sep01;
 
 use ArgoNavis\PhpAnchorSdk\exception\TomlDataNotLoaded;
+use ArgoNavis\PhpAnchorSdk\logging\NullLogger;
 use Laminas\Diactoros\Request;
 use Laminas\Diactoros\Response\TextResponse;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\ResponseInterface;
+use Psr\Log\LoggerInterface;
 use Soneso\StellarSDK\SEP\Toml\Currencies;
 use Soneso\StellarSDK\SEP\Toml\Documentation;
 use Soneso\StellarSDK\SEP\Toml\GeneralInformation;
@@ -32,6 +34,13 @@ use function file_get_contents;
  */
 class TomlProvider
 {
+    private ?LoggerInterface $logger = null;
+
+    public function __construct(?LoggerInterface $logger)
+    {
+        $this->logger = $logger ?? new NullLogger();
+    }
+
     /**
      * Constructs the stellar.toml file from the given data.
      *
