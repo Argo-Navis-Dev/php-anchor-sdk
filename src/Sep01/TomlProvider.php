@@ -34,7 +34,7 @@ use function file_get_contents;
  */
 class TomlProvider
 {
-    private ?LoggerInterface $logger = null;
+    private LoggerInterface $logger;
 
     public function __construct(?LoggerInterface $logger)
     {
