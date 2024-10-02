@@ -9,7 +9,9 @@ declare(strict_types=1);
 namespace ArgoNavis\PhpAnchorSdk\Sep12;
 
 use ArgoNavis\PhpAnchorSdk\exception\InvalidRequestData;
+use ArgoNavis\PhpAnchorSdk\logging\NullLogger;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Log\LoggerInterface;
 
 use function is_array;
 use function json_decode;
@@ -19,6 +21,11 @@ use function strlen;
 
 class RequestBodyDataParser
 {
+    /**
+     * The PSR-3 specific logger to be used for logging.
+     */
+    private static LoggerInterface | NullLogger | null $logger;
+
     /**
      * Parses the data from the request. It supports following content types:
      * - application/x-www-form-urlencoded
@@ -44,6 +51,7 @@ class RequestBodyDataParser
         }
 
         $contentType = $request->getHeaderLine('Content-Type');
+        self::getLogger()->debug('The content type', ['context' => 'sep12', 'content_type' => $contentType]);
         if ($contentType === 'application/x-www-form-urlencoded') {
             parse_str($content, $parsedArray);
 
@@ -84,5 +92,25 @@ class RequestBodyDataParser
         }
 
         return $jsonData;
+    }
+
+    /**
+     * Sets the logger in static context.
+     */
+    public static function setLogger(?LoggerInterface $logger = null): void
+    {
+        self::$logger = $logger ?? new NullLogger();
+    }
+
+    /**
+     * Returns the logger (initializes if null).
+     */
+    private static function getLogger(): LoggerInterface
+    {
+        if (!isset(self::$logger)) {
+            self::$logger = new NullLogger();
+        }
+
+        return self::$logger;
     }
 }

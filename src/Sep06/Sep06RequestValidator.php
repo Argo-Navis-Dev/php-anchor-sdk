@@ -9,7 +9,9 @@ declare(strict_types=1);
 namespace ArgoNavis\PhpAnchorSdk\Sep06;
 
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSepRequest;
+use ArgoNavis\PhpAnchorSdk\logging\NullLogger;
 use ArgoNavis\PhpAnchorSdk\shared\Sep06AssetInfo;
+use Psr\Log\LoggerInterface;
 
 use function implode;
 use function in_array;
@@ -17,6 +19,11 @@ use function strval;
 
 class Sep06RequestValidator
 {
+    /**
+     * The PSR-3 specific logger to be used for logging.
+     */
+    private static LoggerInterface | NullLogger | null $logger;
+
     /**
      * Checks if the asset for the given asset code is supported and enabled for deposit operations.
      *
@@ -29,6 +36,10 @@ class Sep06RequestValidator
      */
     public static function getDepositAsset(string $assetCode, array $supportedAssets): Sep06AssetInfo
     {
+        self::getLogger()->debug(
+            'Searching asset in supported assets.',
+            ['context' => 'sep06', 'asset_code' => $assetCode, 'operation' => 'deposit'],
+        );
         $depositAsset = null;
         foreach ($supportedAssets as $supportedAsset) {
             if ($supportedAsset->asset->getCode() === $assetCode) {
@@ -40,6 +51,11 @@ class Sep06RequestValidator
             }
         }
         if ($depositAsset === null) {
+            self::getLogger()->error(
+                'Deposit asset not found, invalid operation for asset.',
+                ['context' => 'sep06', 'asset_code' => $assetCode, 'operation' => 'deposit'],
+            );
+
             throw new InvalidSepRequest('invalid operation for asset ' . $assetCode);
         }
 
@@ -58,6 +74,10 @@ class Sep06RequestValidator
      */
     public static function getWithdrawAsset(string $assetCode, array $supportedAssets): Sep06AssetInfo
     {
+        self::getLogger()->debug(
+            'Searching asset in supported assets.',
+            ['context' => 'sep06', 'asset_code' => $assetCode, 'operation' => 'withdraw'],
+        );
         $withdrawAsset = null;
         foreach ($supportedAssets as $supportedAsset) {
             if ($supportedAsset->asset->getCode() === $assetCode) {
@@ -69,6 +89,11 @@ class Sep06RequestValidator
             }
         }
         if ($withdrawAsset === null) {
+            self::getLogger()->error(
+                'Withdraw asset not found, invalid operation for asset.',
+                ['context' => 'sep06', 'asset_code' => $assetCode, 'operation' => 'withdraw'],
+            );
+
             throw new InvalidSepRequest('invalid operation for asset ' . $assetCode);
         }
 
@@ -87,6 +112,10 @@ class Sep06RequestValidator
      */
     public static function getDestinationAsset(string $assetCode, array $supportedAssets): Sep06AssetInfo
     {
+        self::getLogger()->debug(
+            'Searching asset (destination) in supported assets.',
+            ['context' => 'sep06', 'asset_code' => $assetCode],
+        );
         $destinationAsset = null;
         foreach ($supportedAssets as $supportedAsset) {
             if ($supportedAsset->asset->getCode() === $assetCode) {
@@ -98,6 +127,11 @@ class Sep06RequestValidator
             }
         }
         if ($destinationAsset === null) {
+            self::getLogger()->error(
+                'Destination asset not found, invalid operation for asset.',
+                ['context' => 'sep06', 'asset_code' => $assetCode],
+            );
+
             throw new InvalidSepRequest('invalid operation for asset ' . $assetCode);
         }
 
@@ -116,6 +150,10 @@ class Sep06RequestValidator
      */
     public static function getSourceAsset(string $assetCode, array $supportedAssets): Sep06AssetInfo
     {
+        self::getLogger()->debug(
+            'Searching asset (source) in supported assets.',
+            ['context' => 'sep06', 'asset_code' => $assetCode],
+        );
         $sourceAsset = null;
         foreach ($supportedAssets as $supportedAsset) {
             if ($supportedAsset->asset->getCode() === $assetCode) {
@@ -127,6 +165,11 @@ class Sep06RequestValidator
             }
         }
         if ($sourceAsset === null) {
+            self::getLogger()->error(
+                'Source asset not found, invalid operation for asset.',
+                ['context' => 'sep06', 'asset_code' => $assetCode],
+            );
+
             throw new InvalidSepRequest('invalid operation for asset null');
         }
 
@@ -147,6 +190,13 @@ class Sep06RequestValidator
     public static function validateType(string $requestType, string $assetCode, array $validTypes): void
     {
         if (!in_array($requestType, $validTypes)) {
+            self::getLogger()->error(
+                'Invalid type.',
+                ['context' => 'sep06', 'request_type' => $requestType,
+                    'asset_code' => $assetCode, 'valid_types' => implode(', ', $validTypes),
+                ],
+            );
+
             throw new InvalidSepRequest('Invalid type ' .
                 $requestType . ' for asset ' . $assetCode .
                 '. Supported types are ' . implode(', ', $validTypes) . '.');
@@ -176,8 +226,33 @@ class Sep06RequestValidator
             ($minAmount !== null && $requestAmount < $minAmount) ||
             ($maxAmount !== null && $requestAmount > $maxAmount)
         ) {
+            self::getLogger()->error(
+                'Invalid amount.',
+                ['context' => 'sep06', 'request_amount' => $requestAmount, 'for_asset' => $assetCode],
+            );
+
             throw new InvalidSepRequest('invalid amount ' . strval($requestAmount) .
                 ' for asset ' . $assetCode);
         }
+    }
+
+    /**
+     * Sets the logger in static context.
+     */
+    public static function setLogger(?LoggerInterface $logger = null): void
+    {
+        self::$logger = $logger ?? new NullLogger();
+    }
+
+    /**
+     * Returns the logger (initializes if null).
+     */
+    private static function getLogger(): LoggerInterface
+    {
+        if (!isset(self::$logger)) {
+            self::$logger = new NullLogger();
+        }
+
+        return self::$logger;
     }
 }

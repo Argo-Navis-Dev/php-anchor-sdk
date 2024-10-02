@@ -16,13 +16,16 @@ use ArgoNavis\PhpAnchorSdk\callback\ApprovalSuccess;
 use ArgoNavis\PhpAnchorSdk\callback\IRegulatedAssetsIntegration;
 use ArgoNavis\PhpAnchorSdk\exception\AnchorFailure;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidRequestData;
+use ArgoNavis\PhpAnchorSdk\logging\NullLogger;
 use Laminas\Diactoros\Response\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Log\LoggerInterface;
 use Throwable;
 
 use function is_array;
 use function json_decode;
+use function json_encode;
 use function parse_str;
 use function strlen;
 
@@ -30,47 +33,108 @@ class Sep08Service
 {
     public IRegulatedAssetsIntegration $sep08Integration;
 
-    public function __construct(IRegulatedAssetsIntegration $sep08Integration)
-    {
+    /**
+     * The PSR-3 specific logger to be used for logging.
+     */
+    private LoggerInterface | NullLogger $logger;
+
+    public function __construct(
+        IRegulatedAssetsIntegration $sep08Integration,
+        ?LoggerInterface $logger = null,
+    ) {
         $this->sep08Integration = $sep08Integration;
+        $this->logger = $logger ?? new NullLogger();
     }
 
     public function handleRequest(ServerRequestInterface $request): ResponseInterface
     {
         try {
+            $this->logger->info(
+                'Handling incoming request.',
+                ['context' => 'sep08', 'method' => $request->getMethod()],
+            );
+
             if ($request->getMethod() === 'POST') {
                 $contentType = $request->getHeaderLine('Content-Type');
+                $this->logger->debug(
+                    'The submitted request content type.',
+                    ['context' => 'sep08', 'operation' => 'approval', 'content_type' => $contentType],
+                );
+
                 if ($contentType === 'application/x-www-form-urlencoded') {
                     $parsedBody = [];
                     $content = $request->getBody()->__toString();
                     if (strlen($content) !== 0) {
                         parse_str($content, $parsedBody);
                     }
+                    $this->logger->debug(
+                        'The submitted request content (before processing).',
+                        ['context' => 'sep08', 'operation' => 'approval', 'content' => $content],
+                    );
+
                     $approveRequest = ApprovalRequest::fromDataArray($parsedBody);
                 } elseif ($contentType === 'application/json') {
                     $content = $request->getBody()->__toString();
                     $jsonData = @json_decode($content, true);
+                    $this->logger->debug(
+                        'The submitted request content (before processing).',
+                        ['context' => 'sep08', 'operation' => 'approval', 'content' => $content],
+                    );
                     if (!is_array($jsonData)) {
-                        throw new InvalidRequestData('Invalid body.');
+                        $error = 'Invalid body.';
+                        $this->logger->error(
+                            $error,
+                            ['context' => 'sep08', 'operation' => 'approval'],
+                        );
+
+                        throw new InvalidRequestData($error);
                     }
                     $approveRequest = ApprovalRequest::fromDataArray($jsonData);
                 } else {
-                    throw new InvalidRequestData('Invalid request type ' . $contentType);
+                    $error = 'Invalid request type';
+                    $this->logger->error(
+                        $error,
+                        ['context' => 'sep08', 'operation' => 'approval', 'content_type' => $contentType],
+                    );
+
+                    throw new InvalidRequestData($error . ' ' . $contentType);
                 }
+                $this->logger->info(
+                    'Handling SEP-08 transaction approval request.',
+                    ['context' => 'sep08', 'operation' => 'approval'],
+                );
 
                 return $this->handleApprovalRequest($approveRequest);
             } else {
-                $response = new ApprovalRejected('Invalid request. Method not supported.');
+                $error = 'Invalid request. Method not supported.';
+                $response = new ApprovalRejected($error);
+                $this->logger->error(
+                    $error,
+                    ['context' => 'sep08', 'operation' => 'approval', 'error_code' => 400],
+                );
 
                 return new JsonResponse($response->toJson(), 400);
             }
         } catch (InvalidRequestData $invalid) {
-            $response = new ApprovalRejected('Invalid request. ' . $invalid->getMessage());
+            $error = 'Invalid request.';
+            $response = new ApprovalRejected($error . ' ' . $invalid->getMessage());
+            $this->logger->error(
+                $error,
+                ['context' => 'sep08', 'operation' => 'approval',
+                    'error_code' => 400, 'error' => $invalid->getMessage(), 'exception' => $invalid,
+                ],
+            );
 
             return new JsonResponse($response->toJson(), 400);
         } catch (Throwable $e) {
             $error = 'Failed to validate the SEP-08 request ' . $e->getMessage();
             $response = new ApprovalRejected($error);
+            $this->logger->error(
+                $error,
+                ['context' => 'sep08', 'operation' => 'approval',
+                    'error_code' => 400, 'error' => $e->getMessage(), 'exception' => $e,
+                ],
+            );
 
             return new JsonResponse($response->toJson(), 400);
         }
@@ -86,12 +150,32 @@ class Sep08Service
                 $response instanceof ApprovalPending ||
                 $response instanceof ApprovalActionRequired
             ) {
+                $this->logger->error(
+                    'Approval succeeded.',
+                    ['context' => 'sep08', 'operation' => 'approval',
+                        'response' => json_encode($response->toJson()),
+                    ],
+                );
+
                 return new JsonResponse($response->toJson(), 200);
             } else {
+                $this->logger->error(
+                    'Approval failed.',
+                    ['context' => 'sep08', 'operation' => 'approval',
+                        'response' => json_encode($response->toJson()),
+                    ],
+                );
+
                 return new JsonResponse($response->toJson(), 400);
             }
         } catch (AnchorFailure $e) {
             $response = new ApprovalRejected($e->getMessage());
+            $this->logger->error(
+                'Approval failed.',
+                ['context' => 'sep08', 'operation' => 'approval',
+                    'error' => $e->getMessage(), 'exception' => $e,
+                ],
+            );
 
             return new JsonResponse($response->toJson(), 400);
         }

@@ -25,6 +25,7 @@ use Yosymfony\Toml\TomlBuilder;
 
 use function count;
 use function file_get_contents;
+use function json_encode;
 
 /**
  * This class can be used to construct a http response containing the stellar toml data that is formatted
@@ -34,9 +35,12 @@ use function file_get_contents;
  */
 class TomlProvider
 {
-    private LoggerInterface $logger;
+    /**
+     * The PSR-3 specific logger to be used for logging.
+     */
+    private LoggerInterface | NullLogger $logger;
 
-    public function __construct(?LoggerInterface $logger)
+    public function __construct(?LoggerInterface $logger = null)
     {
         $this->logger = $logger ?? new NullLogger();
     }
@@ -50,8 +54,15 @@ class TomlProvider
      */
     public function handleFromData(TomlData $data): ResponseInterface
     {
-        $this->logger->info('Handling data for stellar.toml generation.');
+        $this->logger->info(
+            'Generating Stellar toml out of the passed data object.',
+            ['context' => 'sep01'],
+        );
         $result = $this->buildFromData($data);
+        $this->logger->debug(
+            'Stellar toml data generated successfully out of the passed data object.',
+            ['context' => 'sep01'],
+        );
 
         return new TextResponse($result, status: 200);
     }
@@ -67,12 +78,24 @@ class TomlProvider
      */
     public function handleFromFile(string $pathToFile): ResponseInterface
     {
+        $this->logger->info(
+            'Loading stellar toml data from file.',
+            ['context' => 'sep01', 'file path' => $pathToFile],
+        );
         $fileContent = file_get_contents($pathToFile, false);
         if ($fileContent === false) {
             $msg = 'File content could not be loaded for: ' . $pathToFile;
+            $this->logger->error(
+                'Failed to return the stellar toml file content, error: ' . $msg,
+                ['context' => 'sep01'],
+            );
 
             throw new TomlDataNotLoaded($msg, code: 404);
         }
+        $this->logger->debug(
+            'Loading stellar toml data from file has been finished successfully.',
+            ['context' => 'sep01'],
+        );
 
         return new TextResponse($fileContent, status: 200);
     }
@@ -89,11 +112,23 @@ class TomlProvider
      */
     public function handleFromUrl(string $url, ClientInterface $httpClient): ResponseInterface
     {
+        $this->logger->info(
+            'Loading stellar toml data from URL.',
+            ['url' => $url, 'context' => 'sep01'],
+        );
         $request = new Request($url, 'GET');
         try {
             $response = $httpClient->sendRequest($request);
+            $this->logger->debug(
+                'Data loaded from URL successfully.',
+                ['url' => $url, 'context' => 'sep01'],
+            );
         } catch (ClientExceptionInterface $e) {
             $msg = 'Stellar toml could not be loaded: ' . $e->getMessage();
+            $this->logger->error(
+                $msg,
+                ['url' => $url, 'error' => $e->getMessage(), 'context' => 'sep01'],
+            );
 
             throw new TomlDataNotLoaded($msg, code: $e->getCode(), previous: $e);
         }
@@ -101,15 +136,25 @@ class TomlProvider
         if ($response->getStatusCode() !== 200) {
             $msg = 'Stellar toml could not be loaded from url: ' . $url;
             $msg .= ' Response status code ' . $response->getStatusCode();
+            $this->logger->error(
+                'Stellar toml data could not be loaded from url.',
+                ['url' => $url, 'status_code' => $response->getStatusCode(), 'context' => 'sep01'],
+            );
 
             throw new TomlDataNotLoaded($msg, code: $response->getStatusCode());
         }
+        $this->logger->debug(
+            'Loading stellar toml data from url has been finished successfully.',
+            ['url' => $url, 'context' => 'sep01'],
+        );
 
         return new TextResponse($response->getBody(), status: 200);
     }
 
     private function buildFromData(TomlData $data): string
     {
+        $this->logger->debug('Building stellar toml from provided data.', ['context' => 'sep01']);
+
         $tb = new TomlBuilder();
         $this->addGeneralInformation($tb, $data->getGeneralInformation());
         $this->addDocumentation($tb, $data->getDocumentation());
@@ -123,8 +168,14 @@ class TomlProvider
     private function addGeneralInformation(TomlBuilder $builder, ?GeneralInformation $gI): void
     {
         if ($gI === null) {
+            $this->logger->warning('Stellar toml data general information part is null.', ['context' => 'sep01']);
+
             return;
         }
+        $this->logger->debug(
+            'Building stellar toml general information part.',
+            ['general_information' => json_encode($gI), 'context' => 'sep01'],
+        );
         if ($gI->version !== null) {
             $builder->addValue('VERSION', $gI->version);
         }
@@ -172,10 +223,16 @@ class TomlProvider
     private function addDocumentation(TomlBuilder $builder, ?Documentation $doc): void
     {
         if ($doc === null) {
+            $this->logger->warning('Stellar toml data documentation part is null.', ['context' => 'sep01']);
+
             return;
         } else {
             $builder->addTable('DOCUMENTATION');
         }
+        $this->logger->debug(
+            'Building stellar toml documentation part.',
+            ['documentation' => json_encode($doc), 'context' => 'sep01'],
+        );
         if ($doc->orgName !== null) {
             $builder->addValue('ORG_NAME', $doc->orgName);
         }
@@ -232,14 +289,22 @@ class TomlProvider
     private function addPrincipals(TomlBuilder $builder, ?Principals $principals): void
     {
         if ($principals === null) {
+            $this->logger->warning('Stellar toml data principals part is null.', ['context' => 'sep01']);
+
             return;
         }
 
         $pArr = $principals->toArray();
         if (count($pArr) === 0) {
+            $this->logger->warning('Stellar toml data principals part array empty.', ['context' => 'sep01']);
+
             return;
         }
 
+        $this->logger->debug(
+            'Building stellar toml principals part.',
+            ['principals' => json_encode($principals), 'context' => 'sep01'],
+        );
         foreach ($pArr as $poc) {
             $builder->addArrayOfTable('PRINCIPALS');
             if ($poc->name !== null) {
@@ -272,14 +337,22 @@ class TomlProvider
     private function addCurrencies(TomlBuilder $builder, ?Currencies $currencies): void
     {
         if ($currencies === null) {
+            $this->logger->debug('Stellar toml data currencies part is null.', ['context' => 'sep01']);
+
             return;
         }
 
         $cArr = $currencies->toArray();
         if (count($cArr) === 0) {
+            $this->logger->debug('Stellar toml data currencies part is empty.', ['context' => 'sep01']);
+
             return;
         }
 
+        $this->logger->debug(
+            'Building stellar toml currencies part.',
+            ['currencies' => json_encode($currencies), 'context' => 'sep01'],
+        );
         foreach ($cArr as $cur) {
             $builder->addArrayOfTable('CURRENCIES');
             if ($cur->toml !== null) {
@@ -362,14 +435,22 @@ class TomlProvider
     private function addValidators(TomlBuilder $builder, ?Validators $validators): void
     {
         if ($validators === null) {
+            $this->logger->debug('Stellar toml data validators part is null.', ['context' => 'sep01']);
+
             return;
         }
 
         $vArr = $validators->toArray();
         if (count($vArr) === 0) {
+            $this->logger->debug('Stellar toml data validators part is empty.', ['context' => 'sep01']);
+
             return;
         }
 
+        $this->logger->debug(
+            'Building Stellar toml validators part.',
+            ['validators' => json_encode($validators), 'context' => 'sep01'],
+        );
         foreach ($vArr as $validator) {
             $builder->addArrayOfTable('VALIDATORS');
             if ($validator->alias !== null) {

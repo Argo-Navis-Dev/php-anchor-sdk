@@ -39,7 +39,7 @@ class Sep01Test extends TestCase
     {
         $pathToFile = __DIR__ . '/toml/stellar.toml';
         $tomlData = self::composeTomlData();
-        $provider = new TomlProvider(null);
+        $provider = new TomlProvider();
         $tomlResponse = $provider->handleFromFile($pathToFile);
         $this->assertEquals(200, $tomlResponse->getStatusCode());
 

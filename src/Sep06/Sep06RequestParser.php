@@ -11,9 +11,11 @@ namespace ArgoNavis\PhpAnchorSdk\Sep06;
 use ArgoNavis\PhpAnchorSdk\callback\TransactionHistoryRequest;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidAsset;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSepRequest;
+use ArgoNavis\PhpAnchorSdk\logging\NullLogger;
 use ArgoNavis\PhpAnchorSdk\shared\IdentificationFormatAsset;
 use ArgoNavis\PhpAnchorSdk\util\MemoHelper;
 use DateTime;
+use Psr\Log\LoggerInterface;
 use Soneso\StellarSDK\Crypto\KeyPair;
 use Soneso\StellarSDK\Memo;
 use Throwable;
@@ -23,12 +25,18 @@ use function in_array;
 use function is_int;
 use function is_numeric;
 use function is_string;
+use function json_encode;
 use function trim;
 
 use const DATE_ATOM;
 
 class Sep06RequestParser
 {
+    /**
+     * The PSR-3 specific logger to be used for logging.
+     */
+    private static LoggerInterface | NullLogger | null $logger;
+
     /**
      * Extracts the asset code from the request data
      *
@@ -40,8 +48,17 @@ class Sep06RequestParser
      */
     public static function getAssetCodeFromRequestData(array $requestData): string
     {
-        return self::getStringValueFromRequestData('asset_code', $requestData) ??
-            throw new InvalidSepRequest('missing asset_code');
+        try {
+            return self::getStringValueFromRequestData('asset_code', $requestData) ??
+                throw new InvalidSepRequest('missing asset_code');
+        } catch (InvalidSepRequest $e) {
+            self::getLogger()->error(
+                'Asset code not found in request data.',
+                ['context' => 'sep06'],
+            );
+
+            throw $e;
+        }
     }
 
     /**
@@ -55,8 +72,17 @@ class Sep06RequestParser
      */
     public static function getDestinationAssetCodeFromRequestData(array $requestData): string
     {
-        return self::getStringValueFromRequestData('destination_asset', $requestData) ??
-            throw new InvalidSepRequest('missing destination_asset');
+        try {
+            return self::getStringValueFromRequestData('destination_asset', $requestData) ??
+                throw new InvalidSepRequest('missing destination_asset');
+        } catch (InvalidSepRequest $e) {
+            self::getLogger()->error(
+                'Destination asset not found in request data.',
+                ['context' => 'sep06'],
+            );
+
+            throw $e;
+        }
     }
 
     /**
@@ -70,8 +96,17 @@ class Sep06RequestParser
      */
     public static function getSourceAssetCodeFromRequestData(array $requestData): string
     {
-        return self::getStringValueFromRequestData('source_asset', $requestData) ??
-            throw new InvalidSepRequest('missing source_asset');
+        try {
+            return self::getStringValueFromRequestData('source_asset', $requestData) ??
+                throw new InvalidSepRequest('missing source_asset');
+        } catch (InvalidSepRequest $e) {
+            self::getLogger()->error(
+                'Source asset not found in request data.',
+                ['context' => 'sep06'],
+            );
+
+            throw $e;
+        }
     }
 
     /**
@@ -91,6 +126,11 @@ class Sep06RequestParser
         try {
             return IdentificationFormatAsset::fromString($sourceAssetStr);
         } catch (InvalidAsset $invalidAsset) {
+            self::getLogger()->error(
+                'Invalid source asset.',
+                ['context' => 'sep06', 'source_asset' => $sourceAssetStr],
+            );
+
             throw new InvalidSepRequest('invalid source_asset: ' . $invalidAsset->getMessage());
         }
     }
@@ -112,6 +152,11 @@ class Sep06RequestParser
         try {
             return IdentificationFormatAsset::fromString($destAssetStr);
         } catch (InvalidAsset $invalidAsset) {
+            self::getLogger()->error(
+                'Invalid destination asset.',
+                ['context' => 'sep06', 'destination_asset' => $destAssetStr],
+            );
+
             throw new InvalidSepRequest('invalid destination_asset: ' . $invalidAsset->getMessage());
         }
     }
@@ -130,11 +175,21 @@ class Sep06RequestParser
         $account = self::getStringValueFromRequestData('account', $requestData);
 
         if ($account === null) {
+            self::getLogger()->error(
+                'Account not found in request data.',
+                ['context' => 'sep06'],
+            );
+
             throw new InvalidSepRequest('missing account');
         } else {
             try {
                 KeyPair::fromAccountId($account);
-            } catch (Throwable) {
+            } catch (Throwable $e) {
+                self::getLogger()->error(
+                    'Invalid account.',
+                    ['context' => 'sep06', 'error' => $e->getMessage(), 'exception' => $e],
+                );
+
                 throw new InvalidSepRequest('invalid account, must be a valid account id');
             }
         }
@@ -156,11 +211,21 @@ class Sep06RequestParser
         $account = self::getStringValueFromRequestData('account', $requestData);
 
         if ($account === null) {
+            self::getLogger()->debug(
+                'Account (optional) not found in request data.',
+                ['context' => 'sep06'],
+            );
+
             return null;
         } else {
             try {
                 KeyPair::fromAccountId($account);
-            } catch (Throwable) {
+            } catch (Throwable $e) {
+                self::getLogger()->error(
+                    'Invalid account.',
+                    ['context' => 'sep06', 'error' => $e->getMessage(), 'exception' => $e],
+                );
+
                 throw new InvalidSepRequest('invalid account, must be a valid account id');
             }
         }
@@ -180,15 +245,29 @@ class Sep06RequestParser
     public static function getMemoFromRequestData(array $requestData): ?Memo
     {
         $memoStr = self::getStringValueFromRequestData('memo', $requestData);
+        self::getLogger()->debug(
+            'Retrieving memo from request data.',
+            ['context' => 'sep06', 'memo' => $memoStr],
+        );
 
         $memoTypeStr = null;
         if (isset($requestData['memo_type'])) {
             if (is_string($requestData['memo_type'])) {
                 $memoTypeStr = trim($requestData['memo_type']);
                 if (!in_array($memoTypeStr, ['id', 'text', 'hash'])) {
+                    self::getLogger()->error(
+                        'Memo type not supported.',
+                        ['context' => 'sep06', 'memo_type' => $memoTypeStr],
+                    );
+
                     throw new InvalidSepRequest('memo type ' . $memoTypeStr . ' not supported.');
                 }
             } else {
+                self::getLogger()->error(
+                    'Memo type must be a string.',
+                    ['context' => 'sep06'],
+                );
+
                 throw new InvalidSepRequest('memo type must be a string');
             }
         }
@@ -196,9 +275,20 @@ class Sep06RequestParser
         $memo = null;
         if ($memoStr !== null) {
             if ($memoTypeStr === null) {
+                self::getLogger()->error(
+                    'Memo type must be provided if memo is provided.',
+                    ['context' => 'sep06'],
+                );
+
                 throw new InvalidSepRequest('memo type must be provided if memo is provided');
             }
             $memo = MemoHelper::makeMemoFromSepRequestData($memoStr, $memoTypeStr);
+            if ($memo !== null) {
+                self::getLogger()->debug(
+                    'The parsed memo.',
+                    ['context' => 'sep06', 'memo' => $memo->valueAsString()],
+                );
+            }
         }
 
         return $memo;
@@ -222,9 +312,19 @@ class Sep06RequestParser
             if (is_string($requestData['refund_memo_type'])) {
                 $memoTypeStr = trim($requestData['refund_memo_type']);
                 if (!in_array($memoTypeStr, ['id', 'text', 'hash'])) {
+                    self::getLogger()->error(
+                        'Refund memo type not supported.',
+                        ['context' => 'sep06', 'refund_memo_type' => $memoTypeStr],
+                    );
+
                     throw new InvalidSepRequest('refund_memo_type ' . $memoTypeStr . ' not supported.');
                 }
             } else {
+                self::getLogger()->error(
+                    'Refund memo type must be a string.',
+                    ['context' => 'sep06'],
+                );
+
                 throw new InvalidSepRequest('refund_memo_type must be a string');
             }
         }
@@ -232,9 +332,20 @@ class Sep06RequestParser
         $memo = null;
         if ($memoStr !== null) {
             if ($memoTypeStr === null) {
+                self::getLogger()->error(
+                    'Refund memo type must be provided if refund memo is provided.',
+                    ['context' => 'sep06'],
+                );
+
                 throw new InvalidSepRequest('refund_memo_type must be provided if refund_memo is provided');
             }
             $memo = MemoHelper::makeMemoFromSepRequestData($memoStr, $memoTypeStr);
+            if ($memo !== null) {
+                self::getLogger()->debug(
+                    'The parsed refund memo.',
+                    ['context' => 'sep06', 'memo' => $memo->valueAsString()],
+                );
+            }
         }
 
         return $memo;
@@ -326,6 +437,11 @@ class Sep06RequestParser
             if (is_numeric($requestData['amount'])) {
                 $amount = floatval($requestData['amount']);
             } else {
+                self::getLogger()->error(
+                    'Amount must be a float.',
+                    ['context' => 'sep06'],
+                );
+
                 throw new InvalidSepRequest('amount must be a float');
             }
         }
@@ -413,6 +529,11 @@ class Sep06RequestParser
             if (is_string($requestData[$fieldName])) {
                 return $requestData[$fieldName];
             } else {
+                self::getLogger()->error(
+                    'The field must be a string.',
+                    ['context' => 'sep06', 'field_name' => $fieldName],
+                );
+
                 throw new InvalidSepRequest($fieldName . ' must be a string');
             }
         }
@@ -434,9 +555,19 @@ class Sep06RequestParser
             if (is_string($requestData['asset_code'])) {
                 $assetCode = $requestData['asset_code'];
             } else {
+                self::getLogger()->error(
+                    'Asset code must be a string.',
+                    ['context' => 'sep06', 'asset_code' => $assetCode],
+                );
+
                 throw new InvalidSepRequest('asset_code must be a string');
             }
         } else {
+            self::getLogger()->error(
+                'Asset code is required.',
+                ['context' => 'sep06'],
+            );
+
             throw new InvalidSepRequest('asset_code is required');
         }
 
@@ -446,11 +577,21 @@ class Sep06RequestParser
                 $noOlderThanStr = $requestData['no_older_than'];
                 $dateTime = DateTime::createFromFormat(DATE_ATOM, $noOlderThanStr);
                 if ($dateTime === false) {
-                    throw new InvalidSepRequest('no_older_than is not a valid ISO 8601 date');
+                    $error = 'no_older_than is not a valid ISO 8601 date';
+                    self::getLogger()->error($error, ['context' => 'sep06', 'no_older_than_str' => $noOlderThanStr]);
+
+                    throw new InvalidSepRequest($error);
                 }
+                self::getLogger()->debug(
+                    'The no_older_than value',
+                    ['context' => 'sep06', 'no_older_than_str' => $dateTime->format('Y-m-d H:i:s')],
+                );
                 $noOlderThan = $dateTime;
             } else {
-                throw new InvalidSepRequest('no_older_than must be a UTC ISO 8601 string');
+                $error = 'no_older_than must be a UTC ISO 8601 string';
+                self::getLogger()->error($error, ['context' => 'sep06']);
+
+                throw new InvalidSepRequest($error);
             }
         }
 
@@ -459,7 +600,9 @@ class Sep06RequestParser
             if (is_int($requestData['limit'])) {
                 $limit = $requestData['limit'];
             } else {
-                throw new InvalidSepRequest('asset_code must be an integer');
+                self::getLogger()->error('Limit must be an integer.', ['context' => 'sep06']);
+
+                throw new InvalidSepRequest('limit must be an integer');
             }
         }
 
@@ -468,10 +611,16 @@ class Sep06RequestParser
             if (is_string($requestData['kind'])) {
                 $kind = $requestData['kind'];
                 if ($kind !== 'deposit' && $kind !== 'withdrawal') {
-                    throw new InvalidSepRequest('kind must be either deposit or withdrawal.');
+                    $error = 'kind must be either deposit or withdrawal.';
+                    self::getLogger()->error($error, ['context' => 'sep06', 'kind' => $kind]);
+
+                    throw new InvalidSepRequest($error);
                 }
             } else {
-                throw new InvalidSepRequest('kind must be a string');
+                $error = 'kind must be a string';
+                self::getLogger()->error($error, ['context' => 'sep06']);
+
+                throw new InvalidSepRequest($error);
             }
         }
 
@@ -480,7 +629,10 @@ class Sep06RequestParser
             if (is_string($requestData['paging_id'])) {
                 $pagingId = $requestData['paging_id'];
             } else {
-                throw new InvalidSepRequest('paging_id must be a string');
+                $error = 'paging_id must be a string';
+                self::getLogger()->error($error, ['context' => 'sep06']);
+
+                throw new InvalidSepRequest($error);
             }
         }
 
@@ -489,10 +641,45 @@ class Sep06RequestParser
             if (is_string($requestData['lang'])) {
                 $lang = $requestData['lang'];
             } else {
-                throw new InvalidSepRequest('lang must be a string');
+                $error = 'lang must be a string';
+                self::getLogger()->error($error, ['context' => 'sep06']);
+
+                throw new InvalidSepRequest($error);
             }
         }
+        $transactionHistoryRequest = new TransactionHistoryRequest(
+            $assetCode,
+            $noOlderThan,
+            $limit,
+            $kind,
+            $pagingId,
+            $lang,
+        );
+        self::getLogger()->error(
+            'The transaction history request data.',
+            ['context' => 'sep06', 'data' => json_encode($transactionHistoryRequest)],
+        );
 
-        return new TransactionHistoryRequest($assetCode, $noOlderThan, $limit, $kind, $pagingId, $lang);
+        return $transactionHistoryRequest;
+    }
+
+    /**
+     * Sets the logger in static context.
+     */
+    public static function setLogger(?LoggerInterface $logger = null): void
+    {
+        self::$logger = $logger ?? new NullLogger();
+    }
+
+    /**
+     * Returns the logger (initializes if null).
+     */
+    private static function getLogger(): LoggerInterface
+    {
+        if (!isset(self::$logger)) {
+            self::$logger = new NullLogger();
+        }
+
+        return self::$logger;
     }
 }

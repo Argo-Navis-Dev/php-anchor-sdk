@@ -14,7 +14,9 @@ use ArgoNavis\PhpAnchorSdk\callback\PutCustomerCallbackRequest;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerRequest;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerVerificationRequest;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSepRequest;
+use ArgoNavis\PhpAnchorSdk\logging\NullLogger;
 use Psr\Http\Message\UploadedFileInterface;
+use Psr\Log\LoggerInterface;
 
 use function array_key_exists;
 use function array_keys;
@@ -23,12 +25,18 @@ use function intval;
 use function is_int;
 use function is_numeric;
 use function is_string;
+use function json_encode;
 use function str_ends_with;
 
 use const FILTER_VALIDATE_URL;
 
 class Sep12RequestParser
 {
+    /**
+     * The PSR-3 specific logger to be used for logging.
+     */
+    private static LoggerInterface | NullLogger | null $logger;
+
     /**
      * Parses and validates the base request data.
      *
@@ -91,13 +99,18 @@ class Sep12RequestParser
                 throw new InvalidSepRequest('type must be a string');
             }
         }
-
-        return new Sep12CustomerRequestBase(
+        $sep12CustomerRequestBase = new Sep12CustomerRequestBase(
             $id,
             $account,
             $memo,
             $type,
         );
+        self::getLogger()->debug(
+            'The base parameters after processing',
+            ['context' => 'sep12', 'parameters' => json_encode($sep12CustomerRequestBase)],
+        );
+
+        return $sep12CustomerRequestBase;
     }
 
     /**
@@ -131,14 +144,19 @@ class Sep12RequestParser
         if ($base->account === null) {
             throw new InvalidSepRequest('invalid jwt token');
         }
-
-        return new GetCustomerRequest(
+        $getCustomerRequest = new GetCustomerRequest(
             $base->account,
             $base->memo,
             $base->id,
             $base->type,
             $lang,
         );
+        self::getLogger()->debug(
+            'Get customer parameters after processing',
+            ['context' => 'sep12', 'parameters' => json_encode($getCustomerRequest)],
+        );
+
+        return $getCustomerRequest;
     }
 
     /**
@@ -192,6 +210,10 @@ class Sep12RequestParser
 
         $result->kycFields = $additionalData;
         $result->kycUploadedFiles = $uploadedFiles;
+        self::getLogger()->debug(
+            'Put customer parameters after processing',
+            ['context' => 'sep12', 'parameters' => json_encode($result)],
+        );
 
         return $result;
     }
@@ -232,12 +254,18 @@ class Sep12RequestParser
             }
         }
 
-        return new PutCustomerCallbackRequest(
+        $putCustomerCallbackRequest = new PutCustomerCallbackRequest(
             $base->account,
             $base->memo,
             $base->id,
             $url,
         );
+        self::getLogger()->debug(
+            'Put customer callback parameters after processing',
+            ['context' => 'sep12', 'parameters' => json_encode($putCustomerCallbackRequest)],
+        );
+
+        return $putCustomerCallbackRequest;
     }
 
     /**
@@ -291,12 +319,18 @@ class Sep12RequestParser
             throw new InvalidSepRequest('invalid jwt token');
         }
 
-        return new PutCustomerVerificationRequest(
+        $putCustomerVerificationRequest = new PutCustomerVerificationRequest(
             $id,
             $verificationFields,
             $account,
             self::tokenAccountMemoAsInt($token),
         );
+        self::getLogger()->debug(
+            'Put customer verification parameters after processing',
+            ['context' => 'sep12', 'parameters' => json_encode($putCustomerVerificationRequest)],
+        );
+
+        return $putCustomerVerificationRequest;
     }
 
     /**
@@ -308,6 +342,8 @@ class Sep12RequestParser
     public static function tokenAccountMemoAsInt(Sep10Jwt $token): ?int
     {
         if ($token->accountMemo === null) {
+            self::getLogger()->debug('Account memo is null', ['context' => 'sep12']);
+
             return null;
         }
         $memoStr = $token->accountMemo;
@@ -316,5 +352,25 @@ class Sep12RequestParser
         } else {
             throw new InvalidSepRequest('invalid jwt token memo value: ' . $memoStr);
         }
+    }
+
+    /**
+     * Sets the logger in static context.
+     */
+    public static function setLogger(?LoggerInterface $logger = null): void
+    {
+        self::$logger = $logger ?? new NullLogger();
+    }
+
+    /**
+     * Returns the logger (initializes if null).
+     */
+    private static function getLogger(): LoggerInterface
+    {
+        if (!isset(self::$logger)) {
+            self::$logger = new NullLogger();
+        }
+
+        return self::$logger;
     }
 }

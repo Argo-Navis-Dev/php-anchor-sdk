@@ -20,17 +20,20 @@ use ArgoNavis\PhpAnchorSdk\exception\AnchorFailure;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidRequestData;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSep10JwtData;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSepRequest;
+use ArgoNavis\PhpAnchorSdk\logging\NullLogger;
 use ArgoNavis\PhpAnchorSdk\shared\IdentificationFormatAsset;
 use Laminas\Diactoros\Response\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UploadedFileInterface;
+use Psr\Log\LoggerInterface;
 
 use function count;
 use function floatval;
 use function is_array;
 use function is_numeric;
 use function is_string;
+use function json_encode;
 use function str_contains;
 use function trim;
 
@@ -56,6 +59,10 @@ class Sep24Service
     public IInteractiveFlowIntegration $sep24Integration;
     private int $uploadFileMaxSize = 2097152; // 2 MB
     private int $uploadFileMaxCount = 6;
+    /**
+     * The PSR-3 specific logger to be used for logging.
+     */
+    private LoggerInterface | NullLogger $logger;
 
     /**
      * Constructor.
@@ -67,9 +74,11 @@ class Sep24Service
     public function __construct(
         ISep24Config $sep24Config,
         IInteractiveFlowIntegration $sep24Integration,
+        ?LoggerInterface $logger = null,
     ) {
         $this->sep24Config = $sep24Config;
         $this->sep24Integration = $sep24Integration;
+        $this->logger = $logger ?? new NullLogger();
 
         $fMaxSizeMb = $this->sep24Config->getUploadFileMaxSizeMb();
         if ($fMaxSizeMb !== null) {
@@ -79,6 +88,13 @@ class Sep24Service
         if ($fMaxCount !== null) {
             $this->uploadFileMaxCount = $fMaxCount;
         }
+
+        $this->logger->debug(
+            'Configuration attributes loaded successfully',
+            ['context' => 'sep24', 'upload_file_max_size' => $this->uploadFileMaxSize,
+                'upload_file_max_count' => $this->uploadFileMaxCount,
+            ],
+        );
     }
 
     /**
@@ -95,8 +111,18 @@ class Sep24Service
      */
     public function handleRequest(ServerRequestInterface $request, ?Sep10Jwt $token = null): ResponseInterface
     {
+        $this->logger->info(
+            'Handling incoming request.',
+            ['context' => 'sep24', 'method' => $request->getMethod()],
+        );
+
         $requestTarget = $request->getRequestTarget();
         if ($request->getMethod() === 'GET' && str_contains($requestTarget, '/info')) {
+            $this->logger->info(
+                'Executing get info request.',
+                ['context' => 'sep24', 'operation' => 'info', 'status_code' => 200],
+            );
+
             return new JsonResponse($this->getInfo()->toJson(), 200);
         }
         if (
@@ -104,35 +130,85 @@ class Sep24Service
             && str_contains($requestTarget, '/fee')
             && !$this->sep24Config->feeEndpointRequiresAuthentication()
         ) {
+            $this->logger->info(
+                'Executing fee info request without authentication.',
+                ['context' => 'sep24', 'operation' => 'fee_info'],
+            );
+
             return $this->handleGetFeeRequest($request);
         }
 
         // all other cases require authentication.
 
         if ($token === null) {
+            $this->logger->warning(
+                'Handling SEP-24 request failed.',
+                ['error' => 'Authentication required', 'error_code' => 'authentication_required', 'context' => 'sep24'],
+            );
+
             //403  forbidden
             return new JsonResponse(['type' => 'authentication_required'], 403);
         }
 
         if ($request->getMethod() === 'GET') {
             if (str_contains($requestTarget, '/fee')) {
+                $this->logger->info(
+                    'Executing fee info request.',
+                    ['context' => 'sep24', 'operation' => 'fee_info'],
+                );
+
                 return $this->handleGetFeeRequest($request);
             } elseif (str_contains($requestTarget, '/transactions')) {
+                $this->logger->info(
+                    'Executing transactions request.',
+                    ['context' => 'sep24', 'operation' => 'transactions'],
+                );
+
                 return $this->handleGetTransactionsRequest($request, $token);
             } elseif (str_contains($requestTarget, '/transaction')) {
+                $this->logger->info(
+                    'Executing transaction request.',
+                    ['context' => 'sep24', 'operation' => 'transaction'],
+                );
+
                 return $this->handleGetTransactionRequest($request, $token);
             } else {
+                $this->logger->error(
+                    'Invalid request, unknown endpoint',
+                    ['context' => 'sep24', 'error_code' => 404],
+                );
+
                 return new JsonResponse(['error' => 'Invalid request. Unknown endpoint.'], 404);
             }
         } elseif ($request->getMethod() === 'POST') {
             if (str_contains($requestTarget, '/transactions/deposit/interactive')) {
+                $this->logger->info(
+                    'Executing interactive deposit transaction request.',
+                    ['context' => 'sep24', 'operation' => 'interactive_transaction_deposit'],
+                );
+
                 return $this->handlePostDepositRequest($request, $token);
             } elseif (str_contains($requestTarget, '/transactions/withdraw/interactive')) {
+                $this->logger->info(
+                    'Executing interactive withdraw transaction request.',
+                    ['context' => 'sep24', 'operation' => 'interactive_transaction_withdraw'],
+                );
+
                 return $this->handlePostWithdrawalRequest($request, $token);
             } else {
+                $this->logger->error(
+                    'Invalid request, unknown endpoint',
+                    ['context' => 'sep24', 'error_code' => 404],
+                );
+
                 return new JsonResponse(['error' => 'Invalid request. Unknown endpoint.'], 404);
             }
         } else {
+            $this->logger->error(
+                'Invalid request, method not supported: ' . $request->getMethod(),
+                ['context' => 'sep24', 'error_code' => 404],
+            );
+
             return new JsonResponse(['error' => 'Invalid request. Method not supported.'], 404);
         }
     }
@@ -167,7 +243,7 @@ class Sep24Service
             ];
         }
 
-        return new InfoResponse(
+        $infoResponse = new InfoResponse(
             $deposit,
             $withdraw,
             new FeeResponse(
@@ -179,6 +255,12 @@ class Sep24Service
                 $this->sep24Config->areClaimableBalancesSupported(),
             ),
         );
+        $this->logger->debug(
+            'Info request executed successfully',
+            ['context' => 'sep24', 'response_json' => json_encode($infoResponse)],
+        );
+
+        return $infoResponse;
     }
 
     /**
@@ -194,9 +276,19 @@ class Sep24Service
             try {
                 return new JsonResponse(['fee' => $this->getFee($request->getQueryParams())], 200);
             } catch (InvalidSepRequest | AnchorFailure $e) {
+                $this->logger->error(
+                    'Failed to execute the fee info request.',
+                    ['context' => 'sep24', 'error_code' => 400, 'error' => $e->getMessage(), 'exception' => $e],
+                );
+
                 return new JsonResponse(['error' => $e->getMessage()], 400);
             }
         } else {
+            $this->logger->error(
+                'Fee info is not supported',
+                ['context' => 'sep24', 'error_code' => 404],
+            );
+
             return new JsonResponse(['error' => 'Fee endpoint is not supported.'], 404);
         }
     }
@@ -214,6 +306,13 @@ class Sep24Service
         try {
             return new JsonResponse($this->withdraw($request, $token)->toJson(), 200);
         } catch (InvalidSepRequest | InvalidRequestData | AnchorFailure $e) {
+            $this->logger->error(
+                'Failed to execute the interactive transaction withdraw request.',
+                ['context' => 'sep24', 'operation' => 'interactive_transaction_withdraw',
+                    'error_code' => 400, 'error' => $e->getMessage(), 'exception' => $e,
+                ],
+            );
+
             return new JsonResponse(['error' => $e->getMessage()], 400);
         }
     }
@@ -231,6 +330,13 @@ class Sep24Service
         try {
             return new JsonResponse($this->deposit($request, $token)->toJson(), 200);
         } catch (InvalidSepRequest | InvalidRequestData | AnchorFailure $e) {
+            $this->logger->error(
+                'Failed to execute the interactive transaction deposit request.',
+                ['context' => 'sep24', 'operation' => 'interactive_transaction_deposit',
+                    'error_code' => 400, 'error' => $e->getMessage(), 'exception' => $e,
+                ],
+            );
+
             return new JsonResponse(['error' => $e->getMessage()], 400);
         }
     }
@@ -309,6 +415,13 @@ class Sep24Service
                 return new JsonResponse(['error' => 'transaction not found'], 404);
             }
         } catch (InvalidSep10JwtData | InvalidSepRequest | AnchorFailure $e) {
+            $this->logger->error(
+                'Failed to retrieve the transaction.',
+                ['context' => 'sep24', 'operation' => 'transaction',
+                    'error_code' => 400, 'error' => $e->getMessage(), 'exception' => $e,
+                ],
+            );
+
             return new JsonResponse(['error' => $e->getMessage()], 400);
         }
     }
@@ -351,7 +464,14 @@ class Sep24Service
                 return new JsonResponse(['transactions' => $transactionsJson], 200);
             }
         } catch (InvalidSep10JwtData | InvalidSepRequest | AnchorFailure $e) {
-                return new JsonResponse(['error' => $e->getMessage()], 400);
+            $this->logger->error(
+                'Failed to retrieve the transactions.',
+                ['context' => 'sep24', 'operation' => 'transactions',
+                    'error_code' => 400, 'error' => $e->getMessage(), 'exception' => $e,
+                ],
+            );
+
+            return new JsonResponse(['error' => $e->getMessage()], 400);
         }
     }
 
