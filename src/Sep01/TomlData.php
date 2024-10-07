@@ -77,26 +77,24 @@ class TomlData
         try {
             $response = $httpClient->sendRequest($request);
         } catch (ClientExceptionInterface $e) {
-            $msg = 'Stellar toml could not be loaded: ' . $e->getMessage();
-            $logger->error(
-                'Stellar toml could not be loaded from url. ',
-                ['url' => $url, 'exception' => $e->getMessage(), 'context' => 'sep01'],
+            throw new TomlDataNotLoaded(
+                'Stellar toml could not be loaded: ' . $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e,
             );
-
-            throw new TomlDataNotLoaded($msg, code: $e->getCode(), previous: $e);
         }
 
         if ($response->getStatusCode() !== 200) {
-            $msg = 'Stellar toml not found. Response status code ' . $response->getStatusCode();
-            $logger->error(
-                'Stellar toml not found.',
-                ['url' => $url, 'response_status_code' => $response->getStatusCode(), 'context' => 'sep01'],
+            throw new TomlDataNotLoaded(
+                'Stellar toml not found. Response status code ' . $response->getStatusCode(),
+                code: $response->getStatusCode(),
             );
-
-            throw new TomlDataNotLoaded($msg, code: $response->getStatusCode());
         }
 
-        return self::fromString((string) $response->getBody());
+        $tomlContent = self::fromString((string) $response->getBody());
+        $logger->debug('The toml file content.', ['context' => 'sep01', 'content' => $tomlContent]);
+
+        return $tomlContent;
     }
 
     /**
@@ -113,18 +111,15 @@ class TomlData
     public static function fromFile(string $pathToFile, ?LoggerInterface $logger = null): TomlData
     {
         $logger = $logger ?? new NullLogger();
+        $logger->debug('Loading Stellar toml from file.', ['path_to_file' => $pathToFile, 'context' => 'sep01']);
         $fileContent = file_get_contents($pathToFile, false);
         if ($fileContent === false) {
-            $msg = 'File content could not be loaded for: ' . $pathToFile;
-            $logger->error(
-                'Stellar toml file content could not be loaded.',
-                ['file_path' => $pathToFile, 'context' => 'sep01'],
-            );
-
-            throw new TomlDataNotLoaded($msg, code: 404);
+            throw new TomlDataNotLoaded('File content could not be loaded for: ' . $pathToFile, code: 404);
         }
+        $tomlContent = self::fromString($fileContent);
+        $logger->debug('The toml file content.', ['context' => 'sep01', 'content' => $tomlContent]);
 
-        return self::fromString($fileContent);
+        return $tomlContent;
     }
 
     /**

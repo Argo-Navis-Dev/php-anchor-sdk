@@ -9,6 +9,8 @@ declare(strict_types=1);
 namespace ArgoNavis\PhpAnchorSdk\Stellar;
 
 use ArgoNavis\PhpAnchorSdk\exception\AccountNotFound;
+use ArgoNavis\PhpAnchorSdk\logging\NullLogger;
+use Psr\Log\LoggerInterface;
 use Soneso\StellarSDK\Asset;
 use Soneso\StellarSDK\AssetTypeCreditAlphanum;
 use Soneso\StellarSDK\Exceptions\HorizonRequestException;
@@ -28,6 +30,11 @@ use function end;
 
 class PaymentsHelper
 {
+    /**
+     * The PSR-3 specific logger to be used for logging.
+     */
+    private static LoggerInterface | NullLogger | null $logger;
+
     /**
      * This function queries the received payments for a given Stellar account.
      * It takes into account both normal Stellar transactions and fee bump transactions.
@@ -66,6 +73,13 @@ class PaymentsHelper
         ?string $cursor = null,
     ): ReceivedPaymentsQueryResult {
         $sdk = new StellarSDK($horizonUrl);
+
+        self::getLogger()->debug(
+            'Querying received payment.',
+            ['context' => 'stellar', 'receiver_account_id' => $receiverAccountId,
+                'cursor' => $cursor, 'horizon_url' => $horizonUrl,
+            ],
+        );
 
         // first check if account exists
         if (!$sdk->accountExists($receiverAccountId)) {
@@ -256,5 +270,25 @@ class PaymentsHelper
         }
 
         return $result;
+    }
+
+    /**
+     * Sets the logger in static context.
+     */
+    public static function setLogger(?LoggerInterface $logger = null): void
+    {
+        self::$logger = $logger ?? new NullLogger();
+    }
+
+    /**
+     * Returns the logger (initializes if null).
+     */
+    private static function getLogger(): LoggerInterface
+    {
+        if (!isset(self::$logger)) {
+            self::$logger = new NullLogger();
+        }
+
+        return self::$logger;
     }
 }

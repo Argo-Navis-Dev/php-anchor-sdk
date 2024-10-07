@@ -81,23 +81,16 @@ class Sep08Service
                         ['context' => 'sep08', 'operation' => 'approval', 'content' => $content],
                     );
                     if (!is_array($jsonData)) {
-                        $error = 'Invalid body.';
-                        $this->logger->error(
-                            $error,
+                        $this->logger->debug(
+                            'The request body must be an array',
                             ['context' => 'sep08', 'operation' => 'approval'],
                         );
 
-                        throw new InvalidRequestData($error);
+                        throw new InvalidRequestData('Invalid body.');
                     }
                     $approveRequest = ApprovalRequest::fromDataArray($jsonData);
                 } else {
-                    $error = 'Invalid request type';
-                    $this->logger->error(
-                        $error,
-                        ['context' => 'sep08', 'operation' => 'approval', 'content_type' => $contentType],
-                    );
-
-                    throw new InvalidRequestData($error . ' ' . $contentType);
+                    throw new InvalidRequestData('Invalid request type' . ' ' . $contentType);
                 }
                 $this->logger->info(
                     'Handling SEP-08 transaction approval request.',
@@ -110,7 +103,7 @@ class Sep08Service
                 $response = new ApprovalRejected($error);
                 $this->logger->error(
                     $error,
-                    ['context' => 'sep08', 'operation' => 'approval', 'error_code' => 400],
+                    ['context' => 'sep08', 'operation' => 'approval', 'http_status_code' => 400],
                 );
 
                 return new JsonResponse($response->toJson(), 400);
@@ -121,7 +114,7 @@ class Sep08Service
             $this->logger->error(
                 $error,
                 ['context' => 'sep08', 'operation' => 'approval',
-                    'error_code' => 400, 'error' => $invalid->getMessage(), 'exception' => $invalid,
+                    'http_status_code' => 400, 'error' => $invalid->getMessage(), 'exception' => $invalid,
                 ],
             );
 
@@ -132,7 +125,7 @@ class Sep08Service
             $this->logger->error(
                 $error,
                 ['context' => 'sep08', 'operation' => 'approval',
-                    'error_code' => 400, 'error' => $e->getMessage(), 'exception' => $e,
+                    'http_status_code' => 400, 'error' => $e->getMessage(), 'exception' => $e,
                 ],
             );
 

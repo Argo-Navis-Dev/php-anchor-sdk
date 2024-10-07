@@ -15,6 +15,7 @@ use ArgoNavis\PhpAnchorSdk\exception\AccountNotLoaded;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidConfig;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidRequestData;
 use ArgoNavis\PhpAnchorSdk\exception\TomlDataNotLoaded;
+use ArgoNavis\PhpAnchorSdk\logging\NullLogger;
 use DateTime;
 use Exception;
 use Laminas\Diactoros\Response\JsonResponse;
@@ -22,6 +23,7 @@ use Laminas\Diactoros\Response\TextResponse;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Log\LoggerInterface;
 use Soneso\StellarSDK\Account;
 use Soneso\StellarSDK\Crypto\KeyPair;
 use Soneso\StellarSDK\ManageDataOperation;
@@ -48,12 +50,14 @@ use function is_array;
 use function is_int;
 use function is_numeric;
 use function json_decode;
+use function json_encode;
 use function microtime;
 use function random_bytes;
 use function round;
 use function str_starts_with;
 use function strlen;
 use function strval;
+use function substr;
 
 /**
  * The Sep10Service handles Stellar Web Authentication requests as defined by
@@ -76,6 +80,10 @@ class Sep10Service
     public IAppConfig $appConfig;
     public ISep10Config $sep10Config;
     public string $serverAccountId;
+    /**
+     * The PSR-3 specific logger to be used for logging.
+     */
+    private LoggerInterface | NullLogger $logger;
 
     /**
      * Constructor.
@@ -91,15 +99,27 @@ class Sep10Service
     public function __construct(
         IAppConfig $appConfig,
         ISep10Config $sep10Config,
+        ?LoggerInterface $logger = null,
     ) {
         $this->appConfig = $appConfig;
         $this->sep10Config = $sep10Config;
         $sep10SigningSeed = $sep10Config->getSep10SigningSeed();
         $homeDomains = $this->sep10Config->getHomeDomains();
+        $this->logger = $logger ?? new NullLogger();
+        Sep10Jwt::setLogger($this->logger);
         if (count($homeDomains) === 0) {
             throw new InvalidConfig('Invalid sep 10 config: list of home domains is empty');
         }
         try {
+            $firstFourSigningSeed = substr($sep10SigningSeed, 0, 4);
+            $lastFourSigningSeed = substr($sep10SigningSeed, -4);
+            $this->logger->debug(
+                'Parsing signing seed.',
+                ['context' => 'sep10',
+                    'sep_10_signing_seed_parts' => $firstFourSigningSeed . '...' . $lastFourSigningSeed,
+                ],
+            );
+
             $this->serverAccountId = KeyPair::fromSeed($sep10SigningSeed)->getAccountId();
         } catch (Throwable $e) {
             $message = 'Invalid secret config: SEP-10 signing seed is not a valid secret seed';
@@ -123,14 +143,36 @@ class Sep10Service
      */
     public function handleRequest(ServerRequestInterface $request, ClientInterface $httpClient): ResponseInterface
     {
+        $this->logger->info(
+            'Handling incoming request.',
+            ['context' => 'sep10', 'method' => $request->getMethod()],
+        );
+
         if ($request->getMethod() === 'GET') {
+            $this->logger->info(
+                'Handling SEP-10 get challenge request.',
+                ['context' => 'sep10', 'operation' => 'get_challenge'],
+            );
+
             // Challenge
             try {
                 $queryParams = $request->getQueryParams();
+                $this->logger->info(
+                    'Get challenge request query parameters.',
+                    ['context' => 'sep10', 'operation' => 'get_challenge', 'query_params' => $queryParams],
+                );
+
                 $challengeRequest = ChallengeRequest::fromQueryParameters($queryParams);
 
                 return $this->createChallenge($challengeRequest, $httpClient);
             } catch (InvalidRequestData $invalid) {
+                $this->logger->error(
+                    'Failed to build SEP-10 get challenge response.',
+                    ['context' => 'sep10', 'operation' => 'get_challenge',
+                        'error' => $invalid->getMessage(), 'exception' => $invalid, 'http_status_code' => 400,
+                    ],
+                );
+
                 return new JsonResponse(['error' => 'Invalid request. ' . $invalid->getMessage()], 400);
             }
         } elseif ($request->getMethod() === 'POST') {
@@ -158,13 +200,30 @@ class Sep10Service
 
                 return $this->handleValidationRequest($validationRequest);
             } catch (InvalidRequestData $invalid) {
+                $this->logger->error(
+                    'Failed to create SEP-10 jwt token out of challenge.',
+                    ['context' => 'sep10', 'operation' => 'get_jwt_token', 'error' => $invalid->getMessage(),
+                        'exception' => $invalid, 'http_status_code' => 400,
+                    ],
+                );
+
                 return new JsonResponse(['error' => 'Invalid request. ' . $invalid->getMessage()], 400);
             } catch (Throwable $e) {
                 $msg = 'Failed to validate the sep-10 challenge. ' . $e->getMessage();
+                $this->logger->error(
+                    'Failed to create SEP-10 jwt token out of challenge.',
+                    ['context' => 'sep10', 'operation' => 'get_jwt_token', 'error' => $e->getMessage(),
+                        'exception' => $e, 'http_status_code' => 500,
+                    ],
+                );
 
                 return new JsonResponse(['error' => $msg], 500);
             }
         }
+        $this->logger->error(
+            'The requested HTTP method is not implemented.',
+            ['context' => 'sep10', 'http_status_code' => 501],
+        );
 
         return new TextResponse('Not implemented', status: 501);
     }
@@ -187,11 +246,31 @@ class Sep10Service
         $clientAccountId = $challenge->clientAccountId;
         $challengeTx = $challenge->transaction;
 
+        $this->logger->debug(
+            'Generating jwt token',
+            [
+                'context' => 'sep10',
+                'operation' => 'get_jwt_token',
+                'home_domain' => $homeDomain,
+                'client_domain_data' => json_encode($clientDomainData),
+                'client_account_id' => $clientAccountId,
+                'challenge_tx_xdr_base_64' => $challengeTx->toXdrBase64(),
+            ],
+        );
+
         // load the client account if exists. we need it later to be able to check the signatures.
         $clientAccount = $this->fetchAccount($clientAccountId, $this->appConfig->getHorizonUrl());
 
         // if the user account does not exist we need to check if there is only one valid user signature.
         if ($clientAccount === null) {
+            $this->logger->debug(
+                'Validating signature for non existing client account.',
+                [
+                    'context' => 'sep10',
+                    'operation' => 'get_jwt_token',
+                ],
+            );
+
             $this->validateSignaturesForNonExistentClientAccount(
                 $challengeTx,
                 $clientAccountId,
@@ -199,10 +278,29 @@ class Sep10Service
                 $clientDomainData,
             );
         } else {
+            $this->logger->debug(
+                'Validating signature for existing client account.',
+                [
+                    'context' => 'sep10',
+                    'operation' => 'get_jwt_token',
+                ],
+            );
+
             $this->validateSignaturesForExistentClientAccount($challengeTx, $clientAccount, $clientDomainData);
         }
 
         $jwt = $this->generateSep10Jwt($request->url, $challenge, $homeDomain, $clientDomainData);
+
+        $firstFourJwt = substr($jwt, 0, 4);
+        $lastFourJwt = substr($jwt, -4);
+        $this->logger->info(
+            'Jwt token has been generated successfully.',
+            [
+                'context' => 'sep10',
+                'operation' => 'get_jwt_token',
+                'jwt_parts' => $firstFourJwt . '...' . $lastFourJwt,
+            ],
+        );
 
         return new JsonResponse(['token' => $jwt], 200);
     }
@@ -228,6 +326,15 @@ class Sep10Service
          * The Server verifies the weight provided by the signers of the Client Account meets the required threshold(s), if any
          */
         $threshold = $clientAccount->getThresholds()->getMedThreshold();
+        $this->logger->debug(
+            'Validating signature for existing client account.',
+            [
+                'context' => 'sep10',
+                'operation' => 'get_jwt_token',
+                'threshold' => $threshold,
+            ],
+        );
+
         $validSigners = [];
         foreach ($clientAccount->getSigners() as $signer) {
             if ($signer->getType() === 'ed25519_public_key') {
@@ -253,7 +360,16 @@ class Sep10Service
 
                     continue;
                 }
-            } catch (Throwable) {
+            } catch (Throwable $tw) {
+                $this->logger->error(
+                    'Signature validation failed for existing client account.',
+                    [
+                        'context' => 'sep10',
+                        'operation' => 'get_jwt_token',
+                        'error' => $tw->getMessage(),
+                        'exception' => $tw,
+                    ],
+                );
             }
             try {
                 if ($clientDomainData !== null) {
@@ -265,7 +381,16 @@ class Sep10Service
                         continue;
                     }
                 }
-            } catch (Throwable) {
+            } catch (Throwable $tw) {
+                $this->logger->error(
+                    'Signature validation failed for existing client account.',
+                    [
+                        'context' => 'sep10',
+                        'operation' => 'get_jwt_token',
+                        'error' => $tw->getMessage(),
+                        'exception' => $tw,
+                    ],
+                );
             }
             foreach ($validSigners as $clientSigner) {
                 try {
@@ -277,10 +402,31 @@ class Sep10Service
 
                         break 1;
                     }
-                } catch (Throwable) {
+                } catch (Throwable $tw) {
+                    $this->logger->error(
+                        'Signature validation failed for existing client account.',
+                        [
+                            'context' => 'sep10',
+                            'operation' => 'get_jwt_token',
+                            'error' => $tw->getMessage(),
+                            'exception' => $tw,
+                        ],
+                    );
                 }
             }
         }
+
+        $this->logger->debug(
+            'The calculated values are.',
+            [
+                'context' => 'sep10',
+                'operation' => 'get_jwt_token',
+                'thresholds_sum' => $thresholdsSum,
+                'valid_client_signatures' => $validClientSignatures,
+                'valid_server_signatures' => $validServerSignatures,
+                'valid_client_domain_signatures' => $validClientDomainSignatures,
+            ],
+        );
         if ($thresholdsSum < $threshold) {
             $msg = 'Signers with weight ' . strval($thresholdsSum) . ' do not meet threshold ' . strval($threshold);
 
@@ -355,7 +501,16 @@ class Sep10Service
 
                     continue;
                 }
-            } catch (Throwable) {
+            } catch (Throwable $tw) {
+                $this->logger->error(
+                    'Signature validation failed for non existing client account.',
+                    [
+                        'context' => 'sep10',
+                        'operation' => 'get_jwt_token',
+                        'error' => $tw->getMessage(),
+                        'exception' => $tw,
+                    ],
+                );
             }
             try {
                 $valid = $serverAccountKp->verifySignature($signature->getSignature(), $txHash);
@@ -364,7 +519,16 @@ class Sep10Service
 
                     continue;
                 }
-            } catch (Throwable) {
+            } catch (Throwable $tw) {
+                $this->logger->error(
+                    'Signature validation failed for non existing client account.',
+                    [
+                        'context' => 'sep10',
+                        'operation' => 'get_jwt_token',
+                        'error' => $tw->getMessage(),
+                        'exception' => $tw,
+                    ],
+                );
             }
             try {
                 if ($clientDomainData !== null) {
@@ -376,9 +540,29 @@ class Sep10Service
                         continue;
                     }
                 }
-            } catch (Throwable) {
+            } catch (Throwable $tw) {
+                $this->logger->error(
+                    'Signature validation failed for non existing client account.',
+                    [
+                        'context' => 'sep10',
+                        'operation' => 'get_jwt_token',
+                        'error' => $tw->getMessage(),
+                        'exception' => $tw,
+                    ],
+                );
             }
         }
+        $this->logger->debug(
+            'The calculated values are.',
+            [
+                'context' => 'sep10',
+                'operation' => 'get_jwt_token',
+                'valid_client_account_signatures' => $validClientAccountSignatures,
+                'valid_server_signatures' => $validServerSignatures,
+                'valid_client_domain_signatures' => $validClientDomainSignatures,
+            ],
+        );
+
         if ($validClientAccountSignatures !== 1) {
             $msg = 'Invalid number of valid client account signatures: ' . strval($validClientAccountSignatures);
 
@@ -395,6 +579,16 @@ class Sep10Service
             throw new InvalidRequestData($msg);
         }
         $nrOfValidSignatures = $validClientAccountSignatures + $validServerSignatures + $validClientDomainSignatures;
+        $this->logger->debug(
+            'Number of valid signatures.',
+            [
+                'context' => 'sep10',
+                'operation' => 'get_jwt_token',
+                'nr_of_valid_signatures' => $nrOfValidSignatures,
+                'signatures' => $signatures,
+            ],
+        );
+
         if ($nrOfValidSignatures !== count($signatures)) {
             $msg = 'Invalid number of signatures: ' . strval(count($signatures));
 
@@ -409,9 +603,25 @@ class Sep10Service
     {
         $sdk = new StellarSDK($horizonUrl);
         $accId = $accountId;
+        $this->logger->debug(
+            'Fetching account by account id.',
+            [
+                'context' => 'sep10',
+                'operation' => 'get_jwt_token',
+                'account_id' => $accountId,
+            ],
+        );
         if (str_starts_with($accountId, 'M')) {
             $mux = MuxedAccount::fromAccountId($accountId);
             $accId = $mux->getEd25519AccountId();
+            $this->logger->debug(
+                'Fetching muxed account id.',
+                [
+                    'context' => 'sep10',
+                    'operation' => 'get_jwt_token',
+                    'account_id' => $accId,
+                ],
+            );
         }
         $account = null;
         try {
@@ -466,6 +676,14 @@ class Sep10Service
             throw new InvalidRequestData('Transaction source account is not equal to server account.');
         }
 
+        $this->logger->debug(
+            'Verifying transaction sequence number.',
+            [
+                'context' => 'sep10',
+                'operation' => 'get_jwt_token',
+                'transaction_sequence_number' => $tx->getSequenceNumber(),
+            ],
+        );
         // verify that transaction sequenceNumber is equal to zero
         if (!$tx->getSequenceNumber()->equals(new BigInteger(0))) {
             throw new InvalidRequestData('The transaction sequence number should be zero.');
@@ -473,6 +691,14 @@ class Sep10Service
 
         // if the transaction contains a memo, then verify that the memo is of type id.
         $memo = $tx->getMemo();
+        $this->logger->debug(
+            'Transaction memo type.',
+            [
+                'context' => 'sep10',
+                'operation' => 'get_jwt_token',
+                'memo_type' => $memo->getType(),
+            ],
+        );
         if ($memo->getType() !== Memo::MEMO_TYPE_NONE && $memo->getType() !== Memo::MEMO_TYPE_ID) {
             throw new InvalidRequestData('Only memo type `id` is supported');
         }
@@ -480,14 +706,33 @@ class Sep10Service
         // verify that transaction has time bounds set, and that current time is between the minimum and maximum bounds
         $maxTime = $tx->getTimeBounds()?->getMaxTime();
         $minTime = $tx->getTimeBounds()?->getMinTime();
+        $this->logger->debug(
+            'Transaction time bounds.',
+            [
+                'context' => 'sep10',
+                'operation' => 'get_jwt_token',
+                'min_time' => $minTime,
+                'max_time' => $maxTime,
+            ],
+        );
         if ($maxTime === null || $minTime === null) {
             throw new InvalidRequestData('Transaction requires timebounds');
         }
         if ($maxTime->getTimestamp() === 0) {
             throw new InvalidRequestData('Transaction requires non-infinite timebounds.');
         }
+
         $grace = 60 * 5;
         $currentTime = round(microtime(true));
+        $this->logger->debug(
+            'Verifying transaction timestamp.',
+            [
+                'context' => 'sep10',
+                'operation' => 'get_jwt_token',
+                'grace' => $grace,
+                'current_time_micro' => $currentTime,
+            ],
+        );
         if (
             $currentTime < $minTime->getTimestamp() - $grace ||
             $currentTime > $maxTime->getTimestamp() + $grace
@@ -495,14 +740,31 @@ class Sep10Service
             throw new InvalidRequestData('Transaction is not within range of the specified timebounds.');
         }
 
+        $transactionsNoOperations = count($tx->getOperations());
+        $this->logger->debug(
+            'Number of operations in transaction.',
+            [
+                'context' => 'sep10',
+                'operation' => 'get_jwt_token',
+                'transactions_no_operations' => $transactionsNoOperations,
+            ],
+        );
         // verify that transaction contains at least one operation
-        if (count($tx->getOperations()) < 1) {
+        if ($transactionsNoOperations < 1) {
             throw new InvalidRequestData('Transaction requires at least one ManageData operation.');
         }
 
         // verify that the first operation in the transaction is a Manage Data operation
         // and its source account is not null
         $op = $tx->getOperations()[0];
+        $this->logger->debug(
+            'The transaction first operation class.',
+            [
+                'context' => 'sep10',
+                'operation' => 'get_jwt_token',
+                'class' => $op::class,
+            ],
+        );
         if (!($op instanceof ManageDataOperation)) {
             throw new InvalidRequestData('Operation type should be ManageData.');
         }
@@ -527,6 +789,14 @@ class Sep10Service
 
         // verify first operations data value
         $dataValue = $op->getValue();
+        $this->logger->debug(
+            'The operation data value.',
+            [
+                'context' => 'sep10',
+                'operation' => 'get_jwt_token',
+                'data_value' => $dataValue,
+            ],
+        );
         if ($dataValue === null) {
             throw new InvalidRequestData('The transaction operation value should not be null.');
         }
@@ -541,8 +811,26 @@ class Sep10Service
         $clientDomainData = null;
         // verify subsequent operations are manage data ops with source account set to server account
         $operations = $tx->getOperations();
-        for ($i = 1; $i < count($operations); $i++) {
+        $noOperations = count($operations);
+        $this->logger->debug(
+            'Iterating through transaction operations.',
+            [
+                'context' => 'sep10',
+                'operation' => 'get_jwt_token',
+                'no_operations' => $noOperations,
+            ],
+        );
+        for ($i = 1; $i < $noOperations; $i++) {
             $operation = $operations[$i];
+            $this->logger->debug(
+                'The transaction operation class.',
+                [
+                    'context' => 'sep10',
+                    'operation' => 'get_jwt_token',
+                    'class' => $op::class,
+                    'index' => $i,
+                ],
+            );
             if (!($operation instanceof ManageDataOperation)) {
                 throw new InvalidRequestData('Operation type should be ManageData.');
             }
@@ -589,7 +877,22 @@ class Sep10Service
         // verify that transaction envelope has a correct signature by the Server Account
         $this->verifyServerSignature($tx, $serverAccountId, $network);
 
-        return new ChallengeTransaction($tx, $clientAccountId->getAccountId(), $matchedDomainName, $clientDomainData);
+        $challengeTransaction = new ChallengeTransaction(
+            $tx,
+            $clientAccountId->getAccountId(),
+            $matchedDomainName,
+            $clientDomainData,
+        );
+        $this->logger->debug(
+            'The challenge has been build successfully.',
+            [
+                'context' => 'sep10',
+                'operation' => 'get_jwt_token',
+                'content' => json_encode($challengeTransaction),
+            ],
+        );
+
+        return $challengeTransaction;
     }
 
     /**
@@ -604,7 +907,17 @@ class Sep10Service
     private function verifyServerSignature(Transaction $tx, string $serverAccountId, Network $network): void
     {
         $signatures = $tx->getSignatures();
-        if (count($signatures) === 0) {
+        $noServerSignature = count($signatures);
+        $this->logger->debug(
+            'Verifying server signature.',
+            [
+                'context' => 'sep10',
+                'operation' => 'get_jwt_token',
+                'no_server_signatures ' => $noServerSignature ,
+            ],
+        );
+
+        if ($noServerSignature === 0) {
             throw new InvalidRequestData('Transaction has no signatures.');
         }
         $firstSignature = $signatures[0];
@@ -618,7 +931,17 @@ class Sep10Service
             if (!$valid) {
                 throw new InvalidRequestData('Transaction not signed by server: ' . $serverAccountId);
             }
-        } catch (Throwable) {
+        } catch (Throwable $th) {
+            $this->logger->debug(
+                'Failed to verify server signature.',
+                [
+                    'context' => 'sep10',
+                    'operation' => 'get_jwt_token',
+                    'error ' => $th->getMessage(),
+                    'exception ' => $th ,
+                ],
+            );
+
             throw new InvalidRequestData('Transaction not signed by server: ' . $serverAccountId);
         }
     }
@@ -637,9 +960,24 @@ class Sep10Service
     {
         $memo = Memo::none();
         try {
+            $this->logger->info(
+                'Get challenge request processed parameters.',
+                ['context' => 'sep10', 'operation' => 'get_challenge', 'parameters' => json_encode($request)],
+            );
+
             $this->validateChallengeRequestFormat($request);
             $memo = $this->validateChallengeRequestMemo($request);
         } catch (InvalidRequestData $e) {
+            $this->logger->debug(
+                'Failed to create the challenge.',
+                [
+                    'context' => 'sep10',
+                    'operation' => 'get_challenge',
+                    'error ' => $e->getMessage(),
+                    'exception ' => $e,
+                ],
+            );
+
             return new JsonResponse(['error' => $e->getMessage()], $e->getCode());
         }
 
@@ -675,6 +1013,16 @@ class Sep10Service
         try {
             KeyPair::fromAccountId($request->account);
         } catch (Throwable $e) {
+            $this->logger->debug(
+                'Failed to validate challenge request format.',
+                [
+                    'context' => 'sep10',
+                    'operation' => 'get_challenge',
+                    'error ' => $e->getMessage(),
+                    'exception ' => $e,
+                ],
+            );
+
             throw new InvalidRequestData('client wallet account ' . $request->account . ' is invalid', 400);
         }
 
@@ -699,6 +1047,15 @@ class Sep10Service
             $allowList = $this->sep10Config->getAllowedClientDomains() ?? [];
             if (!in_array($request->clientDomain, $allowList)) {
                 // client_domain provided is not in the configured allow list
+                $this->logger->debug(
+                    'Client domain provided is not in the configured allow list.',
+                    [
+                        'context' => 'sep10',
+                        'operation' => 'get_challenge',
+                        'client_domain ' => $request->clientDomain,
+                    ],
+                );
+
                 throw new InvalidRequestData('unable to process', 403);
             }
         }
@@ -732,6 +1089,16 @@ class Sep10Service
                     throw new InvalidRequestData('invalid memo value: ' . $request->memo, 400);
                 }
             } catch (Throwable $e) {
+                $this->logger->debug(
+                    'Failed to validate challenge request memo.',
+                    [
+                        'context' => 'sep10',
+                        'operation' => 'get_challenge',
+                        'error ' => $e->getMessage(),
+                        'exception ' => $e,
+                    ],
+                );
+
                 throw new InvalidRequestData('invalid memo value: ' . $request->memo, 400, $e);
             }
         }
@@ -763,11 +1130,43 @@ class Sep10Service
                     $tomlData = TomlData::fromDomain($request->clientDomain, $httpClient);
                     $clientSigningKey = $tomlData->generalInformation?->signingKey;
                     if ($clientSigningKey === null) {
+                        $this->logger->error(
+                            'Client signing key not found for domain',
+                            [
+                                'context' => 'sep10',
+                                'operation' => 'get_challenge',
+                                'domain' => $request->clientDomain,
+                                'client_signing_key' => $clientSigningKey,
+                            ],
+                        );
+
                         return new JsonResponse(['error' => $msg], 400);
                     }
                 } catch (TomlDataNotLoaded $tnl) {
+                    $this->logger->error(
+                        'Failed to load the toml data.',
+                        [
+                            'context' => 'sep10',
+                            'operation' => 'get_challenge',
+                            'error ' => $tnl->getMessage(),
+                            'exception ' => $tnl->getPrevious(),
+                            'http_status_code' => 400,
+                        ],
+                    );
+
                     return new JsonResponse(['error' => $msg . ' : ' . $tnl->getMessage()], 400);
                 } catch (ParseException $pse) {
+                    $this->logger->error(
+                        'Failed to parse the toml data.',
+                        [
+                            'context' => 'sep10',
+                            'operation' => 'get_challenge',
+                            'error ' => $pse->getMessage(),
+                            'exception ' => $pse->getPrevious(),
+                            'http_status_code' => 400,
+                        ],
+                    );
+
                     return new JsonResponse(['error' => $msg . ' : ' . $pse->getMessage()], 400);
                 }
             }
@@ -778,6 +1177,17 @@ class Sep10Service
             $end = new DateTime('now');
             $secondsToAdd = $this->sep10Config->getAuthTimeout();
             $end->modify("+$secondsToAdd seconds");
+            $this->logger->debug(
+                'Challenge timestamps.',
+                [
+                    'context' => 'sep10',
+                    'operation' => 'get_challenge',
+                    'start ' => $start,
+                    'end ' => $end,
+                    'seconds_delta' => $secondsToAdd,
+                ],
+            );
+
             $homeDomain = $request->homeDomain;
             if ($homeDomain === null) {
                 $homeDomain = $this->sep10Config->getHomeDomains()[0];
@@ -799,6 +1209,17 @@ class Sep10Service
                 clientSigningKey: $clientSigningKey,
             );
         } catch (Throwable $e) {
+            $this->logger->error(
+                'Failed to create the sep-10 challenge.',
+                [
+                    'context' => 'sep10',
+                    'operation' => 'get_challenge',
+                    'error ' => $e->getMessage(),
+                    'exception ' => $e,
+                    'http_status_code' => 500,
+                ],
+            );
+
             return new JsonResponse(['error' => 'Failed to create the sep-10 challenge. ' . $e->getMessage()], 500);
         }
     }
@@ -877,6 +1298,15 @@ class Sep10Service
             'network_passphrase' => $network->getNetworkPassphrase(),
         ];
 
+        $this->logger->error(
+            'Challenge built successfully.',
+            [
+                'context' => 'sep10',
+                'operation' => 'get_challenge',
+                'content ' => json_encode($response),
+            ],
+        );
+
         return new JsonResponse($response, 200);
     }
 
@@ -933,6 +1363,21 @@ class Sep10Service
             bin2hex($txHash),
             $homeDomain,
             $clientDomainData?->clientDomain,
+        );
+
+        $this->logger->debug(
+            'Signing a new jwt token out of parameters',
+            [
+                'context' => 'sep10',
+                'operation' => 'get_jwt_token',
+                'url' => $url,
+                'sub' => $sub,
+                'issued_at' => strval($issuedAt),
+                'tx_hash' => $txHash,
+                'exp' => $exp,
+                'home_domain' => $homeDomain,
+                'client_domain_data' => json_encode($clientDomainData),
+            ],
         );
 
         // sign the jwt token with the signing key from config

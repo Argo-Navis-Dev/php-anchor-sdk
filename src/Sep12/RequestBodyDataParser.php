@@ -63,6 +63,13 @@ class RequestBodyDataParser
             try {
                 return $parser->parse($request);
             } catch (InvalidRequestData $invalid) {
+                self::getLogger()->debug(
+                    'The content type',
+                    ['context' => 'sep12', 'content_type' => $contentType,
+                        'error' => $invalid->getMessage(), 'exception' => $invalid,
+                    ],
+                );
+
                 throw new InvalidRequestData('Could not parse multipart/form-data : ' . $invalid->getMessage());
             }
         } elseif ($contentType === 'application/json') {

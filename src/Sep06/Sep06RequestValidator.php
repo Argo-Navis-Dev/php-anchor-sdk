@@ -51,7 +51,7 @@ class Sep06RequestValidator
             }
         }
         if ($depositAsset === null) {
-            self::getLogger()->error(
+            self::getLogger()->debug(
                 'Deposit asset not found, invalid operation for asset.',
                 ['context' => 'sep06', 'asset_code' => $assetCode, 'operation' => 'deposit'],
             );
@@ -89,7 +89,7 @@ class Sep06RequestValidator
             }
         }
         if ($withdrawAsset === null) {
-            self::getLogger()->error(
+            self::getLogger()->debug(
                 'Withdraw asset not found, invalid operation for asset.',
                 ['context' => 'sep06', 'asset_code' => $assetCode, 'operation' => 'withdraw'],
             );
@@ -127,7 +127,7 @@ class Sep06RequestValidator
             }
         }
         if ($destinationAsset === null) {
-            self::getLogger()->error(
+            self::getLogger()->debug(
                 'Destination asset not found, invalid operation for asset.',
                 ['context' => 'sep06', 'asset_code' => $assetCode],
             );
@@ -165,7 +165,7 @@ class Sep06RequestValidator
             }
         }
         if ($sourceAsset === null) {
-            self::getLogger()->error(
+            self::getLogger()->debug(
                 'Source asset not found, invalid operation for asset.',
                 ['context' => 'sep06', 'asset_code' => $assetCode],
             );
@@ -190,7 +190,7 @@ class Sep06RequestValidator
     public static function validateType(string $requestType, string $assetCode, array $validTypes): void
     {
         if (!in_array($requestType, $validTypes)) {
-            self::getLogger()->error(
+            self::getLogger()->debug(
                 'Invalid type.',
                 ['context' => 'sep06', 'request_type' => $requestType,
                     'asset_code' => $assetCode, 'valid_types' => implode(', ', $validTypes),
@@ -226,7 +226,7 @@ class Sep06RequestValidator
             ($minAmount !== null && $requestAmount < $minAmount) ||
             ($maxAmount !== null && $requestAmount > $maxAmount)
         ) {
-            self::getLogger()->error(
+            self::getLogger()->debug(
                 'Invalid amount.',
                 ['context' => 'sep06', 'request_amount' => $requestAmount, 'for_asset' => $assetCode],
             );

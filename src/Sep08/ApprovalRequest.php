@@ -51,23 +51,11 @@ class ApprovalRequest
     public static function fromDataArray(array $data): ApprovalRequest
     {
         if (!isset($data['tx'])) {
-            $error = 'Transaction is not set';
-             self::getLogger()->error(
-                 $error,
-                 ['context' => 'sep08'],
-             );
-
-             throw new InvalidRequestData();
+             throw new InvalidRequestData('Transaction is not set');
         }
         $transaction = $data['tx'];
         if (!is_string($transaction)) {
-            $error = 'Transaction is not a string';
-            self::getLogger()->error(
-                $error,
-                ['context' => 'sep08'],
-            );
-
-            throw new InvalidRequestData($error);
+            throw new InvalidRequestData('Transaction is not a string');
         }
 
         try {
@@ -77,13 +65,7 @@ class ApprovalRequest
             );
             $envelope = XdrTransactionEnvelope::fromEnvelopeBase64XdrString($transaction);
         } catch (Throwable $e) {
-            $error = 'Invalid transaction';
-            self::getLogger()->error(
-                $error,
-                ['context' => 'sep08', 'error' => $e->getMessage(), 'exception' => $e],
-            );
-
-            throw new InvalidRequestData($error);
+            throw new InvalidRequestData('Invalid transaction');
         }
 
         $txV1 = $envelope->getV1();
@@ -97,13 +79,7 @@ class ApprovalRequest
 
         if ($envelope->getType()->getValue() === XdrEnvelopeType::ENVELOPE_TYPE_TX && $txV1 !== null) {
             if (count($txV1->getSignatures()) === 0) {
-                $error = 'Transaction has no signatures.';
-                self::getLogger()->error(
-                    $error,
-                    ['context' => 'sep08'],
-                );
-
-                throw new InvalidRequestData($error);
+                throw new InvalidRequestData('Transaction has no signatures.');
             }
         } elseif (
             $envelope->getType()->getValue() === XdrEnvelopeType::ENVELOPE_TYPE_TX_FEE_BUMP &&
@@ -111,22 +87,10 @@ class ApprovalRequest
         ) {
             $innerTxV1 = $feeBump->getTx()->getInnerTx()->getV1();
             if (count($innerTxV1->getSignatures()) === 0) {
-                $error = 'Inner transaction has no signatures.';
-                self::getLogger()->error(
-                    $error,
-                    ['context' => 'sep08'],
-                );
-
-                throw new InvalidRequestData($error);
+                throw new InvalidRequestData('Inner transaction has no signatures.');
             }
         } else {
-            $error = 'Transaction has invalid type.';
-            self::getLogger()->error(
-                $error,
-                ['context' => 'sep08'],
-            );
-
-            throw new InvalidRequestData($error);
+            throw new InvalidRequestData('Transaction has invalid type.');
         }
 
         return new ApprovalRequest($transaction);

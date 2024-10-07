@@ -19,15 +19,19 @@ use ArgoNavis\PhpAnchorSdk\exception\InvalidSep10JwtData;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSepRequest;
 use ArgoNavis\PhpAnchorSdk\exception\Sep31TransactionCallbackNotSupported;
 use ArgoNavis\PhpAnchorSdk\exception\Sep31TransactionNotFoundForId;
+use ArgoNavis\PhpAnchorSdk\logging\NullLogger;
+use ArgoNavis\PhpAnchorSdk\util\MemoHelper;
 use Laminas\Diactoros\Response;
 use Laminas\Diactoros\Response\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Log\LoggerInterface;
 
 use function array_pop;
 use function count;
 use function explode;
 use function is_array;
+use function json_encode;
 use function preg_match;
 use function str_contains;
 
@@ -61,12 +65,23 @@ class Sep31Service
      */
     public ?IQuotesIntegration $quotesIntegration = null;
 
+    /**
+     * The PSR-3 specific logger to be used for logging.
+     */
+    private LoggerInterface | NullLogger $logger;
+
     public function __construct(
         ICrossBorderIntegration $sep31Integration,
         ?IQuotesIntegration $quotesIntegration = null,
+        ?LoggerInterface $logger = null,
     ) {
         $this->sep31Integration = $sep31Integration;
         $this->quotesIntegration = $quotesIntegration;
+
+        $this->logger = $logger ?? new NullLogger();
+        Sep10Jwt::setLogger($this->logger);
+        Sep31RequestParser::setLogger($this->logger);
+        MemoHelper::setLogger($this->logger);
     }
 
     /**
@@ -83,21 +98,50 @@ class Sep31Service
     public function handleRequest(ServerRequestInterface $request, Sep10Jwt $jwtToken): ResponseInterface
     {
         $requestTarget = $request->getRequestTarget();
+        $this->logger->info(
+            'Handling incoming request.',
+            ['context' => 'sep31', 'method' => $request->getMethod(), 'request_target' => $requestTarget],
+        );
+
         if ($request->getMethod() === 'GET') {
             if (str_contains($requestTarget, '/info')) {
+                $this->logger->info(
+                    'Executing get anchor info request.',
+                    ['context' => 'sep31', 'operation' => 'anchor_info'],
+                );
+
                 return $this->handleGetInfoRequest(request: $request, jwtToken: $jwtToken);
             } elseif (str_contains($requestTarget, '/transactions')) {
+                $this->logger->info(
+                    'Executing get anchor transaction request.',
+                    ['context' => 'sep31', 'operation' => 'transaction'],
+                );
+
                 return $this->handleGetTransactionsRequest(request: $request, jwtToken: $jwtToken);
             }
         } elseif ($request->getMethod() === 'POST') {
             if (str_contains($requestTarget, '/transactions')) {
+                $this->logger->info(
+                    'Executing new anchor transaction (payment) request.',
+                    ['context' => 'sep31', 'operation' => 'new_transaction'],
+                );
+
                 return $this->handlePostTransactionsRequest(request: $request, jwtToken: $jwtToken);
             }
         } elseif ($request->getMethod() === 'PUT') {
             if (preg_match('/.*\/transactions\/.*\/callback\/?/', $requestTarget)) {
+                $this->logger->info(
+                    'Executing put transaction (payment) callback request.',
+                    ['context' => 'sep31', 'operation' => 'put_transaction_callback'],
+                );
+
                 return $this->handlePutTransactionsCallbackRequest(request: $request, jwtToken: $jwtToken);
             }
         }
+        $this->logger->error(
+            'Invalid request, unknown endpoint.',
+            ['context' => 'sep31', 'http_status_code' => 200],
+        );
 
         return new JsonResponse(['error' => 'Invalid request. Unknown endpoint.'], 200);
     }
@@ -120,7 +164,19 @@ class Sep31Service
         Sep10Jwt $jwtToken,
     ): ResponseInterface {
         try {
-            $lang = Sep31RequestParser::getRequestLang($request->getQueryParams());
+            $queryParameters = $request->getQueryParams();
+            $this->logger->debug(
+                'Query parameters before processing.',
+                ['context' => 'sep31', 'operation' => 'anchor_info',
+                    'query_parameters' => json_encode($queryParameters),
+                ],
+            );
+
+            $lang = Sep31RequestParser::getRequestLang($queryParameters);
+            $this->logger->debug(
+                'Query parameters after processing.',
+                ['context' => 'sep31', 'operation' => 'anchor_info', 'lang' => $lang],
+            );
 
             // get account id and memo of the sending anchor from jwt token.
             $accountId = null;
@@ -134,6 +190,11 @@ class Sep31Service
             }
 
             if ($accountId === null) {
+                $this->logger->error(
+                    'Invalid jwt token.',
+                    ['context' => 'sep31', 'operation' => 'anchor_info', 'http_status_code' => 403],
+                );
+
                 return new JsonResponse(['error' => 'invalid jwt token'], 403);
             }
 
@@ -146,9 +207,22 @@ class Sep31Service
             foreach ($supportedAssets as $asset) {
                 $data[$asset->asset->getCode()] = $asset->toJson();
             }
+            $this->logger->debug(
+                'Anchor info built successfully.',
+                ['context' => 'sep31', 'operation' => 'anchor_info', 'content' => json_encode($data)],
+            );
 
             return new JsonResponse(['receive' => $data], 200);
         } catch (InvalidSepRequest | InvalidSep10JwtData | AnchorFailure $e) {
+            $this->logger->debug(
+                'Failed to build anchor info.',
+                ['context' => 'sep31', 'operation' => 'anchor_info',
+                    'error' => $e->getMessage(),
+                    'exception' => $e,
+                    'http_status_code' => 400,
+                ],
+            );
+
             return new JsonResponse(['error' => $e->getMessage()], 400);
         }
     }
@@ -179,6 +253,11 @@ class Sep31Service
             }
 
             if ($accountId === null) {
+                $this->logger->error(
+                    'Invalid jwt token.',
+                    ['context' => 'sep31', 'operation' => 'transaction', 'http_status_code' => 403],
+                );
+
                 return new JsonResponse(['error' => 'invalid jwt token'], 403);
             }
 
@@ -186,12 +265,36 @@ class Sep31Service
             $requestTarget = $request->getRequestTarget();
             $path = explode('/', $requestTarget);
             $transactionId = array_pop($path);
+
+            $this->logger->debug(
+                'Retrieving transaction by id.',
+                ['context' => 'sep31', 'operation' => 'transaction', 'id' => $transactionId],
+            );
+
             $transaction = $this->sep31Integration->getTransactionById($transactionId, $accountId, $accountMemo);
+            $this->logger->debug(
+                'The transaction found.',
+                ['context' => 'sep31', 'operation' => 'transaction', 'content' => $transaction],
+            );
 
             return new JsonResponse(['transaction' => $transaction->toJson()], 200);
         } catch (Sep31TransactionNotFoundForId $qe) {
+            $this->logger->error(
+                'Failed to retrieve transaction by id.',
+                ['context' => 'sep31', 'operation' => 'transaction',
+                    'error' => $qe->getMessage(), 'exception' => $qe, 'http_status_code' => 404,
+                ],
+            );
+
             return new JsonResponse(['error' => $qe->getMessage()], 404);
         } catch (InvalidSepRequest | InvalidSep10JwtData | AnchorFailure $e) {
+            $this->logger->error(
+                'Failed to retrieve transaction by id.',
+                ['context' => 'sep31', 'operation' => 'transaction',
+                    'error' => $e->getMessage(), 'exception' => $e, 'http_status_code' => 400,
+                ],
+            );
+
             return new JsonResponse(['error' => $e->getMessage()], 400);
         }
     }
@@ -223,12 +326,22 @@ class Sep31Service
             }
 
             if ($accountId === null) {
+                $this->logger->error(
+                    'Invalid jwt token.',
+                    ['context' => 'sep31', 'operation' => 'new_transaction', 'http_status_code' => 403],
+                );
+
                 return new JsonResponse(['error' => 'invalid jwt token'], 403);
             }
 
             $requestData = $request->getParsedBody();
             // if data is not in getParsedBody(), try to parse with our own parser.
             if (!is_array($requestData) || count($requestData) === 0) {
+                $this->logger->debug(
+                    'The request body data is empty, try to parse with the SDK parser.',
+                    ['context' => 'sep31', 'operation' => 'new_transaction'],
+                );
+
                 $requestData = RequestBodyDataParser::getParsedBodyData(
                     $request,
                     0,
@@ -240,6 +353,11 @@ class Sep31Service
             }
 
             $lang = Sep31RequestParser::getRequestLang($requestData);
+            $this->logger->debug(
+                'The request data.',
+                ['context' => 'sep31', 'operation' => 'new_transaction', 'content' => json_encode($requestData)],
+            );
+
             $supportedAssets = $this->sep31Integration->supportedAssets($accountId, $accountMemo, $lang);
 
             // this also validates data.
@@ -250,13 +368,29 @@ class Sep31Service
                 supportedAssets: $supportedAssets,
                 quotesIntegration: $this->quotesIntegration,
             );
+            $this->logger->debug(
+                'The transaction request from request data.',
+                ['context' => 'sep31', 'operation' => 'new_transaction', 'content' => json_encode($request)],
+            );
 
             $request->clientDomain = $jwtToken->clientDomain;
 
             $transaction = $this->sep31Integration->postTransaction($request);
 
+            $this->logger->debug(
+                'New transaction (payment) has been created successfully .',
+                ['context' => 'sep31', 'operation' => 'new_transaction', 'content' => json_encode($transaction)],
+            );
+
             return new JsonResponse($transaction->toJson(), 201);
         } catch (InvalidRequestData | InvalidSepRequest | AnchorFailure $af) {
+            $this->logger->error(
+                'Failed to make a new transaction (payment).',
+                ['context' => 'sep31', 'operation' => 'new_transaction',
+                    'error' => $af->getMessage(), 'exception' => $af, 'http_status_code' => 400,
+                ],
+            );
+
             return new JsonResponse(['error' => $af->getMessage()], 400);
         }
     }
@@ -287,12 +421,22 @@ class Sep31Service
             }
 
             if ($accountId === null) {
+                $this->logger->error(
+                    'Invalid jwt token.',
+                    ['context' => 'sep31', 'operation' => 'put_transaction_callback', 'http_status_code' => 403],
+                );
+
                 return new JsonResponse(['error' => 'invalid jwt token'], 403);
             }
 
             $requestData = $request->getParsedBody();
             // if data is not in getParsedBody(), try to parse with our own parser.
             if (!is_array($requestData) || count($requestData) === 0) {
+                $this->logger->debug(
+                    'The request body data is empty, try to parse with the SDK parser.',
+                    ['context' => 'sep31', 'operation' => 'put_transaction_callback'],
+                );
+
                 $requestData = RequestBodyDataParser::getParsedBodyData(
                     $request,
                     0,
@@ -303,12 +447,29 @@ class Sep31Service
                 }
             }
 
+            $this->logger->debug(
+                'The request data.',
+                ['context' => 'sep31', 'operation' => 'put_transaction_callback',
+                    'content' => json_encode($requestData),
+                ],
+            );
+
             $requestTarget = $request->getRequestTarget();
             $path = explode('/', $requestTarget);
             array_pop($path);
             $transactionId = array_pop($path);
 
+            $this->logger->debug(
+                'Registering callback by transaction id.',
+                ['context' => 'sep31', 'operation' => 'put_transaction_callback', 'id' => $transactionId],
+            );
+
             if ($transactionId === null) {
+                $this->logger->error(
+                    'Transaction id is mandatory.',
+                    ['context' => 'sep31', 'operation' => 'put_transaction_callback', 'http_status_code' => 400],
+                );
+
                 return new JsonResponse(['error' => 'transaction id is mandatory'], 400);
             }
 
@@ -320,15 +481,46 @@ class Sep31Service
                 accountId: $accountId,
                 accountMemo: $accountMemo,
             );
+            $this->logger->debug(
+                'The put transaction request from request data.',
+                ['context' => 'sep31', 'operation' => 'put_transaction_callback',
+                    'content' => json_encode($putTransactionCallbackRequest),
+                ],
+            );
 
             $this->sep31Integration->putTransactionCallback($putTransactionCallbackRequest);
+            $this->logger->debug(
+                'Transaction (payment) callback has been saved successfully.',
+                ['context' => 'sep31', 'operation' => 'put_transaction_callback'],
+            );
 
             return new Response\EmptyResponse(204);
-        } catch (Sep31TransactionNotFoundForId) {
+        } catch (Sep31TransactionNotFoundForId $txNotFound) {
+            $this->logger->error(
+                'Failed to save transaction (payment) callback, transaction not found.',
+                ['context' => 'sep31', 'operation' => 'put_transaction_callback',
+                    'error' => $txNotFound->getMessage(), 'exception' => $txNotFound, 'http_status_code' => 400,
+                ],
+            );
+
             return new JsonResponse(['error' => 'transaction not found'], 400);
-        } catch (Sep31TransactionCallbackNotSupported) {
+        } catch (Sep31TransactionCallbackNotSupported $callbackNs) {
+            $this->logger->error(
+                'Failed to save transaction (payment) callback, transaction callback not supported.',
+                ['context' => 'sep31', 'operation' => 'put_transaction_callback',
+                    'error' => $callbackNs->getMessage(), 'exception' => $callbackNs, 'http_status_code' => 404,
+                ],
+            );
+
             return new Response\EmptyResponse(404);
         } catch (InvalidSepRequest | InvalidRequestData | AnchorFailure $af) {
+            $this->logger->error(
+                'Failed to save transaction (payment) callback.',
+                ['context' => 'sep31', 'operation' => 'put_transaction_callback',
+                    'error' => $af->getMessage(), 'exception' => $af, 'http_status_code' => 400,
+                ],
+            );
+
             return new JsonResponse(['error' => $af->getMessage()], 400);
         }
     }

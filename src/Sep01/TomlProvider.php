@@ -61,7 +61,7 @@ class TomlProvider
         $result = $this->buildFromData($data);
         $this->logger->debug(
             'Stellar toml data generated successfully out of the passed data object.',
-            ['context' => 'sep01'],
+            ['context' => 'sep01', 'content' => json_encode($result)],
         );
 
         return new TextResponse($result, status: 200);
@@ -80,21 +80,15 @@ class TomlProvider
     {
         $this->logger->info(
             'Loading stellar toml data from file.',
-            ['context' => 'sep01', 'file path' => $pathToFile],
+            ['context' => 'sep01', 'file_path' => $pathToFile],
         );
         $fileContent = file_get_contents($pathToFile, false);
         if ($fileContent === false) {
-            $msg = 'File content could not be loaded for: ' . $pathToFile;
-            $this->logger->error(
-                'Failed to return the stellar toml file content, error: ' . $msg,
-                ['context' => 'sep01'],
-            );
-
-            throw new TomlDataNotLoaded($msg, code: 404);
+            throw new TomlDataNotLoaded('File content could not be loaded for: ' . $pathToFile, code: 404);
         }
         $this->logger->debug(
             'Loading stellar toml data from file has been finished successfully.',
-            ['context' => 'sep01'],
+            ['context' => 'sep01', 'content' => $fileContent],
         );
 
         return new TextResponse($fileContent, status: 200);
@@ -125,10 +119,6 @@ class TomlProvider
             );
         } catch (ClientExceptionInterface $e) {
             $msg = 'Stellar toml could not be loaded: ' . $e->getMessage();
-            $this->logger->error(
-                $msg,
-                ['url' => $url, 'error' => $e->getMessage(), 'context' => 'sep01'],
-            );
 
             throw new TomlDataNotLoaded($msg, code: $e->getCode(), previous: $e);
         }
@@ -136,19 +126,17 @@ class TomlProvider
         if ($response->getStatusCode() !== 200) {
             $msg = 'Stellar toml could not be loaded from url: ' . $url;
             $msg .= ' Response status code ' . $response->getStatusCode();
-            $this->logger->error(
-                'Stellar toml data could not be loaded from url.',
-                ['url' => $url, 'status_code' => $response->getStatusCode(), 'context' => 'sep01'],
-            );
 
             throw new TomlDataNotLoaded($msg, code: $response->getStatusCode());
         }
+        $content = $response->getBody();
+
         $this->logger->debug(
             'Loading stellar toml data from url has been finished successfully.',
-            ['url' => $url, 'context' => 'sep01'],
+            ['url' => $url, 'context' => 'sep01', 'content' => $content],
         );
 
-        return new TextResponse($response->getBody(), status: 200);
+        return new TextResponse($content, status: 200);
     }
 
     private function buildFromData(TomlData $data): string

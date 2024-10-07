@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace ArgoNavis\PhpAnchorSdk\Sep10;
 
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSep10JwtData;
+use ArgoNavis\PhpAnchorSdk\logging\NullLogger;
 use ArgoNavis\PhpAnchorSdk\util\MemoHelper;
 use DomainException;
 use Firebase\JWT\BeforeValidException;
@@ -17,6 +18,7 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Firebase\JWT\SignatureInvalidException;
 use InvalidArgumentException;
+use Psr\Log\LoggerInterface;
 use Soneso\StellarSDK\Crypto\KeyPair;
 use Soneso\StellarSDK\MuxedAccount;
 use Throwable;
@@ -26,6 +28,7 @@ use function array_key_exists;
 use function count;
 use function explode;
 use function is_string;
+use function json_encode;
 use function str_starts_with;
 use function strval;
 
@@ -48,6 +51,11 @@ class Sep10Jwt
     public ?string $muxedAccountId = null;
 
     public ?int $muxedId = null;
+
+    /**
+     * The PSR-3 specific logger to be used for logging.
+     */
+    private static LoggerInterface | NullLogger | null $logger;
 
     /**
      * Constructor.
@@ -91,7 +99,11 @@ class Sep10Jwt
                 }
 
                 $this->muxedId = $muxedAccount->getId();
-            } catch (Throwable) {
+            } catch (Throwable $th) {
+                self::getLogger()->error(
+                    'Failed to parse muxed account.',
+                    ['context' => 'jwt', 'account_id' => $sub, 'error' => $th->getMessage(), 'exception' => $th],
+                );
             }
         }
     }
@@ -116,6 +128,11 @@ class Sep10Jwt
         if ($this->homeDomain !== null) {
             $payload['home_domain'] = $this->homeDomain;
         }
+
+        self::getLogger()->debug(
+            'The jwt payload.',
+            ['context' => 'jwt', 'content' => json_encode($payload)],
+        );
 
         return $payload;
     }
@@ -173,6 +190,11 @@ class Sep10Jwt
      */
     public static function fromArray(array $data): Sep10Jwt
     {
+        self::getLogger()->debug(
+            'Parsing jwt from array.',
+            ['context' => 'jwt', 'content' => json_encode($data)],
+        );
+
         if (!isset($data['jti'])) {
             throw new InvalidSep10JwtData('jti can not be null');
         }
@@ -244,6 +266,12 @@ class Sep10Jwt
     public static function validateSep10Jwt(string $jwt, string $signerKey, ?string $issuerUrl = null): Sep10Jwt
     {
         $decodedJwt = JWT::decode($jwt, new Key($signerKey, 'HS256'));
+
+        self::getLogger()->debug(
+            'Validating jwt.',
+            ['context' => 'jwt', 'content' => json_encode($decodedJwt)],
+        );
+
         //print_r($decodedJwt);
         $decodedJwtArray = (array) $decodedJwt;
         if (!array_key_exists('jti', $decodedJwtArray)) {
@@ -337,14 +365,24 @@ class Sep10Jwt
         if ($this->muxedAccountId !== null) {
             try {
                 KeyPair::fromAccountId($this->muxedAccountId);
-            } catch (Throwable) {
+            } catch (Throwable $th) {
+                self::getLogger()->debug(
+                    'Failed to parse muxed account',
+                    ['context' => 'jwt', 'error' => $th->getMessage(), 'exception' => $th],
+                );
+
                 throw new InvalidSep10JwtData('invalid account id in jwt token');
             }
             $accountData['account_id'] = $this->muxedAccountId;
         } elseif ($this->accountId !== null) {
             try {
                 KeyPair::fromAccountId($this->accountId);
-            } catch (Throwable) {
+            } catch (Throwable $th) {
+                self::getLogger()->debug(
+                    'Failed to parse account',
+                    ['context' => 'jwt', 'error' => $th->getMessage(), 'exception' => $th],
+                );
+
                 throw new InvalidSep10JwtData('invalid account id in jwt token');
             }
             $accountData['account_id'] = $this->accountId;
@@ -352,6 +390,11 @@ class Sep10Jwt
                 try {
                     MemoHelper::makeMemoFromSepRequestData($this->accountMemo, 'id');
                 } catch (Throwable $t) {
+                    self::getLogger()->debug(
+                        'Failed to build the memo.',
+                        ['context' => 'jwt', 'error' => $t->getMessage(), 'exception' => $t],
+                    );
+
                     throw new InvalidSep10JwtData($t->getMessage());
                 }
 
@@ -362,5 +405,25 @@ class Sep10Jwt
         }
 
         return $accountData;
+    }
+
+    /**
+     * Returns the logger (initializes if null).
+     */
+    private static function getLogger(): LoggerInterface
+    {
+        if (!isset(self::$logger)) {
+            self::$logger = new NullLogger();
+        }
+
+        return self::$logger;
+    }
+
+    /**
+     * Sets the logger in static context.
+     */
+    public static function setLogger(?LoggerInterface $logger = null): void
+    {
+        self::$logger = $logger ?? new NullLogger();
     }
 }
