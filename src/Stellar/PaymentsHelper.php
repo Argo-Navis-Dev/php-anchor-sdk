@@ -27,6 +27,7 @@ use phpseclib3\Math\BigInteger;
 use function array_merge;
 use function count;
 use function end;
+use function json_encode;
 
 class PaymentsHelper
 {
@@ -75,7 +76,7 @@ class PaymentsHelper
         $sdk = new StellarSDK($horizonUrl);
 
         self::getLogger()->debug(
-            'Querying received payment.',
+            'Querying received payments.',
             ['context' => 'stellar', 'receiver_account_id' => $receiverAccountId,
                 'cursor' => $cursor, 'horizon_url' => $horizonUrl,
             ],
@@ -107,6 +108,12 @@ class PaymentsHelper
             $receivedPayments = array_merge($receivedPayments, $matches);
             $nextPage = $nextPage->getNextPage();
         }
+        self::getLogger()->debug(
+            'The list of found received payments by the current query.',
+            ['context' => 'stellar', 'receiver_account_id' => $receiverAccountId,
+                'received_payments' => json_encode($receivedPayments), 'last_paging_token' => $lastPagingToken,
+            ],
+        );
 
         return new ReceivedPaymentsQueryResult(
             cursor: $startCursor,
@@ -189,9 +196,23 @@ class PaymentsHelper
             }
             $sourceAccount = $txFeeBumpEnvelopeXdr->tx->innerTx->v1->tx->sourceAccount;
             $sourceAccountId = MuxedAccount::fromXdr($sourceAccount)->getAccountId();
+        } else {
+            self::getLogger()->error(
+                'Neither transaction v1. envelope XDR nor transaction fee bumb envelope not found.',
+                ['context' => 'stellar', 'error' => 'Both cannot be null'],
+            );
         }
 
-        if (count($operations) !== count($opResults)) {
+        $noOperations = count($operations);
+        $noOpResults = count($opResults);
+        if ($noOperations !== $noOpResults) {
+            self::getLogger()->debug(
+                'The transaction no. operations and no. operation results does not match.',
+                ['context' => 'stellar', 'receiver_account_id' => $receiverAccountId,
+                    'no_operations' => $noOperations, 'no_op_results' => $noOpResults,
+                ],
+            );
+
             return $result;
         }
 
@@ -222,6 +243,12 @@ class PaymentsHelper
                 $amount = $paymentOp->getAmount();
                 $asset = Asset::fromXdr($paymentOp->getAsset());
                 $destination = $paymentOp->getDestination();
+                self::getLogger()->debug(
+                    'Payment operation found.',
+                    ['context' => 'stellar', 'amount' => $amount,
+                        'asset' => $asset, 'destination' => $destination,
+                    ],
+                );
             } elseif ($pathPaymentStrictSendOp !== null) {
                 // since the dest amount is not specified in a strict-send op,
                 // we need to get the dest amount from the operation's result
@@ -230,18 +257,43 @@ class PaymentsHelper
                 $amount = $success?->getLast()->getAmount();
                 $asset = Asset::fromXdr($pathPaymentStrictSendOp->getDestAsset());
                 $destination = $pathPaymentStrictSendOp->getDestination();
+                self::getLogger()->debug(
+                    'Path payment strict send operation found.',
+                    ['context' => 'stellar', 'amount' => $amount,
+                        'asset' => $asset, 'destination' => json_encode($destination),
+                    ],
+                );
             } elseif ($pathPaymentStrictReceiveOp !== null) {
                 $amount = $pathPaymentStrictReceiveOp->getDestAmount();
                 $asset = Asset::fromXdr($pathPaymentStrictReceiveOp->getDestAsset());
                 $destination = $pathPaymentStrictReceiveOp->getDestination();
+                self::getLogger()->debug(
+                    'Path payment strict receive operation found.',
+                    ['context' => 'stellar', 'amount' => $amount,
+                        'asset' => $asset, 'destination' => json_encode($destination),
+                    ],
+                );
             }
 
             if ($asset instanceof AssetTypeCreditAlphanum) {
                 $assetCode = $asset->getCode();
                 $assetIssuer = $asset->getIssuer();
+                self::getLogger()->debug(
+                    'The asset is in alphanumeric format.',
+                    ['context' => 'stellar', 'amount' => $amount,
+                        'asset_code' => $assetCode, 'asset_issuer' => $assetIssuer,
+                    ],
+                );
             }
             if ($amount !== null && $destination !== null && $sourceAccountId !== null) {
                 $destAccountId = MuxedAccount::fromXdr($destination)->getAccountId();
+                self::getLogger()->debug(
+                    'Comparing payment destination and receiver account id.',
+                    ['context' => 'stellar', 'destination_account_id' => $destAccountId,
+                        'receiver_account_ad' => $receiverAccountId,
+                    ],
+                );
+
                 if ($destAccountId === $receiverAccountId) {
                     $opSourceAccountMuxed = $operation->getSourceAccount();
                     if ($opSourceAccountMuxed !== null) {
