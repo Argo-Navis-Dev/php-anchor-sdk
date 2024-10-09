@@ -21,10 +21,13 @@ use ArgoNavis\PhpAnchorSdk\exception\CustomerNotFoundForId;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidRequestData;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSepRequest;
 use ArgoNavis\PhpAnchorSdk\exception\SepNotAuthorized;
+use ArgoNavis\PhpAnchorSdk\logging\NullLogger;
+use ArgoNavis\PhpAnchorSdk\util\MemoHelper;
 use Laminas\Diactoros\Response;
 use Laminas\Diactoros\Response\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Log\LoggerInterface;
 use Soneso\StellarSDK\Crypto\KeyPair;
 use Throwable;
 
@@ -34,6 +37,7 @@ use function intval;
 use function is_int;
 use function is_numeric;
 use function is_string;
+use function json_encode;
 use function str_contains;
 use function trim;
 
@@ -59,6 +63,10 @@ class Sep12Service
     private ?ISep12Config $config;
     private int $uploadFileMaxSize = 2097152; // 2 MB
     private int $uploadFileMaxCount = 6;
+    /**
+     * The PSR-3 specific logger to be used for logging.
+     */
+    private LoggerInterface | NullLogger $logger;
 
     /**
      * Constructor.
@@ -68,8 +76,13 @@ class Sep12Service
      * @param ISep12Config|null $config SEP-12 config containing info about the max size and number of files
      * allowed to be uploaded.
      */
-    public function __construct(ICustomerIntegration $customerIntegration, ?ISep12Config $config = null)
-    {
+    public function __construct(
+        ICustomerIntegration $customerIntegration,
+        ?ISep12Config $config = null,
+        ?LoggerInterface $logger = null,
+    ) {
+        $this->logger = $logger ?? new NullLogger();
+        Sep10Jwt::setLogger($this->logger);
         $this->customerIntegration = $customerIntegration;
         $this->config = $config;
         if ($this->config !== null) {
@@ -81,7 +94,14 @@ class Sep12Service
             if ($fMaxCount !== null) {
                 $this->uploadFileMaxCount = $fMaxCount;
             }
+            $this->logger->debug(
+                'Configuration attributes loaded successfully',
+                ['context' => 'sep12', 'file_max_size_in_mb' => $fMaxSizeMb, 'file_max_count' => $fMaxCount],
+            );
         }
+        Sep12RequestParser::setLogger($this->logger);
+        MemoHelper::setLogger($this->logger);
+        RequestBodyDataParser::setLogger($this->logger);
     }
 
     /**
@@ -97,34 +117,105 @@ class Sep12Service
      */
     public function handleRequest(ServerRequestInterface $request, Sep10Jwt $token): ResponseInterface
     {
+        $this->logger->info(
+            'Handling incoming request.',
+            ['context' => 'sep12', 'method' => $request->getMethod()],
+        );
+
         if ($request->getMethod() === 'GET') {
+            $this->logger->info(
+                'Executing get customer info request.',
+                ['context' => 'sep12', 'operation' => 'customer_info'],
+            );
+
             try {
                 $queryParams = $request->getQueryParams();
+                $this->logger->debug(
+                    'Query parameters before processing.',
+                    ['context' => 'sep12', 'operation' => 'customer_info',
+                        'query_parameters' => json_encode($queryParams),
+                    ],
+                );
+
                 $customerRequest = Sep12RequestParser::getCustomerRequestFromRequestData($queryParams, $token);
                 $customer = $this->getCustomer($token, $customerRequest);
+                $this->logger->info(
+                    'Request executed successfully.',
+                    ['context' => 'sep12', 'operation' => 'customer_info'],
+                );
 
                 return new JsonResponse($customer->toJson(), 200);
             } catch (CustomerNotFoundForId $e) {
+                $this->logger->error(
+                    'Customer not found for ID.',
+                    ['context' => 'sep12', 'error' => $e->getMessage(), 'exception' => $e, 'http_status_code' => 404],
+                );
+
                 return new JsonResponse(['error' => $e->getMessage()], 404);
             } catch (SepNotAuthorized $e) {
+                $this->logger->error(
+                    'SEP not authorized.',
+                    ['context' => 'sep12', 'error' => $e->getMessage(), 'exception' => $e, 'http_status_code' => 401],
+                );
+
                 return new JsonResponse(['error' => $e->getMessage()], 401);
             } catch (InvalidSepRequest | InvalidSepRequest | AnchorFailure $e) {
+                $this->logger->error(
+                    'Invalid request.',
+                    ['context' => 'sep12', 'error' => $e->getMessage(), 'exception' => $e, 'http_status_code' => 400],
+                );
+
                 return new JsonResponse(['error' => $e->getMessage()], 400);
             }
         } elseif ($request->getMethod() === 'PUT') {
             $requestTarget = $request->getRequestTarget();
+            $this->logger->info(
+                'Executing incoming request by target.',
+                ['context' => 'sep12', 'request_target' => $requestTarget],
+            );
+
             if (str_contains($requestTarget, '/customer/verification')) {
+                $this->logger->info(
+                    'Executing customer verification request.',
+                    ['context' => 'sep12', 'operation' => 'customer_verification'],
+                );
+
                 return $this->handlePutCustomerVerification($token, $request);
             } elseif (str_contains($requestTarget, '/customer/callback')) {
+                $this->logger->info(
+                    'Executing customer callback request.',
+                    ['context' => 'sep12', 'operation' => 'put_customer_callback'],
+                );
+
                 return $this->handlePutCustomerCallback($token, $request);
             } elseif (str_contains($requestTarget, '/customer')) {
+                $this->logger->info(
+                    'Executing put customer request.',
+                    ['context' => 'sep12', 'operation' => 'put_customer'],
+                );
+
                 return $this->handlePutCustomer($token, $request);
             } else {
+                $this->logger->error(
+                    'Invalid request, unknown endpoint.',
+                    ['context' => 'sep12', 'http_status_code' => '404'],
+                );
+
                 return new JsonResponse(['error' => 'Invalid request. Unknown endpoint.'], 404);
             }
         } elseif ($request->getMethod() === 'DELETE') {
+            $this->logger->info(
+                'Executing delete customer request.',
+                ['context' => 'sep12', 'operation' => 'delete_customer'],
+            );
+
             return $this->handleDeleteCustomer($token, $request);
         } else {
+            $this->logger->error(
+                'Invalid request, unknown endpoint.',
+                ['context' => 'sep12', 'http_status_code' => '404'],
+            );
+
             return new JsonResponse(['error' => 'Invalid request. Unknown endpoint.'], 404);
         }
     }
@@ -156,16 +247,47 @@ class Sep12Service
                 $uploadedFiles,
             );
             $response = $this->putCustomer($token, $putCustomerRequest);
+            $this->logger->info(
+                'Request executed successfully.',
+                ['context' => 'sep12', 'operation' => 'put_customer'],
+            );
 
             return new JsonResponse($response->toJson(), 200);
         } catch (CustomerNotFoundForId $e) {
+            $this->logger->error(
+                'Customer not found by ID.',
+                ['context' => 'sep12', 'operation' => 'put_customer',
+                    'error' => $e->getMessage(), 'exception' => $e, 'http_status_code' => 404,
+                ],
+            );
+
             return new JsonResponse(['error' => $e->getMessage()], 404);
         } catch (SepNotAuthorized $e) {
+            $this->logger->error(
+                'SEP not authorized.',
+                ['context' => 'sep12', 'operation' => 'put_customer',
+                    'error' => $e->getMessage(), 'exception' => $e, 'http_status_code' => 401,
+                ],
+            );
+
             return new JsonResponse(['error' => $e->getMessage()], 401);
         } catch (InvalidRequestData | InvalidSepRequest | AnchorFailure $e) {
+            $this->logger->error(
+                'Failed to execute the request.',
+                ['context' => 'sep12', 'operation' => 'put_customer',
+                    'error' => $e->getMessage(), 'exception' => $e, 'http_status_code' => 400,
+                ],
+            );
+
             return new JsonResponse(['error' => $e->getMessage()], 400);
         } catch (Throwable $e) {
             $msg = 'Failed to put customer. ' . $e->getMessage();
+            $this->logger->error(
+                'Failed to put customer.',
+                ['context' => 'sep12', 'operation' => 'put_customer',
+                    'error' => $e->getMessage(), 'exception' => $e, 'http_status_code' => 500,
+                ],
+            );
 
             return new JsonResponse(['error' => $msg], 500);
         }
@@ -196,16 +318,47 @@ class Sep12Service
             );
 
             $this->putCustomerCallback($token, $putCustomerCallbackRequest);
+            $this->logger->info(
+                'Request executed successfully.',
+                ['context' => 'sep12', 'operation' => 'put_customer_callback'],
+            );
 
             return new Response\EmptyResponse(200);
         } catch (CustomerNotFoundForId $e) {
+            $this->logger->error(
+                'Customer not found for ID.',
+                ['context' => 'sep12', 'error' => $e->getMessage(),
+                    'exception' => $e, 'http_status_code' => 404, 'operation' => 'put_customer_callback',
+                ],
+            );
+
             return new JsonResponse(['error' => $e->getMessage()], 404);
         } catch (SepNotAuthorized $e) {
+            $this->logger->error(
+                'SEP not authorized.',
+                ['context' => 'sep12', 'error' => $e->getMessage(), 'exception' => $e,
+                    'http_status_code' => 401, 'operation' => 'put_customer_callback',
+                ],
+            );
+
             return new JsonResponse(['error' => $e->getMessage()], 401);
         } catch (InvalidRequestData | InvalidSepRequest | AnchorFailure $e) {
+            $this->logger->error(
+                'Failed to execute the request.',
+                ['context' => 'sep12', 'error' => $e->getMessage(), 'exception' => $e,
+                    'http_status_code' => 400, 'operation' => 'put_customer_callback',
+                ],
+            );
+
             return new JsonResponse(['error' => $e->getMessage()], 400);
         } catch (Throwable $e) {
             $msg = 'Failed to put customer callback. ' . $e->getMessage();
+            $this->logger->error(
+                $msg,
+                ['context' => 'sep12', 'error' => $e->getMessage(), 'exception' => $e,
+                    'http_status_code' => 400, 'operation' => 'put_customer_callback',
+                ],
+            );
 
             return new JsonResponse(['error' => $msg], 500);
         }
@@ -234,16 +387,47 @@ class Sep12Service
                 Sep12RequestParser::putCustomerVerificationRequestFormRequestData($token, $requestData);
 
             $response = $this->customerIntegration->putCustomerVerification($putCustomerValidationRequest);
+            $this->logger->info(
+                'Request executed successfully.',
+                ['context' => 'sep12', 'operation' => 'customer_verification'],
+            );
 
             return new JsonResponse($response->toJson(), 200);
         } catch (CustomerNotFoundForId $e) {
+            $this->logger->error(
+                'Customer not found for ID.',
+                ['context' => 'sep12', 'error' => $e->getMessage(),
+                    'exception' => $e, 'http_status_code' => 404, 'operation' => 'customer_verification',
+                ],
+            );
+
             return new JsonResponse(['error' => $e->getMessage()], 404);
         } catch (SepNotAuthorized $e) {
+            $this->logger->error(
+                'SEP not authorized.',
+                ['context' => 'sep12', 'error' => $e->getMessage(), 'exception' => $e,
+                    'http_status_code' => 401, 'operation' => 'customer_verification',
+                ],
+            );
+
             return new JsonResponse(['error' => $e->getMessage()], 401);
         } catch (InvalidRequestData | InvalidSepRequest | AnchorFailure $e) {
+            $this->logger->error(
+                'Failed to execute the request.',
+                ['context' => 'sep12', 'error' => $e->getMessage(), 'exception' => $e,
+                    'http_status_code' => 400, 'operation' => 'customer_verification',
+                ],
+            );
+
             return new JsonResponse(['error' => $e->getMessage()], 400);
         } catch (Throwable $e) {
             $msg = 'Failed to put customer verification. ' . $e->getMessage();
+            $this->logger->error(
+                $msg,
+                ['context' => 'sep12', 'error' => $e->getMessage(), 'exception' => $e,
+                    'http_status_code' => 400, 'operation' => 'customer_verification',
+                ],
+            );
 
             return new JsonResponse(['error' => $msg], 500);
         }
@@ -272,6 +456,11 @@ class Sep12Service
             if (isset($data['memo_type'])) {
                 if (is_string($data['memo_type'])) {
                     $memoType = $data['memo_type'];
+                    $this->logger->debug(
+                        'Memo type value',
+                        ['context' => 'sep12', 'operation' => 'delete_customer', 'memo_type' => $memoType],
+                    );
+
                     if ($memoType !== 'id') {
                         throw new InvalidSepRequest('only memo type id supported');
                     }
@@ -284,10 +473,20 @@ class Sep12Service
             if (isset($data['memo'])) {
                 if (is_string($data['memo'])) {
                     $memoStr = $data['memo'];
+                    $this->logger->debug(
+                        'Memo value',
+                        ['context' => 'sep12', 'operation' => 'delete_customer', 'memo' => $memoStr],
+                    );
                     if (is_numeric($memoStr) && is_int($memoStr + 0)) {
                         $memo = intval($memoStr);
                     } else {
-                        throw new InvalidSepRequest('invalid memo value: ' . $memoStr);
+                        $error = 'invalid memo value';
+                        $this->logger->debug(
+                            $error,
+                            ['context' => 'sep12', 'operation' => 'delete_customer', 'memo_string' => $memoStr],
+                        );
+
+                        throw new InvalidSepRequest($error . ': ' . $memoStr);
                     }
                 } else {
                     throw new InvalidSepRequest('memo must be a string');
@@ -297,27 +496,63 @@ class Sep12Service
             $requestTarget = $request->getRequestTarget();
             $path = explode('/', $requestTarget);
             $account = array_pop($path);
+            $this->logger->debug(
+                'Account value',
+                ['context' => 'sep12', 'operation' => 'delete_customer', 'account' => $account],
+            );
+
             try {
                 KeyPair::fromAccountId($account);
-            } catch (Throwable) {
+            } catch (Throwable $th) {
                 throw new InvalidSepRequest('invalid account id ' . $account);
             }
 
             if (trim($account) !== '') {
                 $this->deleteCustomer($token, $account, $memo);
+                $this->logger->info(
+                    'Request executed successfully.',
+                    ['context' => 'sep12', 'operation' => 'delete_customer'],
+                );
 
                 return new Response\EmptyResponse(200);
             } else {
                 throw new InvalidSepRequest('missing account in request');
             }
         } catch (SepNotAuthorized $notAuthorized) {
+            $this->logger->error(
+                'SEP not authorized.',
+                ['context' => 'sep12', 'error' => $notAuthorized->getMessage(), 'exception' => $notAuthorized,
+                    'http_status_code' => 401, 'operation' => 'customer_verification',
+                ],
+            );
+
             return new JsonResponse(['error' => $notAuthorized->getMessage()], 401);
         } catch (CustomerNotFoundForId $notFound) {
+            $this->logger->error(
+                'Customer not found for ID.',
+                ['context' => 'sep12', 'error' => $notFound->getMessage(),
+                    'exception' => $notFound, 'http_status_code' => 404, 'operation' => 'delete_customer',
+                ],
+            );
+
             return new JsonResponse(['error' => $notFound->getMessage()], 404);
         } catch (InvalidRequestData | InvalidSepRequest | AnchorFailure $e) {
+            $this->logger->error(
+                'Failed to execute the request.',
+                ['context' => 'sep12', 'error' => $e->getMessage(), 'exception' => $e,
+                    'http_status_code' => 400, 'operation' => 'customer_verification',
+                ],
+            );
+
             return new JsonResponse(['error' => $e->getMessage()], 400);
         } catch (Throwable $e) {
             $msg = 'Failed to delete customer. ' . $e->getMessage();
+            $this->logger->error(
+                $msg,
+                ['context' => 'sep12', 'error' => $e->getMessage(), 'exception' => $e,
+                    'http_status_code' => 400, 'operation' => 'customer_verification',
+                ],
+            );
 
             return new JsonResponse(['error' => $msg], 500);
         }
@@ -409,10 +644,21 @@ class Sep12Service
     ): void {
         // check if the account id of the customer to delete the data for matches tho the account id from the jwt token.
         $isAccountAuthenticated = ($sep10Jwt->accountId === $accountId || $sep10Jwt->muxedAccountId === $accountId);
+        $this->logger->debug(
+            'Is account authenticated',
+            ['context' => 'sep12', 'operation' => 'delete_customer',
+                'is_account_authenticated' => $isAccountAuthenticated,
+            ],
+        );
 
         // if the customer is identified by account and memo we also need to check the memo.
         $isMemoMissingAuthentication = false;
         $muxedId = $sep10Jwt->muxedId;
+        $this->logger->debug(
+            'The muxed id.',
+            ['context' => 'sep12', 'operation' => 'delete_customer', 'muxed_id' => $muxedId],
+        );
+
         if ($muxedId !== null) {
             if ($sep10Jwt->muxedAccountId !== $accountId) {
                 $isMemoMissingAuthentication = ($muxedId !== $memo);
@@ -422,9 +668,16 @@ class Sep12Service
         }
 
         if (!$isAccountAuthenticated || $isMemoMissingAuthentication) {
+            $this->logger->debug(
+                'Not authorized to delete account.',
+                ['context' => 'sep12', 'operation' => 'delete_customer',
+                    'is_account_authenticated' => $isAccountAuthenticated,
+                    'is_memo_missing_authentication' => $isMemoMissingAuthentication,
+                ],
+            );
+
             throw new SepNotAuthorized('Not authorized to delete account.');
         }
-
         $getCustomerRequest = new GetCustomerRequest($accountId, $memo);
 
         // in future (e.g. when implementing sep-31) this must be extended with a loop
@@ -462,6 +715,11 @@ class Sep12Service
             $customerAccountId !== null
             && ($tokenAccountId !== $customerAccountId && $tokenMuxedAccountId !== $customerAccountId)
         ) {
+            $this->logger->error(
+                'The account specified does not match authorization token',
+                ['context' => 'sep12'],
+            );
+
             throw new SepNotAuthorized('The account specified does not match authorization token');
         }
 

@@ -13,10 +13,12 @@ use ArgoNavis\PhpAnchorSdk\callback\Sep38PricesRequest;
 use ArgoNavis\PhpAnchorSdk\callback\Sep38QuoteRequest;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidAsset;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSepRequest;
+use ArgoNavis\PhpAnchorSdk\logging\NullLogger;
 use ArgoNavis\PhpAnchorSdk\shared\IdentificationFormatAsset;
 use ArgoNavis\PhpAnchorSdk\shared\Sep38AssetInfo;
 use ArgoNavis\PhpAnchorSdk\shared\Sep38DeliveryMethod;
 use DateTime;
+use Psr\Log\LoggerInterface;
 
 use function count;
 use function floatval;
@@ -24,6 +26,7 @@ use function implode;
 use function in_array;
 use function is_numeric;
 use function is_string;
+use function json_encode;
 use function strval;
 use function trim;
 
@@ -31,6 +34,11 @@ use const DATE_ATOM;
 
 class Sep38RequestParser
 {
+    /**
+     * The PSR-3 specific logger to be used for logging.
+     */
+    private static LoggerInterface | NullLogger | null $logger;
+
     /**
      * Validates the given request data and creates a Sep38PricesRequest from it.
      *
@@ -255,6 +263,11 @@ class Sep38RequestParser
         if (isset($requestData[$fieldKey])) {
             if (is_string($requestData[$fieldKey])) {
                 $deliveryMethodStr = trim($requestData[$fieldKey]);
+                self::getLogger()->debug(
+                    'Validate delivery method.',
+                    ['context' => 'sep38', 'delivery_method' => $deliveryMethodStr],
+                );
+
                 if (!self::supportsDeliveryMethod($supportedDeliveryMethods, $deliveryMethodStr)) {
                     throw new InvalidSepRequest('Unsupported ' . $fieldKey);
                 }
@@ -282,13 +295,28 @@ class Sep38RequestParser
         $noneIsAvailable = $deliveryMethods === null || count($deliveryMethods) === 0;
         $noneIsProvided = $method === null || trim($method) === '';
         if ($noneIsAvailable && $noneIsProvided) {
+            self::getLogger()->debug(
+                'Delivery method supported.',
+                ['context' => 'sep38', 'none_is_available_and_provided' => 'true'],
+            );
+
             return true;
         }
         if ($noneIsAvailable) {
+            self::getLogger()->debug(
+                'Delivery method not supported, none is available',
+                ['context' => 'sep38'],
+            );
+
             return false;
         }
 
         if ($noneIsProvided) {
+            self::getLogger()->debug(
+                'Delivery method supported, none is provided',
+                ['context' => 'sep38'],
+            );
+
             return true;
         }
 
@@ -297,6 +325,10 @@ class Sep38RequestParser
             foreach ($deliveryMethods as $deliveryMethod) {
                 if ($deliveryMethod->name === $method) {
                     $result = true;
+                    self::getLogger()->debug(
+                        'Delivery method found.',
+                        ['context' => 'sep38'],
+                    );
 
                     break;
                 }
@@ -328,7 +360,12 @@ class Sep38RequestParser
             if (is_string($requestData[$fieldKey])) {
                 try {
                     $asset = IdentificationFormatAsset::fromString($requestData[$fieldKey]);
-                } catch (InvalidAsset) {
+                } catch (InvalidAsset $ex) {
+                    self::getLogger()->debug(
+                        'Invalid asset: ' . $fieldKey . ' has an invalid format',
+                        ['context' => 'sep38', 'error' => $ex->getMessage(), 'exception' => $ex],
+                    );
+
                     throw new InvalidSepRequest($fieldKey . ' has an invalid format');
                 }
             } else {
@@ -372,6 +409,11 @@ class Sep38RequestParser
     ): ?string {
         $amount = null;
         if (isset($requestData[$fieldKey])) {
+            self::getLogger()->debug(
+                'Validating amount.',
+                ['context' => 'sep38', 'field' => $fieldKey, 'value' => $requestData[$fieldKey]],
+            );
+
             if (is_numeric($requestData[$fieldKey])) {
                 $amount = floatval($requestData[$fieldKey]);
                 if ($amount <= 0.0) {
@@ -406,14 +448,31 @@ class Sep38RequestParser
         ?Sep38AssetInfo $buyAssetInfo = null,
     ): ?string {
         if (isset($requestData['country_code'])) {
+            self::getLogger()->debug(
+                'Validating country code.',
+                ['context' => 'sep38', 'value' => $requestData['country_code']],
+            );
+
             if (is_string($requestData['country_code'])) {
                 $countryCode = trim($requestData['country_code']);
                 if ($sellAssetInfo->countryCodes === null || !in_array($countryCode, $sellAssetInfo->countryCodes)) {
+                    self::getLogger()->debug(
+                        'Country code not found.',
+                        ['context' => 'sep38', 'sell_asset_country_codes' => json_encode($sellAssetInfo->countryCodes)],
+                    );
+
                     throw new InvalidSepRequest('Unsupported country code');
                 }
 
                 if ($buyAssetInfo !== null) {
                     if ($buyAssetInfo->countryCodes === null || !in_array($countryCode, $buyAssetInfo->countryCodes)) {
+                        self::getLogger()->debug(
+                            'Country code not found.',
+                            ['context' => 'sep38',
+                                'buy_asset_country_codes' => json_encode($buyAssetInfo->countryCodes),
+                            ],
+                        );
+
                         throw new InvalidSepRequest('Unsupported country code');
                     }
                 }
@@ -441,6 +500,11 @@ class Sep38RequestParser
     {
         $context = null;
         if (isset($requestData['context'])) {
+            self::getLogger()->debug(
+                'Validating context.',
+                ['context' => 'sep38', 'value' => $requestData['context']],
+            );
+
             if (is_string($requestData['context'])) {
                 $context = $requestData['context'];
             } else {
@@ -469,6 +533,11 @@ class Sep38RequestParser
     private static function getValidatedExpireAfter(array $requestData): ?DateTime
     {
         if (isset($requestData['expire_after'])) {
+            self::getLogger()->debug(
+                'Validating expire after.',
+                ['context' => 'sep38', 'value' => $requestData['expire_after']],
+            );
+
             if (is_string($requestData['expire_after'])) {
                 $expireAfterStr = $requestData['expire_after'];
                 $dateTime = DateTime::createFromFormat(DATE_ATOM, $expireAfterStr);
@@ -483,5 +552,25 @@ class Sep38RequestParser
         }
 
         return null;
+    }
+
+    /**
+     * Sets the logger in static context.
+     */
+    public static function setLogger(?LoggerInterface $logger = null): void
+    {
+        self::$logger = $logger ?? new NullLogger();
+    }
+
+    /**
+     * Returns the logger (initializes if null).
+     */
+    private static function getLogger(): LoggerInterface
+    {
+        if (!isset(self::$logger)) {
+            self::$logger = new NullLogger();
+        }
+
+        return self::$logger;
     }
 }

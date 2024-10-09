@@ -12,9 +12,11 @@ use ArgoNavis\PhpAnchorSdk\Sep10\Sep10Jwt;
 use ArgoNavis\PhpAnchorSdk\callback\TransactionHistoryRequest;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidAsset;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSepRequest;
+use ArgoNavis\PhpAnchorSdk\logging\NullLogger;
 use ArgoNavis\PhpAnchorSdk\shared\IdentificationFormatAsset;
 use ArgoNavis\PhpAnchorSdk\util\MemoHelper;
 use DateTime;
+use Psr\Log\LoggerInterface;
 use Soneso\StellarSDK\Crypto\KeyPair;
 use Soneso\StellarSDK\Memo;
 use Throwable;
@@ -26,12 +28,18 @@ use function floatval;
 use function is_int;
 use function is_numeric;
 use function is_string;
+use function json_encode;
 use function trim;
 
 use const DATE_ATOM;
 
 class Sep24RequestParser
 {
+    /**
+     * The PSR-3 specific logger to be used for logging.
+     */
+    private static LoggerInterface | NullLogger | null $logger;
+
     /**
      * Extracts the asset data from the request data, validates it and creates an IdentificationFormatAsset
      * from the extracted data.
@@ -61,7 +69,12 @@ class Sep24RequestParser
                 $assetIssuer = $requestData['asset_issuer'];
                 try {
                     KeyPair::fromAccountId($assetIssuer);
-                } catch (Throwable) {
+                } catch (Throwable $th) {
+                    self::getLogger()->debug(
+                        'Invalid asset issuer, must be a valid account id',
+                        ['context' => 'sep24', 'error' => $th->getMessage(), 'exception' => $th],
+                    );
+
                     throw new InvalidSepRequest('invalid asset issuer, must be a valid account id');
                 }
             } else {
@@ -80,6 +93,11 @@ class Sep24RequestParser
                 $assetIssuer,
             );
         } catch (InvalidAsset $invalidAsset) {
+            self::getLogger()->debug(
+                'Invalid asset.',
+                ['context' => 'sep24', 'error' => $invalidAsset->getMessage(), 'exception' => $invalidAsset],
+            );
+
             throw new InvalidSepRequest('invalid asset: ' . $invalidAsset->getMessage());
         }
     }
@@ -103,6 +121,11 @@ class Sep24RequestParser
                 try {
                     $destinationAsset = IdentificationFormatAsset::fromString($destinationAssetStr);
                 } catch (InvalidAsset $invalidAsset) {
+                    self::getLogger()->debug(
+                        'Invalid destination asset.',
+                        ['context' => 'sep24', 'error' => $invalidAsset->getMessage(), 'exception' => $invalidAsset],
+                    );
+
                     throw new InvalidSepRequest('invalid destination asset: ' . $invalidAsset->getMessage());
                 }
             } else {
@@ -132,6 +155,11 @@ class Sep24RequestParser
                 try {
                     $sourceAsset = IdentificationFormatAsset::fromString($sourceAssetStr);
                 } catch (InvalidAsset $invalidAsset) {
+                    self::getLogger()->debug(
+                        'Invalid source asset.',
+                        ['context' => 'sep24', 'error' => $invalidAsset->getMessage(), 'exception' => $invalidAsset],
+                    );
+
                     throw new InvalidSepRequest('invalid source asset: ' . $invalidAsset->getMessage());
                 }
             } else {
@@ -155,6 +183,11 @@ class Sep24RequestParser
     {
         $amount = null;
         if (isset($requestData['amount'])) {
+            self::getLogger()->debug(
+                'Validating amount.',
+                ['context' => 'sep24', 'value' => $requestData['amount']],
+            );
+
             if (is_numeric($requestData['amount'])) {
                 $amount = floatval($requestData['amount']);
             } else {
@@ -200,6 +233,11 @@ class Sep24RequestParser
     {
         $quoteId = null;
         if (isset($requestData['quote_id'])) {
+            self::getLogger()->debug(
+                'Validating quote id.',
+                ['context' => 'sep24', 'value' => $requestData['quote_id']],
+            );
+
             if (is_string($requestData['quote_id'])) {
                 $quoteId = $requestData['quote_id'];
             } else {
@@ -223,6 +261,11 @@ class Sep24RequestParser
     {
         $result = null;
         if (isset($requestData['wallet_name'])) {
+            self::getLogger()->debug(
+                'Validating wallet name.',
+                ['context' => 'sep24', 'value' => $requestData['wallet_name']],
+            );
+
             if (is_string($requestData['wallet_name'])) {
                 $result = $requestData['wallet_name'];
             } else {
@@ -246,6 +289,11 @@ class Sep24RequestParser
     {
         $result = null;
         if (isset($requestData['wallet_url'])) {
+            self::getLogger()->debug(
+                'Validating wallet url.',
+                ['context' => 'sep24', 'value' => $requestData['wallet_url']],
+            );
+
             if (is_string($requestData['wallet_url'])) {
                 $result = $requestData['wallet_url'];
             } else {
@@ -269,6 +317,11 @@ class Sep24RequestParser
     {
         $result = null;
         if (isset($requestData['lang'])) {
+            self::getLogger()->debug(
+                'Validating lang.',
+                ['context' => 'sep24', 'value' => $requestData['lang']],
+            );
+
             if (is_string($requestData['lang'])) {
                 $result = $requestData['lang'];
             } else {
@@ -292,6 +345,11 @@ class Sep24RequestParser
     {
         $customerId = null;
         if (isset($requestData['customer_id'])) {
+            self::getLogger()->debug(
+                'Validating customer id.',
+                ['context' => 'sep24', 'value' => $requestData['customer_id']],
+            );
+
             if (is_string($requestData['customer_id'])) {
                 $customerId = $requestData['customer_id'];
             } else {
@@ -330,7 +388,12 @@ class Sep24RequestParser
         } else {
             try {
                 KeyPair::fromAccountId($account);
-            } catch (Throwable) {
+            } catch (Throwable $th) {
+                self::getLogger()->debug(
+                    'Invalid account, must be a valid account id.',
+                    ['context' => 'sep24', 'error' => $th->getMessage(), 'exception' => $th],
+                );
+
                 throw new InvalidSepRequest('invalid account, must be a valid account id');
             }
         }
@@ -440,11 +503,20 @@ class Sep24RequestParser
             'amount', 'quote_id', 'account', 'memo', 'memo_type', 'refund_memo', 'refund_memo_type',
             'wallet_name', 'wallet_url', 'lang', 'claimable_balance_supported', 'customer_id',
         ];
+
         foreach (array_keys($result) as $key) {
             if (array_key_exists($key, $keysToExclude)) {
                 unset($result[$key]);
             }
         }
+
+        self::getLogger()->debug(
+            'Retrieving kyc fields from request data.',
+            ['context' => 'sep24', 'keys_to_be_excluded' => json_encode($keysToExclude),
+                'result' => json_encode($result),
+            ],
+        );
+
         if (count($result) === 0) {
             return null;
         }
@@ -474,6 +546,11 @@ class Sep24RequestParser
 
         $noOlderThan = null;
         if (isset($requestData['no_older_than'])) {
+            self::getLogger()->debug(
+                'Validating the no older than field.',
+                ['context' => 'sep24', 'value' => $requestData['no_older_than']],
+            );
+
             if (is_string($requestData['no_older_than'])) {
                 $noOlderThanStr = $requestData['no_older_than'];
                 $dateTime = DateTime::createFromFormat(DATE_ATOM, $noOlderThanStr);
@@ -488,10 +565,14 @@ class Sep24RequestParser
 
         $limit = null;
         if (isset($requestData['limit'])) {
+            self::getLogger()->debug(
+                'Validating the limit field.',
+                ['context' => 'sep24', 'value' => $requestData['limit']],
+            );
             if (is_int($requestData['limit'])) {
                 $limit = $requestData['limit'];
             } else {
-                throw new InvalidSepRequest('asset_code must be an integer');
+                throw new InvalidSepRequest('limit must be an integer');
             }
         }
 
@@ -499,6 +580,11 @@ class Sep24RequestParser
         if (isset($requestData['kind'])) {
             if (is_string($requestData['kind'])) {
                 $kind = $requestData['kind'];
+                self::getLogger()->debug(
+                    'Validating the kind field.',
+                    ['context' => 'sep24', 'value' => $requestData['kind']],
+                );
+
                 if ($kind !== 'deposit' && $kind !== 'withdrawal') {
                     throw new InvalidSepRequest('kind must be either deposit or withdrawal.');
                 }
@@ -509,6 +595,11 @@ class Sep24RequestParser
 
         $pagingId = null;
         if (isset($requestData['paging_id'])) {
+            self::getLogger()->debug(
+                'Validating the paging id.',
+                ['context' => 'sep24', 'value' => $requestData['paging_id']],
+            );
+
             if (is_string($requestData['paging_id'])) {
                 $pagingId = $requestData['paging_id'];
             } else {
@@ -526,5 +617,25 @@ class Sep24RequestParser
         }
 
         return new TransactionHistoryRequest($assetCode, $noOlderThan, $limit, $kind, $pagingId, $lang);
+    }
+
+    /**
+     * Sets the logger in static context.
+     */
+    public static function setLogger(?LoggerInterface $logger = null): void
+    {
+        self::$logger = $logger ?? new NullLogger();
+    }
+
+    /**
+     * Returns the logger (initializes if null).
+     */
+    private static function getLogger(): LoggerInterface
+    {
+        if (!isset(self::$logger)) {
+            self::$logger = new NullLogger();
+        }
+
+        return self::$logger;
     }
 }

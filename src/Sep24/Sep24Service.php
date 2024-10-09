@@ -20,17 +20,21 @@ use ArgoNavis\PhpAnchorSdk\exception\AnchorFailure;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidRequestData;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSep10JwtData;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSepRequest;
+use ArgoNavis\PhpAnchorSdk\logging\NullLogger;
 use ArgoNavis\PhpAnchorSdk\shared\IdentificationFormatAsset;
+use ArgoNavis\PhpAnchorSdk\util\MemoHelper;
 use Laminas\Diactoros\Response\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UploadedFileInterface;
+use Psr\Log\LoggerInterface;
 
 use function count;
 use function floatval;
 use function is_array;
 use function is_numeric;
 use function is_string;
+use function json_encode;
 use function str_contains;
 use function trim;
 
@@ -56,6 +60,10 @@ class Sep24Service
     public IInteractiveFlowIntegration $sep24Integration;
     private int $uploadFileMaxSize = 2097152; // 2 MB
     private int $uploadFileMaxCount = 6;
+    /**
+     * The PSR-3 specific logger to be used for logging.
+     */
+    private LoggerInterface | NullLogger $logger;
 
     /**
      * Constructor.
@@ -67,9 +75,14 @@ class Sep24Service
     public function __construct(
         ISep24Config $sep24Config,
         IInteractiveFlowIntegration $sep24Integration,
+        ?LoggerInterface $logger = null,
     ) {
         $this->sep24Config = $sep24Config;
         $this->sep24Integration = $sep24Integration;
+        $this->logger = $logger ?? new NullLogger();
+        Sep10Jwt::setLogger($this->logger);
+        Sep24RequestParser::setLogger($this->logger);
+        MemoHelper::setLogger($this->logger);
 
         $fMaxSizeMb = $this->sep24Config->getUploadFileMaxSizeMb();
         if ($fMaxSizeMb !== null) {
@@ -79,6 +92,13 @@ class Sep24Service
         if ($fMaxCount !== null) {
             $this->uploadFileMaxCount = $fMaxCount;
         }
+
+        $this->logger->debug(
+            'Configuration attributes loaded successfully',
+            ['context' => 'sep24', 'upload_file_max_size' => $this->uploadFileMaxSize,
+                'upload_file_max_count' => $this->uploadFileMaxCount,
+            ],
+        );
     }
 
     /**
@@ -95,8 +115,18 @@ class Sep24Service
      */
     public function handleRequest(ServerRequestInterface $request, ?Sep10Jwt $token = null): ResponseInterface
     {
+        $this->logger->info(
+            'Handling incoming request.',
+            ['context' => 'sep24', 'method' => $request->getMethod()],
+        );
+
         $requestTarget = $request->getRequestTarget();
         if ($request->getMethod() === 'GET' && str_contains($requestTarget, '/info')) {
+            $this->logger->info(
+                'Executing get info request.',
+                ['context' => 'sep24', 'operation' => 'info', 'status_code' => 200],
+            );
+
             return new JsonResponse($this->getInfo()->toJson(), 200);
         }
         if (
@@ -104,35 +134,87 @@ class Sep24Service
             && str_contains($requestTarget, '/fee')
             && !$this->sep24Config->feeEndpointRequiresAuthentication()
         ) {
+            $this->logger->info(
+                'Executing fee info request without authentication.',
+                ['context' => 'sep24', 'operation' => 'fee_info'],
+            );
+
             return $this->handleGetFeeRequest($request);
         }
 
         // all other cases require authentication.
 
         if ($token === null) {
+            $this->logger->warning(
+                'Handling SEP-24 request failed.',
+                ['error' => 'Authentication required',
+                    'http_status_code' => 'authentication_required', 'context' => 'sep24',
+                ],
+            );
+
             //403  forbidden
             return new JsonResponse(['type' => 'authentication_required'], 403);
         }
 
         if ($request->getMethod() === 'GET') {
             if (str_contains($requestTarget, '/fee')) {
+                $this->logger->info(
+                    'Executing fee info request.',
+                    ['context' => 'sep24', 'operation' => 'fee_info'],
+                );
+
                 return $this->handleGetFeeRequest($request);
             } elseif (str_contains($requestTarget, '/transactions')) {
+                $this->logger->info(
+                    'Executing transactions request.',
+                    ['context' => 'sep24', 'operation' => 'transactions'],
+                );
+
                 return $this->handleGetTransactionsRequest($request, $token);
             } elseif (str_contains($requestTarget, '/transaction')) {
+                $this->logger->info(
+                    'Executing transaction request.',
+                    ['context' => 'sep24', 'operation' => 'transaction'],
+                );
+
                 return $this->handleGetTransactionRequest($request, $token);
             } else {
+                $this->logger->error(
+                    'Invalid request, unknown endpoint',
+                    ['context' => 'sep24', 'http_status_code' => 404],
+                );
+
                 return new JsonResponse(['error' => 'Invalid request. Unknown endpoint.'], 404);
             }
         } elseif ($request->getMethod() === 'POST') {
             if (str_contains($requestTarget, '/transactions/deposit/interactive')) {
+                $this->logger->info(
+                    'Executing interactive deposit transaction request.',
+                    ['context' => 'sep24', 'operation' => 'interactive_transaction_deposit'],
+                );
+
                 return $this->handlePostDepositRequest($request, $token);
             } elseif (str_contains($requestTarget, '/transactions/withdraw/interactive')) {
+                $this->logger->info(
+                    'Executing interactive withdraw transaction request.',
+                    ['context' => 'sep24', 'operation' => 'interactive_transaction_withdraw'],
+                );
+
                 return $this->handlePostWithdrawalRequest($request, $token);
             } else {
+                $this->logger->error(
+                    'Invalid request, unknown endpoint',
+                    ['context' => 'sep24', 'http_status_code' => 404],
+                );
+
                 return new JsonResponse(['error' => 'Invalid request. Unknown endpoint.'], 404);
             }
         } else {
+            $this->logger->error(
+                'Invalid request, method not supported: ' . $request->getMethod(),
+                ['context' => 'sep24', 'http_status_code' => 404],
+            );
+
             return new JsonResponse(['error' => 'Invalid request. Method not supported.'], 404);
         }
     }
@@ -167,7 +249,7 @@ class Sep24Service
             ];
         }
 
-        return new InfoResponse(
+        $infoResponse = new InfoResponse(
             $deposit,
             $withdraw,
             new FeeResponse(
@@ -179,6 +261,12 @@ class Sep24Service
                 $this->sep24Config->areClaimableBalancesSupported(),
             ),
         );
+        $this->logger->debug(
+            'Info request executed successfully',
+            ['context' => 'sep24', 'response_json' => json_encode($infoResponse)],
+        );
+
+        return $infoResponse;
     }
 
     /**
@@ -192,11 +280,27 @@ class Sep24Service
     {
         if ($this->sep24Config->isFeeEndpointSupported()) {
             try {
-                return new JsonResponse(['fee' => $this->getFee($request->getQueryParams())], 200);
+                $queryParams = $request->getQueryParams();
+                $this->logger->debug(
+                    'Executing fee info request.',
+                    ['context' => 'sep24', 'operation' => 'fee_info', 'query_parameters' => json_encode($queryParams)],
+                );
+
+                return new JsonResponse(['fee' => $this->getFee($queryParams)], 200);
             } catch (InvalidSepRequest | AnchorFailure $e) {
+                $this->logger->error(
+                    'Failed to execute the fee info request.',
+                    ['context' => 'sep24', 'http_status_code' => 400, 'error' => $e->getMessage(), 'exception' => $e],
+                );
+
                 return new JsonResponse(['error' => $e->getMessage()], 400);
             }
         } else {
+            $this->logger->error(
+                'Fee info is not supported',
+                ['context' => 'sep24', 'http_status_code' => 404],
+            );
+
             return new JsonResponse(['error' => 'Fee endpoint is not supported.'], 404);
         }
     }
@@ -214,6 +318,13 @@ class Sep24Service
         try {
             return new JsonResponse($this->withdraw($request, $token)->toJson(), 200);
         } catch (InvalidSepRequest | InvalidRequestData | AnchorFailure $e) {
+            $this->logger->error(
+                'Failed to execute the interactive transaction withdraw request.',
+                ['context' => 'sep24', 'operation' => 'interactive_transaction_withdraw',
+                    'http_status_code' => 400, 'error' => $e->getMessage(), 'exception' => $e,
+                ],
+            );
+
             return new JsonResponse(['error' => $e->getMessage()], 400);
         }
     }
@@ -231,6 +342,13 @@ class Sep24Service
         try {
             return new JsonResponse($this->deposit($request, $token)->toJson(), 200);
         } catch (InvalidSepRequest | InvalidRequestData | AnchorFailure $e) {
+            $this->logger->error(
+                'Failed to execute the interactive transaction deposit request.',
+                ['context' => 'sep24', 'operation' => 'interactive_transaction_deposit',
+                    'http_status_code' => 400, 'error' => $e->getMessage(), 'exception' => $e,
+                ],
+            );
+
             return new JsonResponse(['error' => $e->getMessage()], 400);
         }
     }
@@ -259,6 +377,13 @@ class Sep24Service
                 $accountMemo = $accountData['account_memo'];
             }
             $queryParameters = $request->getQueryParams();
+            $this->logger->debug(
+                'The query parameters.',
+                ['context' => 'sep24', 'operation' => 'transaction',
+                    'query_parameters' => json_encode($queryParameters),
+                ],
+            );
+
             $lang = null;
             if (isset($queryParameters['lang'])) {
                 if (is_string($queryParameters['lang'])) {
@@ -270,6 +395,11 @@ class Sep24Service
                     throw new InvalidSepRequest('id must be a string');
                 }
                 $id = $queryParameters['id'];
+                $this->logger->info(
+                    'Retrieving transaction by id',
+                    ['context' => 'sep24', 'operation' => 'transaction', 'id' => $id],
+                );
+
                 $result = $this->sep24Integration->findTransactionById(
                     $id,
                     $accountId,
@@ -281,6 +411,13 @@ class Sep24Service
                     throw new InvalidSepRequest('stellar_transaction_id must be a string');
                 }
                 $stellarTransactionId = $queryParameters['stellar_transaction_id'];
+                $this->logger->info(
+                    'Retrieving transaction by Stellar transaction id.',
+                    ['context' => 'sep24', 'operation' => 'transaction',
+                        'stellar_transaction_id' => $stellarTransactionId,
+                    ],
+                );
+
                 $result = $this->sep24Integration->findTransactionByStellarTransactionId(
                     $stellarTransactionId,
                     $accountId,
@@ -292,6 +429,12 @@ class Sep24Service
                     throw new InvalidSepRequest('external_transaction_id must be a string');
                 }
                 $externalTransactionId = $queryParameters['external_transaction_id'];
+                $this->logger->info(
+                    'Retrieving transaction by external transaction id.',
+                    ['context' => 'sep24', 'operation' => 'transaction',
+                        'external_transaction_id' => $externalTransactionId,
+                    ],
+                );
                 $result = $this->sep24Integration->findTransactionByExternalTransactionId(
                     $externalTransactionId,
                     $accountId,
@@ -304,11 +447,29 @@ class Sep24Service
                 );
             }
             if ($result !== null) {
-                return new JsonResponse(['transaction' => $result->toJson()], 200);
+                $resultJson = $result->toJson();
+                $this->logger->debug(
+                    'The transaction data.',
+                    ['context' => 'sep24', 'operation' => 'transaction', 'transaction' => $resultJson],
+                );
+
+                return new JsonResponse(['transaction' => $resultJson], 200);
             } else {
+                $this->logger->error(
+                    'Transaction not found.',
+                    ['context' => 'sep24', 'operation' => 'transaction', 'http_status_code' => 404],
+                );
+
                 return new JsonResponse(['error' => 'transaction not found'], 404);
             }
         } catch (InvalidSep10JwtData | InvalidSepRequest | AnchorFailure $e) {
+            $this->logger->error(
+                'Failed to retrieve the transaction.',
+                ['context' => 'sep24', 'operation' => 'transaction',
+                    'http_status_code' => 400, 'error' => $e->getMessage(), 'exception' => $e,
+                ],
+            );
+
             return new JsonResponse(['error' => $e->getMessage()], 400);
         }
     }
@@ -336,11 +497,29 @@ class Sep24Service
                 $accountMemo = $accountData['account_memo'];
             }
             $queryParameters = $request->getQueryParams();
+            $this->logger->debug(
+                'The query parameters.',
+                ['context' => 'sep24', 'operation' => 'transactions',
+                    'query_parameters' => json_encode($queryParameters),
+                ],
+            );
+
             $request = Sep24RequestParser::getTransactionsRequestFromRequestData($queryParameters);
+            $this->logger->debug(
+                'The processed parameters.',
+                ['context' => 'sep24', 'operation' => 'transactions',
+                    'parameters' => json_encode($request),
+                ],
+            );
 
             $result = $this->sep24Integration->getTransactionHistory($request, $accountId, $accountMemo);
 
             if ($result === null || count($result) === 0) {
+                $this->logger->debug(
+                    'No transactions found.',
+                    ['context' => 'sep24', 'operation' => 'transactions'],
+                );
+
                 return new JsonResponse([], 200);
             } else {
                 $transactionsJson = [];
@@ -348,10 +527,22 @@ class Sep24Service
                     $transactionsJson[] = $tx->toJson();
                 }
 
+                $this->logger->debug(
+                    'The transactions data.',
+                    ['context' => 'sep24', 'operation' => 'transactions', 'transactions' => $transactionsJson],
+                );
+
                 return new JsonResponse(['transactions' => $transactionsJson], 200);
             }
         } catch (InvalidSep10JwtData | InvalidSepRequest | AnchorFailure $e) {
-                return new JsonResponse(['error' => $e->getMessage()], 400);
+            $this->logger->error(
+                'Failed to retrieve the transactions.',
+                ['context' => 'sep24', 'operation' => 'transactions',
+                    'http_status_code' => 400, 'error' => $e->getMessage(), 'exception' => $e,
+                ],
+            );
+
+            return new JsonResponse(['error' => $e->getMessage()], 400);
         }
     }
 
@@ -370,6 +561,13 @@ class Sep24Service
     private function withdraw(ServerRequestInterface $request, Sep10Jwt $token): InteractiveTransactionResponse
     {
         $requestData = $request->getParsedBody();
+        $this->logger->debug(
+            'The request body data.',
+            ['context' => 'sep24', 'operation' => 'interactive_transaction_withdraw',
+                'request_data' => json_encode($requestData),
+            ],
+        );
+
         /**
          * @var array<array-key, UploadedFileInterface> $uploadedFiles
          */
@@ -377,6 +575,11 @@ class Sep24Service
 
         // if data is not in getParsedBody(), try to parse with our own parser.
         if (!is_array($requestData) || count($requestData) === 0) {
+            $this->logger->debug(
+                'The request body data is empty, try to parse with the SDK parser.',
+                ['context' => 'sep24', 'operation' => 'interactive_transaction_withdraw'],
+            );
+
             $requestData = RequestBodyDataParser::getParsedBodyData(
                 $request,
                 $this->uploadFileMaxSize,
@@ -388,6 +591,13 @@ class Sep24Service
                 }
                 $requestData = $requestData->bodyParams;
             }
+
+            $this->logger->debug(
+                'The request body data.',
+                ['context' => 'sep24', 'operation' => 'interactive_transaction_withdraw',
+                    'request_data' => json_encode($requestData),
+                ],
+            );
         }
 
         $asset = Sep24RequestParser::getAssetFromRequestData($requestData);
@@ -404,10 +614,38 @@ class Sep24Service
         $lang = Sep24RequestParser::getLangFromRequestData($requestData);
         $kycFields = Sep24RequestParser::getKycFieldsFromRequestData($requestData);
 
+        $this->logger->debug(
+            'The request parameters after processing.',
+            [
+                'asset' => json_encode($asset),
+                'destination_asset' => json_encode($destinationAsset),
+                'amount' => $amount,
+                'quote_id' => $quoteId,
+                'source_account' => $sourceAccount,
+                'memo' => json_encode($memo),
+                'refund_memo' => json_encode($refundMemo),
+                'customer_id' => $customerId,
+                'client_supports_claimable_balance' => $clientSupportsClaimableBalance,
+                'wallet_name' => $walletName,
+                'wallet_url' => $walletUrl,
+                'lang' => $lang,
+                'kyc_fields' => json_encode($kycFields),
+                'context' => 'sep24',
+                'operation' => 'interactive_transaction_withdraw',
+            ],
+        );
+
         // Verify that the asset code is supported, with withdraw enabled.
         $assetInfo = $this->sep24Integration->getAsset($asset->getCode(), $asset->getIssuer());
 
         if ($assetInfo === null || !$assetInfo->withdrawOperation->enabled) {
+            $this->logger->debug(
+                'Invalid operation for asset.',
+                ['context' => 'sep24', 'operation' => 'interactive_transaction_withdraw',
+                    'asset_code' => $asset->getCode(),
+                ],
+            );
+
             throw new InvalidSepRequest('invalid operation for asset ' . $asset->getCode());
         }
 
@@ -415,6 +653,13 @@ class Sep24Service
         $minAmount = $assetInfo->withdrawOperation->minAmount;
         if ($minAmount !== null && $amount !== null) {
             if ($amount < $minAmount) {
+                $this->logger->debug(
+                    'Amount is less than asset\'s minimum limit of.',
+                    ['context' => 'sep24', 'operation' => 'interactive_transaction_withdraw',
+                        'amount' => $amount, 'min_amount' => $minAmount,
+                    ],
+                );
+
                 throw new InvalidSepRequest("amount is less than asset's minimum limit of: " . $minAmount);
             }
         }
@@ -423,6 +668,13 @@ class Sep24Service
         $maxAmount = $assetInfo->withdrawOperation->maxAmount;
         if ($maxAmount !== null && $amount !== null) {
             if ($amount > $maxAmount) {
+                $this->logger->debug(
+                    'Amount exceeds asset\'s maximum limit of.',
+                    ['context' => 'sep24', 'operation' => 'interactive_transaction_withdraw',
+                        'amount' => $amount, 'max_amount' => $maxAmount,
+                    ],
+                );
+
                 throw new InvalidSepRequest("amount exceeds asset's maximum limit of: " . $maxAmount);
             }
         }
@@ -456,7 +708,15 @@ class Sep24Service
             kycUploadedFiles: $uploadedFiles,
         );
 
-        return $this->sep24Integration->withdraw($withdrawRequest);
+        $withdrawResponse = $this->sep24Integration->withdraw($withdrawRequest);
+        $this->logger->debug(
+            'The response data.',
+            ['context' => 'sep24', 'operation' => 'interactive_transaction_withdraw',
+                'data' => json_encode($withdrawResponse),
+            ],
+        );
+
+        return $withdrawResponse;
     }
 
     /**
@@ -474,6 +734,13 @@ class Sep24Service
     private function deposit(ServerRequestInterface $request, Sep10Jwt $token): InteractiveTransactionResponse
     {
         $requestData = $request->getParsedBody();
+        $this->logger->debug(
+            'The request body data.',
+            ['context' => 'sep24', 'operation' => 'interactive_transaction_deposit',
+                'request_data' => json_encode($requestData),
+            ],
+        );
+
         /**
          * @var array<array-key, UploadedFileInterface> $uploadedFiles
          */
@@ -481,6 +748,10 @@ class Sep24Service
 
         // if data is not in getParsedBody(), try to parse with our own parser.
         if (!is_array($requestData) || count($requestData) === 0) {
+            $this->logger->debug(
+                'The request body data is empty, try to parse with the SDK parser.',
+                ['context' => 'sep24', 'operation' => 'interactive_transaction_deposit'],
+            );
             $requestData = RequestBodyDataParser::getParsedBodyData(
                 $request,
                 $this->uploadFileMaxSize,
@@ -492,6 +763,12 @@ class Sep24Service
                 }
                 $requestData = $requestData->bodyParams;
             }
+            $this->logger->debug(
+                'The request body data.',
+                ['context' => 'sep24', 'operation' => 'interactive_transaction_deposit',
+                    'request_data' => json_encode($requestData),
+                ],
+            );
         }
 
         $asset = Sep24RequestParser::getAssetFromRequestData($requestData);
@@ -507,6 +784,26 @@ class Sep24Service
         $lang = Sep24RequestParser::getLangFromRequestData($requestData);
         $kycFields = Sep24RequestParser::getKycFieldsFromRequestData($requestData);
 
+        $this->logger->debug(
+            'The request parameters after processing.',
+            [
+                'asset' => json_encode($asset),
+                'source_asset' => json_encode($sourceAsset),
+                'amount' => $amount,
+                'quote_id' => $quoteId,
+                'destination_account' => $destinationAccount,
+                'memo' => json_encode($memo),
+                'customer_id' => $customerId,
+                'client_supports_claimable_balance' => $clientSupportsClaimableBalance,
+                'wallet_name' => $walletName,
+                'wallet_url' => $walletUrl,
+                'lang' => $lang,
+                'kyc_fields' => json_encode($kycFields),
+                'context' => 'sep24',
+                'operation' => 'interactive_transaction_deposit',
+            ],
+        );
+
         // Verify that the asset code is supported, with deposit enabled.
         $assetInfo = $this->sep24Integration->getAsset($asset->getCode(), $asset->getIssuer());
 
@@ -518,6 +815,13 @@ class Sep24Service
         $minAmount = $assetInfo->depositOperation->minAmount;
         if ($minAmount !== null && $amount !== null) {
             if ($amount < $minAmount) {
+                $this->logger->debug(
+                    'Amount is less than asset\'s minimum limit of.',
+                    ['context' => 'sep24', 'operation' => 'interactive_transaction_deposit',
+                        'amount' => $amount, 'min_amount' => $minAmount,
+                    ],
+                );
+
                 throw new InvalidSepRequest("amount is less than asset's minimum limit of: " . $minAmount);
             }
         }
@@ -526,6 +830,13 @@ class Sep24Service
         $maxAmount = $assetInfo->depositOperation->maxAmount;
         if ($maxAmount !== null && $amount !== null) {
             if ($amount > $maxAmount) {
+                $this->logger->debug(
+                    'Amount exceeds asset\'s maximum limit of.',
+                    ['context' => 'sep24', 'operation' => 'interactive_transaction_deposit',
+                        'amount' => $amount, 'max_amount' => $maxAmount,
+                    ],
+                );
+
                 throw new InvalidSepRequest("amount exceeds asset's maximum limit of: " . $maxAmount);
             }
         }
@@ -558,7 +869,15 @@ class Sep24Service
             kycUploadedFiles: $uploadedFiles,
         );
 
-        return $this->sep24Integration->deposit($depositRequest);
+        $depositResponse = $this->sep24Integration->deposit($depositRequest);
+        $this->logger->debug(
+            'The response data.',
+            ['context' => 'sep24', 'operation' => 'interactive_transaction_deposit',
+                'data' => json_encode($depositResponse),
+            ],
+        );
+
+        return $depositResponse;
     }
 
     /**
@@ -651,6 +970,18 @@ class Sep24Service
             throw new InvalidSepRequest("amount exceeds asset's maximum limit of: " . $assetOperation->maxAmount);
         }
 
+        $this->logger->debug(
+            'The processed parameters calculating fee info.',
+            ['context' => 'sep24', 'operation' => 'fee_info',
+                'amount' => $amount,
+                'asset_operation' => $assetOperation,
+                'asset_info' => $assetInfo,
+                'asset_code' => $assetCode,
+                'type' => $type,
+                'fee_operation' => $operation,
+            ],
+        );
+
         // check if the fee can easily be calculated by the given asset info
         // SEP-24 says: If fee_fixed or fee_percent are provided,
         // the total fee is calculated as (amount * fee_percent) + fee_fixed = fee_total.
@@ -659,6 +990,15 @@ class Sep24Service
             $this->sep24Config->shouldSdkCalculateObviousFee() &&
             ($assetOperation->feeFixed !== null || $assetOperation->feePercent !== null)
         ) {
+            $this->logger->debug(
+                'Calculating the fee by the SDK.',
+                ['context' => 'sep24', 'operation' => 'fee_info',
+                    'amount' => $amount,
+                    'fee_fixed' => $assetOperation->feeFixed,
+                    'fee_percent' => $assetOperation->feePercent,
+                ],
+            );
+
             $fee = $assetOperation->feeFixed ?? 0.0;
             if ($assetOperation->feePercent !== null) {
                 $fee += $amount * $assetOperation->feePercent;
@@ -666,11 +1006,26 @@ class Sep24Service
             if ($assetOperation->feeMinimum !== null && $fee < $assetOperation->feeMinimum) {
                 $fee = $assetOperation->feeMinimum;
             }
+            $this->logger->info(
+                'The calculated fee by the SDK.',
+                ['context' => 'sep24', 'operation' => 'fee_info', 'fee' => $fee],
+            );
 
             return $fee;
         } else {
+            $this->logger->debug(
+                'The SDK itself can not calculate the fee, use the /fee endpoint.',
+                ['context' => 'sep24', 'operation' => 'fee_info'],
+            );
+
             // complex fee calculation
-            return $this->sep24Integration->getFee($operation, $assetCode, $amount, type: $type);
+            $fee = $this->sep24Integration->getFee($operation, $assetCode, $amount, type: $type);
+            $this->logger->info(
+                'The calculated fee by the /fee endpoint.',
+                ['context' => 'sep24', 'operation' => 'fee_info', 'fee' => $fee],
+            );
+
+            return $fee;
         }
     }
 
@@ -703,10 +1058,20 @@ class Sep24Service
             throw new InvalidSep10JwtData('invalid jwt token');
         }
 
+        $this->logger->info(
+            'Retrieving quote by id.',
+            ['context' => 'sep24', 'operation' => 'withdraw_or_deposit', 'id' => $quoteId],
+        );
+
         $quote = $this->sep24Integration->getQuoteById(
             quoteId: $quoteId,
             accountId: $accountId,
             accountMemo: $accountMemo,
+        );
+
+        $this->logger->info(
+            'The quote data.',
+            ['context' => 'sep24', 'operation' => 'withdraw_or_deposit', 'quote' => json_encode($quote)],
         );
 
         if ($sellAsset !== null && !$this->assetEqualsQuoteAsset($sellAsset, $quote->sellAsset)) {

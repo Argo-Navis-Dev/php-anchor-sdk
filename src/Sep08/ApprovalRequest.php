@@ -9,12 +9,15 @@ declare(strict_types=1);
 namespace ArgoNavis\PhpAnchorSdk\Sep08;
 
 use ArgoNavis\PhpAnchorSdk\exception\InvalidRequestData;
+use ArgoNavis\PhpAnchorSdk\logging\NullLogger;
+use Psr\Log\LoggerInterface;
 use Soneso\StellarSDK\Xdr\XdrEnvelopeType;
 use Soneso\StellarSDK\Xdr\XdrTransactionEnvelope;
 use Throwable;
 
 use function count;
 use function is_string;
+use function json_encode;
 
 class ApprovalRequest
 {
@@ -25,6 +28,11 @@ class ApprovalRequest
      * @var string xdr encoded transaction envelope (base64).
      */
     public string $tx;
+
+    /**
+     * The PSR-3 specific logger to be used for logging.
+     */
+    private static LoggerInterface | NullLogger | null $logger;
 
     public function __construct(string $tx)
     {
@@ -43,21 +51,32 @@ class ApprovalRequest
     public static function fromDataArray(array $data): ApprovalRequest
     {
         if (!isset($data['tx'])) {
-            throw new InvalidRequestData('Transaction is not set');
+             throw new InvalidRequestData('Transaction is not set');
         }
         $transaction = $data['tx'];
         if (!is_string($transaction)) {
-            throw new InvalidRequestData('Invalid transaction. Must be string.');
+            throw new InvalidRequestData('Transaction is not a string');
         }
 
         try {
+            self::getLogger()->debug(
+                'Parsing transaction from base 64 XDR envelope.',
+                ['context' => 'sep08', 'envelop' => $transaction],
+            );
             $envelope = XdrTransactionEnvelope::fromEnvelopeBase64XdrString($transaction);
         } catch (Throwable $e) {
-            throw new InvalidRequestData('Invalid transaction.');
+            throw new InvalidRequestData('Invalid transaction');
         }
 
         $txV1 = $envelope->getV1();
         $feeBump = $envelope->getFeeBump();
+        self::getLogger()->debug(
+            'Transaction details.',
+            ['context' => 'sep08', 'tx_v1' => ($txV1 !== null ? json_encode($txV1) : null),
+                'fee_bump' => ($feeBump !== null ? json_encode($feeBump) : null),
+            ],
+        );
+
         if ($envelope->getType()->getValue() === XdrEnvelopeType::ENVELOPE_TYPE_TX && $txV1 !== null) {
             if (count($txV1->getSignatures()) === 0) {
                 throw new InvalidRequestData('Transaction has no signatures.');
@@ -75,5 +94,25 @@ class ApprovalRequest
         }
 
         return new ApprovalRequest($transaction);
+    }
+
+    /**
+     * Sets the logger in static context.
+     */
+    public static function setLogger(?LoggerInterface $logger = null): void
+    {
+        self::$logger = $logger ?? new NullLogger();
+    }
+
+    /**
+     * Returns the logger (initializes if null).
+     */
+    private static function getLogger(): LoggerInterface
+    {
+        if (!isset(self::$logger)) {
+            self::$logger = new NullLogger();
+        }
+
+        return self::$logger;
     }
 }

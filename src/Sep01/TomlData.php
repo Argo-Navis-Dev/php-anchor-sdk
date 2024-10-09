@@ -9,9 +9,11 @@ declare(strict_types=1);
 namespace ArgoNavis\PhpAnchorSdk\Sep01;
 
 use ArgoNavis\PhpAnchorSdk\exception\TomlDataNotLoaded;
+use ArgoNavis\PhpAnchorSdk\logging\NullLogger;
 use Laminas\Diactoros\Request;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
+use Psr\Log\LoggerInterface;
 use Soneso\StellarSDK\SEP\Toml\Currencies;
 use Soneso\StellarSDK\SEP\Toml\Documentation;
 use Soneso\StellarSDK\SEP\Toml\GeneralInformation;
@@ -60,53 +62,64 @@ class TomlData
      *
      * @param string $url The url to load the data from.
      * @param ClientInterface $httpClient The http client to be used to load the data.
+     * @param LoggerInterface|null $logger The logger to be used to logging.
      *
      * @return TomlData The loaded and parsed data as a TomlData object.
      *
      * @throws TomlDataNotLoaded if the data could not be loaded.
-     * @throws ParseException if the loaded data is not correctly formatted and could not be parsed.
      */
-    public static function fromUrl(string $url, ClientInterface $httpClient): TomlData
+    public static function fromUrl(string $url, ClientInterface $httpClient, ?LoggerInterface $logger = null): TomlData
     {
+        $logger = $logger ?? new NullLogger();
+        $logger->debug('Loading Stellar toml from url.', ['url' => $url, 'context' => 'sep01']);
         $request = new Request($url, 'GET');
 
         try {
             $response = $httpClient->sendRequest($request);
         } catch (ClientExceptionInterface $e) {
-            $msg = 'Stellar toml could not be loaded: ' . $e->getMessage();
-
-            throw new TomlDataNotLoaded($msg, code: $e->getCode(), previous: $e);
+            throw new TomlDataNotLoaded(
+                'Stellar toml could not be loaded: ' . $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e,
+            );
         }
 
         if ($response->getStatusCode() !== 200) {
-            $msg = 'Stellar toml not found. Response status code ' . $response->getStatusCode();
-
-            throw new TomlDataNotLoaded($msg, code: $response->getStatusCode());
+            throw new TomlDataNotLoaded(
+                'Stellar toml not found. Response status code ' . $response->getStatusCode(),
+                code: $response->getStatusCode(),
+            );
         }
 
-        return self::fromString((string) $response->getBody());
+        $tomlContent = self::fromString((string) $response->getBody());
+        $logger->debug('The toml file content.', ['context' => 'sep01', 'content' => $tomlContent]);
+
+        return $tomlContent;
     }
 
     /**
      * Loads a correctly formatted stellar toml file from the given file path. Parses the data and initializes the TomlData object from it.
      *
      * @param string $pathToFile Path to the file to load and parse the data from.
+     * @param LoggerInterface|null $logger The logger to be used to logging.
      *
      * @return TomlData The loaded and parsed data as a TomlData object.
      *
      * @throws TomlDataNotLoaded if the data could not be loaded.
      * @throws ParseException if the loaded data is not correctly formatted and could not be parsed.
      */
-    public static function fromFile(string $pathToFile): TomlData
+    public static function fromFile(string $pathToFile, ?LoggerInterface $logger = null): TomlData
     {
+        $logger = $logger ?? new NullLogger();
+        $logger->debug('Loading Stellar toml from file.', ['path_to_file' => $pathToFile, 'context' => 'sep01']);
         $fileContent = file_get_contents($pathToFile, false);
         if ($fileContent === false) {
-            $msg = 'File content could not be loaded for: ' . $pathToFile;
-
-            throw new TomlDataNotLoaded($msg, code: 404);
+            throw new TomlDataNotLoaded('File content could not be loaded for: ' . $pathToFile, code: 404);
         }
+        $tomlContent = self::fromString($fileContent);
+        $logger->debug('The toml file content.', ['context' => 'sep01', 'content' => $tomlContent]);
 
-        return self::fromString($fileContent);
+        return $tomlContent;
     }
 
     /**
@@ -145,7 +158,7 @@ class TomlData
     {
         $url = 'https://' . $domain . '/.well-known/stellar.toml';
 
-        return self::fromUrl($url, $httpClient);
+        return self::fromUrl($url, $httpClient, null);
     }
 
     public function getGeneralInformation(): ?GeneralInformation

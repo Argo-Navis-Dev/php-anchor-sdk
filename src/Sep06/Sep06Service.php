@@ -24,10 +24,13 @@ use ArgoNavis\PhpAnchorSdk\exception\AnchorFailure;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidRequestData;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSep10JwtData;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSepRequest;
+use ArgoNavis\PhpAnchorSdk\logging\NullLogger;
+use ArgoNavis\PhpAnchorSdk\util\MemoHelper;
 use ArrayObject;
 use Laminas\Diactoros\Response\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Log\LoggerInterface;
 use Soneso\StellarSDK\Exceptions\HorizonRequestException;
 use Soneso\StellarSDK\StellarSDK;
 
@@ -35,6 +38,7 @@ use function count;
 use function floatval;
 use function is_numeric;
 use function is_string;
+use function json_encode;
 use function str_contains;
 use function strval;
 
@@ -71,6 +75,11 @@ class Sep06Service
     public ?IQuotesIntegration $quotesIntegration = null;
 
     /**
+     * The PSR-3 specific logger to be used for logging.
+     */
+    private LoggerInterface | NullLogger $logger;
+
+    /**
      * Constructor
      *
      * @param IAppConfig $appConfig App config containing the network and horizon url.
@@ -86,11 +95,17 @@ class Sep06Service
         ISep06Config $sep06Config,
         ITransferIntegration $sep06Integration,
         ?IQuotesIntegration $quotesIntegration = null,
+        ?LoggerInterface $logger = null,
     ) {
         $this->appConfig = $appConfig;
         $this->sep06Config = $sep06Config;
         $this->sep06Integration = $sep06Integration;
         $this->quotesIntegration = $quotesIntegration;
+        $this->logger = $logger ?? new NullLogger();
+        Sep10Jwt::setLogger($this->logger);
+        Sep06RequestValidator::setLogger($this->logger);
+        Sep06RequestParser::setLogger($this->logger);
+        MemoHelper::setLogger($this->logger);
     }
 
     /**
@@ -108,7 +123,16 @@ class Sep06Service
     public function handleRequest(ServerRequestInterface $request, ?Sep10Jwt $token = null,): ResponseInterface
     {
         $requestTarget = $request->getRequestTarget();
+        $this->logger->info(
+            'Handling incoming request.',
+            ['context' => 'sep06', 'method' => $request->getMethod()],
+        );
         if ($request->getMethod() === 'GET' && str_contains($requestTarget, '/info')) {
+            $this->logger->info(
+                'Handling SEP-06 info request.',
+                ['context' => 'sep06', 'operation' => 'info'],
+            );
+
             return $this->buildInfo();
         }
 
@@ -116,26 +140,73 @@ class Sep06Service
 
         if ($token === null) {
             //403  forbidden
+            $this->logger->error(
+                'Handling SEP-06 request failed.',
+                ['error' => 'Authentication required', 'http_status_code' => '403', 'context' => 'sep06'],
+            );
+
             return new JsonResponse(['type' => 'authentication_required'], 403);
         }
 
         if ($request->getMethod() === 'GET') {
             if (str_contains($requestTarget, '/deposit-exchange')) {
+                $this->logger->info(
+                    'Handling SEP-06 request for deposit exchange.',
+                    ['context' => 'sep06', 'operation' => 'deposit_exchange'],
+                );
+
                 return self::handleDepositExchangeRequest($request, $token);
             } elseif (str_contains($requestTarget, '/withdraw-exchange')) {
+                $this->logger->info(
+                    'Executing withdraw exchange.',
+                    ['context' => 'sep06', 'operation' => 'withdraw_exchange'],
+                );
+
                 return self::handleWithdrawExchangeRequest($request, $token);
             } elseif (str_contains($requestTarget, '/deposit')) {
+                $this->logger->info(
+                    'Executing deposit.',
+                    ['context' => 'sep06', 'operation' => 'deposit'],
+                );
+
                 return self::handleDepositRequest($request, $token);
             } elseif (str_contains($requestTarget, '/withdraw')) {
+                $this->logger->info(
+                    'Executing withdraw.',
+                    ['context' => 'sep06', 'operation' => 'withdraw'],
+                );
+
                 return self::handleWithdrawRequest($request, $token);
             } elseif (str_contains($requestTarget, '/transactions')) {
+                $this->logger->info(
+                    'Retrieving transactions.',
+                    ['context' => 'sep06', 'operation' => 'transactions'],
+                );
+
                 return $this->handleGetTransactionsRequest($request, $token);
             } elseif (str_contains($requestTarget, '/transaction')) {
+                $this->logger->info(
+                    'Retrieving a transaction.',
+                    ['context' => 'sep06', 'operation' => 'transaction'],
+                );
+
                 return $this->handleGetTransactionRequest($request, $token);
             } else {
+                $this->logger->error(
+                    'Invalid request. Unknown endpoint.',
+                    ['http_status_code' => '404', 'operation' => $requestTarget, 'context' => 'sep06'],
+                );
+
                 return new JsonResponse(['error' => 'Invalid request. Unknown endpoint.'], 404);
             }
         } else {
+            $this->logger->error(
+                'Invalid request.',
+                ['error' => 'Method not supported',
+                    'context' => 'sep06', 'operation' => $requestTarget, 'http_status_code' => '404',
+                ],
+            );
+
             return new JsonResponse(['error' => 'Invalid request. Method not supported.'], 404);
         }
     }
@@ -156,6 +227,12 @@ class Sep06Service
             return new JsonResponse($this->depositExchange($request, $jwtToken)->toJson(), 200);
         } catch (InvalidSepRequest | InvalidRequestData | AnchorFailure $e) {
             $code = $e->getCode() !== 0 ? $e->getCode() : 400;
+            $this->logger->error(
+                'Failed to handle deposit exchange request.',
+                ['error' => $e->getMessage(), 'http_status_code' => $code, 'exception' => $e,
+                    'context' => 'sep06', 'operation' => 'deposit_exchange',
+                ],
+            );
 
             return new JsonResponse(['error' => $e->getMessage()], $code);
         }
@@ -177,6 +254,12 @@ class Sep06Service
             return new JsonResponse($this->deposit($request, $jwtToken)->toJson(), 200);
         } catch (InvalidSepRequest | InvalidRequestData | AnchorFailure $e) {
             $code = $e->getCode() !== 0 ? $e->getCode() : 400;
+            $this->logger->error(
+                'Failed to handle deposit request.',
+                ['error' => $e->getMessage(), 'http_status_code' => $code, 'exception' => $e,
+                    'context' => 'sep06', 'operation' => 'deposit',
+                ],
+            );
 
             return new JsonResponse(['error' => $e->getMessage()], $code);
         }
@@ -190,6 +273,12 @@ class Sep06Service
             return new JsonResponse($this->withdraw($request, $jwtToken)->toJson(), 200);
         } catch (InvalidSepRequest | InvalidRequestData | AnchorFailure $e) {
             $code = $e->getCode() !== 0 ? $e->getCode() : 400;
+            $this->logger->error(
+                'Failed to handle withdraw request.',
+                ['error' => $e->getMessage(), 'http_status_code' => $code, 'exception' => $e,
+                    'context' => 'sep06', 'operation' => 'withdraw',
+                ],
+            );
 
             return new JsonResponse(['error' => $e->getMessage()], $code);
         }
@@ -203,6 +292,12 @@ class Sep06Service
             return new JsonResponse($this->withdrawExchange($request, $jwtToken)->toJson(), 200);
         } catch (InvalidSepRequest | InvalidRequestData | AnchorFailure $e) {
             $code = $e->getCode() !== 0 ? $e->getCode() : 400;
+            $this->logger->error(
+                'Failed to handle withdraw exchange request.',
+                ['error' => $e->getMessage(), 'http_status_code' => $code, 'exception' => $e,
+                    'context' => 'sep06', 'operation' => 'withdraw_exchange',
+                ],
+            );
 
             return new JsonResponse(['error' => $e->getMessage()], $code);
         }
@@ -225,9 +320,20 @@ class Sep06Service
         Sep10Jwt $jwtToken,
     ): StartDepositResponse {
         if ($this->quotesIntegration === null) {
+            $this->logger->debug(
+                'The $quotesIntegration is null.',
+                ['context' => 'sep06', 'operation' => 'deposit_exchange'],
+            );
+
             throw new AnchorFailure('Unable to access quotes.', 500);
         }
         $queryParameters = $request->getQueryParams();
+        $this->logger->info(
+            'Executing SEP-06 deposit exchange.',
+            ['query_parameters' => json_encode($queryParameters), 'context' => 'sep06',
+                'operation' => 'deposit_exchange',
+            ],
+        );
         $buyAssetCode = Sep06RequestParser::getDestinationAssetCodeFromRequestData($queryParameters);
         $sellAsset = Sep06RequestParser::getSourceAssetFromRequestData($queryParameters);
         $amount = Sep06RequestParser::getAmountFromRequestData($queryParameters);
@@ -245,6 +351,27 @@ class Sep06Service
         $claimableBalancesSupported = Sep06RequestParser::getClaimableBalanceSupportedRequestData($queryParameters);
         $customerId = Sep06RequestParser::getCustomerIdFromRequestData($queryParameters);
         $locationId = Sep06RequestParser::getLocationIdFromRequestData($queryParameters);
+        $this->logger->debug(
+            'The request parameters after processing.',
+            [
+                'buy_asset_code' => $buyAssetCode,
+                'sell_asset' => $sellAsset,
+                'amount' => $amount,
+                'account' => $account,
+                'memo' => $memo,
+                'quote_id' => $quoteId,
+                'email' => $email,
+                'type' => $type,
+                'lang' => $lang,
+                'callback_url' => $callbackUrl,
+                'country_code' => $countryCode,
+                'claimable_balances_supported' => $claimableBalancesSupported,
+                'customer_id' => $customerId,
+                'location_id' => $locationId,
+                'context' => 'sep06',
+                'operation' => 'deposit_exchange',
+            ],
+        );
 
         //check buy asset
         $supportedAssets = $this->sep06Integration->supportedAssets();
@@ -275,7 +402,7 @@ class Sep06Service
                         'Account creation not supported. Account ' . $account . ' not found.',
                     );
                 }
-            } catch (HorizonRequestException) {
+            } catch (HorizonRequestException $ex) {
                 throw new AnchorFailure('Could not check if account ' . $account . ' exists', 500);
             }
         }
@@ -294,6 +421,10 @@ class Sep06Service
             accountId: $sep10AccountId,
             accountMemo: $sep10AccountMemo,
         );
+        $this->logger->debug(
+            'SEP-06 deposit exchange ',
+            ['context' => 'sep06', 'operation' => 'deposit_exchange'],
+        );
         $sep38BuyAssets = $this->quotesIntegration->getPrices($pricesRequest);
         $buyAssetFound = false;
         foreach ($sep38BuyAssets as $sep38BuyAsset) {
@@ -304,6 +435,12 @@ class Sep06Service
             }
         }
         if (!$buyAssetFound) {
+            $error = 'invalid operation for asset ' . $sellAsset->getStringRepresentation();
+            $this->logger->debug(
+                'Buy asset not found, ' . $error,
+                ['context' => 'sep06', 'operation' => 'deposit_exchange'],
+            );
+
             throw new InvalidSepRequest('invalid operation for asset ' . $sellAsset->getStringRepresentation());
         }
 
@@ -322,6 +459,10 @@ class Sep06Service
 
         // validate with quote data
         if ($quoteId !== null) {
+            $this->logger->debug(
+                'Quote found',
+                ['context' => 'sep06', 'operation' => 'deposit_exchange', 'quote_id' => $quoteId],
+            );
             $quote = $this->quotesIntegration->getQuoteById(
                 id: $quoteId,
                 accountId: $sep10AccountId,
@@ -329,11 +470,17 @@ class Sep06Service
             );
             if ($quote->sellAsset->getStringRepresentation() !== $sellAsset->getStringRepresentation()) {
                 throw new InvalidSepRequest(
-                    'quote sell asset does not match source_asset ' .
-                    $sellAsset->getStringRepresentation(),
+                    'quote sell asset does not match source_asset ' . $sellAsset->getStringRepresentation(),
                 );
             }
             if ($quote->buyAsset->getStringRepresentation() !== $buyAsset->asset->getStringRepresentation()) {
+                $this->logger->debug(
+                    'The quote buy asset does not match.',
+                    ['context' => 'sep06', 'operation' => 'deposit_exchange',
+                        'destination_asset' => $buyAsset->asset->getStringRepresentation(),
+                    ],
+                );
+
                 throw new InvalidSepRequest(
                     'quote buy asset does not match destination_asset ' .
                     $buyAsset->asset->getStringRepresentation(),
@@ -366,8 +513,22 @@ class Sep06Service
             locationId: $locationId,
             clientDomain: $jwtToken->clientDomain,
         );
+        $this->logger->debug(
+            'Start deposit exchange request.',
+            ['context' => 'sep06', 'operation' => 'deposit_exchange',
+                'start_deposit_exchange_request' => json_encode($startDepositExchangeRequest),
+            ],
+        );
 
-        return $this->sep06Integration->depositExchange($startDepositExchangeRequest);
+        $depositExchange = $this->sep06Integration->depositExchange($startDepositExchangeRequest);
+        $this->logger->debug(
+            'The deposit.',
+            ['context' => 'sep06', 'operation' => 'deposit_exchange',
+                'deposit_exchange' => json_encode($depositExchange),
+            ],
+        );
+
+        return $depositExchange;
     }
 
     /**
@@ -387,6 +548,11 @@ class Sep06Service
         Sep10Jwt $jwtToken,
     ): StartDepositResponse {
         $queryParameters = $request->getQueryParams();
+        $this->logger->info(
+            'Executing SEP-06 deposit.',
+            ['context' => 'sep06', 'operation' => 'deposit', 'query_parameters' => json_encode($queryParameters)],
+        );
+
         $assetCode = Sep06RequestParser::getAssetCodeFromRequestData($queryParameters);
         $account = Sep06RequestParser::getAccountFromRequestData($queryParameters);
         $memo = Sep06RequestParser::getMemoFromRequestData($queryParameters);
@@ -399,6 +565,28 @@ class Sep06Service
         $claimableBalancesSupported = Sep06RequestParser::getClaimableBalanceSupportedRequestData($queryParameters);
         $customerId = Sep06RequestParser::getCustomerIdFromRequestData($queryParameters);
         $locationId = Sep06RequestParser::getLocationIdFromRequestData($queryParameters);
+
+        $this->logger->debug(
+            'The request parameters after processing.',
+            [
+                'buy_asset_code' => $assetCode,
+                'sell_asset' => $account,
+                'amount' => $amount,
+                'account' => $account,
+                'memo' => $memo,
+                'quote_id' => $email,
+                'email' => $type,
+                'type' => $lang,
+                'lang' => $callbackUrl,
+                'callback_url' => $amount,
+                'country_code' => $countryCode,
+                'claimable_balances_supported' => $claimableBalancesSupported,
+                'customer_id' => $customerId,
+                'location_id' => $locationId,
+                'context' => 'sep06',
+                'operation' => 'deposit',
+            ],
+        );
 
         //check asset
         $supportedAssets = $this->sep06Integration->supportedAssets();
@@ -429,8 +617,10 @@ class Sep06Service
                         'Account creation not supported. Account ' . $account . ' not found.',
                     );
                 }
-            } catch (HorizonRequestException) {
-                throw new AnchorFailure('Could not check if account ' . $account . ' exists', 500);
+            } catch (HorizonRequestException $ex) {
+                $error = 'Could not check if account ' . $account . ' exists';
+
+                throw new AnchorFailure($error, 500);
             }
         }
 
@@ -466,8 +656,22 @@ class Sep06Service
             locationId: $locationId,
             clientDomain: $jwtToken->clientDomain,
         );
+        $this->logger->debug(
+            'Start deposit request.',
+            ['context' => 'sep06', 'operation' => 'deposit',
+                'start_deposit_request' => json_encode($startDepositRequest),
+            ],
+        );
 
-        return $this->sep06Integration->deposit($startDepositRequest);
+        $deposit = $this->sep06Integration->deposit($startDepositRequest);
+        $this->logger->debug(
+            'The deposit.',
+            ['context' => 'sep06', 'operation' => 'deposit',
+                'deposit_exchange' => json_encode($deposit),
+            ],
+        );
+
+        return $deposit;
     }
 
     /**
@@ -487,6 +691,11 @@ class Sep06Service
         Sep10Jwt $jwtToken,
     ): StartWithdrawResponse {
         $queryParameters = $request->getQueryParams();
+        $this->logger->info(
+            'Executing SEP-06 withdraw.',
+            ['context' => 'sep06', 'operation' => 'withdraw', 'query_parameters' => json_encode($queryParameters)],
+        );
+
         $assetCode = Sep06RequestParser::getAssetCodeFromRequestData($queryParameters);
         $type = Sep06RequestParser::getTypeFromRequestData($queryParameters);
         if ($type === null) {
@@ -501,6 +710,21 @@ class Sep06Service
         $customerId = Sep06RequestParser::getCustomerIdFromRequestData($queryParameters);
         $locationId = Sep06RequestParser::getLocationIdFromRequestData($queryParameters);
         $refundMemo = Sep06RequestParser::getRefundMemoFromRequestData($queryParameters);
+        $this->logger->debug(
+            'The request parameters after processing.',
+            [
+                'account_opt' => $accountOpt,
+                'lang' => $lang,
+                'callback_url' => $callbackUrl,
+                'amount' => $amount,
+                'country_code' => $countryCode,
+                'customer_id' => $customerId,
+                'location_id' => $locationId,
+                'refund_memo' => $refundMemo,
+                'context' => 'sep06',
+                'operation' => 'withdraw',
+            ],
+        );
 
         //check asset
         $supportedAssets = $this->sep06Integration->supportedAssets();
@@ -553,8 +777,22 @@ class Sep06Service
             locationId: $locationId,
             clientDomain: $jwtToken->clientDomain,
         );
+        $this->logger->debug(
+            'Start withdraw request.',
+            ['context' => 'sep06', 'operation' => 'withdraw',
+                'start_withdraw_request' => json_encode($startWithdrawRequest),
+            ],
+        );
 
-        return $this->sep06Integration->withdraw($startWithdrawRequest);
+        $withdraw = $this->sep06Integration->withdraw($startWithdrawRequest);
+        $this->logger->debug(
+            'Start withdraw request.',
+            ['context' => 'sep06', 'operation' => 'withdraw',
+                'withdraw' => json_encode($withdraw),
+            ],
+        );
+
+        return $withdraw;
     }
 
     /**
@@ -574,9 +812,20 @@ class Sep06Service
         Sep10Jwt $jwtToken,
     ): StartWithdrawResponse {
         if ($this->quotesIntegration === null) {
+            $this->logger->debug(
+                'The $quotesIntegration is null.',
+                ['context' => 'sep06', 'operation' => 'withdraw_exchange'],
+            );
+
             throw new AnchorFailure('Unable to access quotes.', 500);
         }
         $queryParameters = $request->getQueryParams();
+        $this->logger->info(
+            'Executing SEP-06 withdraw exchange.',
+            ['context' => 'sep06', 'operation' => 'withdraw_exchange',
+                'query_parameters' => json_encode($queryParameters),
+            ],
+        );
         $sellAssetCode = Sep06RequestParser::getSourceAssetCodeFromRequestData($queryParameters);
         $buyAsset = Sep06RequestParser::getDestinationAssetFromRequestData($queryParameters);
         $amount = Sep06RequestParser::getAmountFromRequestData($queryParameters);
@@ -595,6 +844,26 @@ class Sep06Service
         $customerId = Sep06RequestParser::getCustomerIdFromRequestData($queryParameters);
         $locationId = Sep06RequestParser::getLocationIdFromRequestData($queryParameters);
         $refundMemo = Sep06RequestParser::getRefundMemoFromRequestData($queryParameters);
+
+        $this->logger->debug(
+            'The request parameters after processing.',
+            [
+                'sell_asset_code' => $sellAssetCode,
+                'buyAsset' => $buyAsset,
+                'amount' => $amount,
+                'account' => $account,
+                'quote_id' => $quoteId,
+                'type' => $type,
+                'lang' => $lang,
+                'callback_url' => $callbackUrl,
+                'country_code' => $countryCode,
+                'customer_id' => $customerId,
+                'location_id' => $locationId,
+                'refund_memo' => $refundMemo,
+                'context' => 'sep06',
+                'operation' => 'withdraw_exchange',
+            ],
+        );
 
         //check buy asset
         $supportedAssets = $this->sep06Integration->supportedAssets();
@@ -628,6 +897,10 @@ class Sep06Service
             countryCode: $countryCode,
             accountId: $sep10AccountId,
             accountMemo: $sep10AccountMemo,
+        );
+        $this->logger->debug(
+            'The price request.',
+            ['context' => 'sep06', 'operation' => 'withdraw_exchange', 'prices_request' => json_encode($pricesRequest)],
         );
         $sep38BuyAssets = $this->quotesIntegration->getPrices($pricesRequest);
         $buyAssetFound = false;
@@ -663,12 +936,26 @@ class Sep06Service
                 accountMemo: $sep10AccountMemo,
             );
             if ($quote->sellAsset->getStringRepresentation() !== $sellAsset->asset->getStringRepresentation()) {
+                $this->logger->debug(
+                    'Quote sell asset does not match source asset',
+                    ['context' => 'sep06', 'operation' => 'withdraw_exchange',
+                        'source_asset' => $sellAsset->asset->getStringRepresentation(),
+                    ],
+                );
+
                 throw new InvalidSepRequest(
                     'quote sell asset does not match source_asset ' .
                     $sellAsset->asset->getStringRepresentation(),
                 );
             }
             if ($quote->buyAsset->getStringRepresentation() !== $buyAsset->getStringRepresentation()) {
+                $this->logger->debug(
+                    'Quote buy asset does not match destination asset',
+                    ['context' => 'sep06', 'operation' => 'withdraw_exchange',
+                        'destination_asset' => $buyAsset->getStringRepresentation(),
+                    ],
+                );
+
                 throw new InvalidSepRequest(
                     'quote buy asset does not match destination_asset ' .
                     $buyAsset->getStringRepresentation(),
@@ -677,6 +964,14 @@ class Sep06Service
             $amountStr = Sep06RequestParser::getStringValueFromRequestData('amount', $queryParameters);
             if ($quote->sellAmount !== $amountStr) {
                 if (!is_numeric($quote->sellAmount) || floatval($quote->sellAmount) !== $amount) {
+                    $this->logger->debug(
+                        'Quote amount does not match request amount',
+                        ['context' => 'sep06', 'operation' => 'withdraw_exchange',
+                            'buy_asset' => $buyAsset->getStringRepresentation(),
+                            'quote_amount' => $quote->sellAmount, 'amount' => $amount,
+                        ],
+                    );
+
                     throw new InvalidSepRequest('quote amount does not match request amount');
                 }
             }
@@ -699,8 +994,22 @@ class Sep06Service
             locationId: $locationId,
             clientDomain: $jwtToken->clientDomain,
         );
+        $this->logger->debug(
+            'Start withdraw exchange request.',
+            ['context' => 'sep06', 'operation' => 'withdraw_exchange',
+                'start_withdraw_exchange_request' => json_encode($startWithdrawExchangeRequest),
+            ],
+        );
 
-        return $this->sep06Integration->withdrawExchange($startWithdrawExchangeRequest);
+        $withdrawExchange = $this->sep06Integration->withdrawExchange($startWithdrawExchangeRequest);
+        $this->logger->debug(
+            'Start withdraw exchange request.',
+            ['context' => 'sep06', 'operation' => 'withdraw_exchange',
+                'withdraw_exchange' => json_encode($withdrawExchange),
+            ],
+        );
+
+        return $withdrawExchange;
     }
 
     /**
@@ -725,6 +1034,13 @@ class Sep06Service
                 $accountMemo = $accountData['account_memo'];
             }
             $queryParameters = $request->getQueryParams();
+            $this->logger->info(
+                'Executing SEP-06 transaction.',
+                ['context' => 'sep06', 'operation' => 'transaction',
+                    'query_parameters' => json_encode($queryParameters),
+                ],
+            );
+
             $lang = null;
             if (isset($queryParameters['lang'])) {
                 if (is_string($queryParameters['lang'])) {
@@ -733,6 +1049,11 @@ class Sep06Service
             }
             if (isset($queryParameters['id'])) {
                 if (!is_string($queryParameters['id'])) {
+                    $this->logger->debug(
+                        'Transaction id must be a string.',
+                        ['context' => 'sep06', 'operation' => 'transaction'],
+                    );
+
                     throw new InvalidSepRequest('id must be a string');
                 }
                 $id = $queryParameters['id'];
@@ -765,16 +1086,34 @@ class Sep06Service
                     $lang,
                 );
             } else {
-                throw new InvalidSepRequest(
-                    'One of id, stellar_transaction_id or external_transaction_id is required.',
-                );
+                $error = 'One of id, stellar_transaction_id or external_transaction_id is required.';
+
+                throw new InvalidSepRequest($error);
             }
             if ($result !== null) {
-                return new JsonResponse(['transaction' => $result->toJson()], 200);
+                $resultJson = $result->toJson();
+                $this->logger->debug(
+                    'Executing SEP-06 transaction.',
+                    ['context' => 'sep06', 'operation' => 'transaction',
+                        'transaction' => $resultJson,
+                    ],
+                );
+
+                return new JsonResponse(['transaction' => $resultJson], 200);
             } else {
+                $this->logger->error(
+                    'Transaction not found',
+                    ['context' => 'sep06', 'operation' => 'transaction', 'http_status_code' => 404],
+                );
+
                 return new JsonResponse(['error' => 'transaction not found'], 404);
             }
         } catch (InvalidSep10JwtData | InvalidSepRequest | AnchorFailure $e) {
+            $this->logger->error(
+                'Failed to retrieve the transaction.',
+                ['context' => 'sep06', 'operation' => 'transaction', 'http_status_code' => 400, 'exception' => $e],
+            );
+
             return new JsonResponse(['error' => $e->getMessage()], 400);
         }
     }
@@ -801,21 +1140,50 @@ class Sep06Service
                 $accountMemo = $accountData['account_memo'];
             }
             $queryParameters = $request->getQueryParams();
+            $this->logger->info(
+                'Executing SEP-06 transactions.',
+                ['context' => 'sep06', 'operation' => 'transactions',
+                    'query_parameters' => json_encode($queryParameters),
+                ],
+            );
+
             $request = Sep06RequestParser::getTransactionsRequestFromRequestData($queryParameters);
 
             $result = $this->sep06Integration->getTransactionHistory($request, $accountId, $accountMemo);
 
             if ($result === null || count($result) === 0) {
+                $this->logger->info(
+                    'The transactions list is empty.',
+                    ['context' => 'sep06', 'operation' => 'transactions'],
+                );
+
                 return new JsonResponse([], 200);
             } else {
+                $this->logger->info(
+                    'Transactions found.',
+                    ['context' => 'sep06', 'operation' => 'transactions', 'no_transactions' => count($result)],
+                );
+
                 $transactionsJson = [];
                 foreach ($result as $tx) {
                     $transactionsJson[] = $tx->toJson();
                 }
 
+                $this->logger->debug(
+                    'Executing SEP-06 transaction.',
+                    ['context' => 'sep06', 'operation' => 'transactions',
+                        'transactions' => $transactionsJson,
+                    ],
+                );
+
                 return new JsonResponse(['transactions' => $transactionsJson], 200);
             }
         } catch (InvalidSep10JwtData | InvalidSepRequest | AnchorFailure $e) {
+            $this->logger->error(
+                'Failed to retrieve the transactions.',
+                ['context' => 'sep06', 'operation' => 'transactions', 'http_status_code' => 400, 'exception' => $e],
+            );
+
             return new JsonResponse(['error' => $e->getMessage()], 400);
         }
     }
@@ -827,6 +1195,10 @@ class Sep06Service
      */
     private function buildInfo(): ResponseInterface
     {
+        $this->logger->info(
+            'Executing SEP-06 info.',
+            ['context' => 'sep06', 'operation' => 'info'],
+        );
         $supportedAssets = $this->sep06Integration->supportedAssets();
 
         /**
@@ -854,6 +1226,10 @@ class Sep06Service
          */
         $withdrawExchangeData = [];
 
+        $this->logger->debug(
+            'The list of all assets.',
+            ['context' => 'sep06', 'operation' => 'info', 'supported_assets' => json_encode($supportedAssets)],
+        );
         foreach ($supportedAssets as $supportedAsset) {
             $code = $supportedAsset->asset->getCode();
             $depositOp = $supportedAsset->depositOperation;
@@ -955,8 +1331,11 @@ class Sep06Service
             ],
         ];
 
-        // $str = json_encode($data);
-        // print($str .PHP_EOL);
+        $this->logger->debug(
+            'The assembled data.',
+            ['context' => 'sep06', 'operation' => 'info', 'data' => json_encode($data)],
+        );
+
         return new JsonResponse($data, 200);
     }
 }
