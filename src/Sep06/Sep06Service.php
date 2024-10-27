@@ -1035,7 +1035,7 @@ class Sep06Service
             }
             $queryParameters = $request->getQueryParams();
             $this->logger->info(
-                'Executing SEP-06 transaction.',
+                'Retrieving SEP-06 transaction.',
                 ['context' => 'sep06', 'operation' => 'transaction',
                     'query_parameters' => json_encode($queryParameters),
                 ],
@@ -1093,7 +1093,7 @@ class Sep06Service
             if ($result !== null) {
                 $resultJson = $result->toJson();
                 $this->logger->debug(
-                    'Executing SEP-06 transaction.',
+                    'Retrieving SEP-06 transaction.',
                     ['context' => 'sep06', 'operation' => 'transaction',
                         'transaction' => $resultJson,
                     ],
@@ -1141,7 +1141,7 @@ class Sep06Service
             }
             $queryParameters = $request->getQueryParams();
             $this->logger->info(
-                'Executing SEP-06 transactions.',
+                'Retrieving SEP-06 transactions.',
                 ['context' => 'sep06', 'operation' => 'transactions',
                     'query_parameters' => json_encode($queryParameters),
                 ],
@@ -1170,7 +1170,7 @@ class Sep06Service
                 }
 
                 $this->logger->debug(
-                    'Executing SEP-06 transaction.',
+                    'Retrieving SEP-06 transaction.',
                     ['context' => 'sep06', 'operation' => 'transactions',
                         'transactions' => $transactionsJson,
                     ],

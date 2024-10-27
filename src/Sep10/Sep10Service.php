@@ -1298,7 +1298,7 @@ class Sep10Service
             'network_passphrase' => $network->getNetworkPassphrase(),
         ];
 
-        $this->logger->error(
+        $this->logger->debug(
             'Challenge built successfully.',
             [
                 'context' => 'sep10',

@@ -148,7 +148,9 @@ class Sep12Service
             } catch (CustomerNotFoundForId $e) {
                 $this->logger->error(
                     'Customer not found for ID.',
-                    ['context' => 'sep12', 'error' => $e->getMessage(), 'exception' => $e, 'http_status_code' => 404],
+                    ['context' => 'sep12', 'error' => $e->getMessage(), 'exception' => $e, 'http_status_code' => 404,
+                        'customer_id' => $e->id,
+                    ],
                 );
 
                 return new JsonResponse(['error' => $e->getMessage()], 404);
@@ -257,7 +259,7 @@ class Sep12Service
             $this->logger->error(
                 'Customer not found by ID.',
                 ['context' => 'sep12', 'operation' => 'put_customer',
-                    'error' => $e->getMessage(), 'exception' => $e, 'http_status_code' => 404,
+                    'error' => $e->getMessage(), 'exception' => $e, 'http_status_code' => 404, 'customer_id' => $e->id,
                 ],
             );
 
@@ -329,6 +331,7 @@ class Sep12Service
                 'Customer not found for ID.',
                 ['context' => 'sep12', 'error' => $e->getMessage(),
                     'exception' => $e, 'http_status_code' => 404, 'operation' => 'put_customer_callback',
+                    'customer_id' => $e->id,
                 ],
             );
 
@@ -398,6 +401,7 @@ class Sep12Service
                 'Customer not found for ID.',
                 ['context' => 'sep12', 'error' => $e->getMessage(),
                     'exception' => $e, 'http_status_code' => 404, 'operation' => 'customer_verification',
+                    'customer_id' => $e->id,
                 ],
             );
 
@@ -532,6 +536,7 @@ class Sep12Service
                 'Customer not found for ID.',
                 ['context' => 'sep12', 'error' => $notFound->getMessage(),
                     'exception' => $notFound, 'http_status_code' => 404, 'operation' => 'delete_customer',
+                    'customer_id' => $notFound->id,
                 ],
             );
 

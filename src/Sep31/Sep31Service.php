@@ -283,6 +283,7 @@ class Sep31Service
                 'Failed to retrieve transaction by id.',
                 ['context' => 'sep31', 'operation' => 'transaction',
                     'error' => $qe->getMessage(), 'exception' => $qe, 'http_status_code' => 404,
+                    'transaction_id' => $qe->id,
                 ],
             );
 
@@ -500,6 +501,7 @@ class Sep31Service
                 'Failed to save transaction (payment) callback, transaction not found.',
                 ['context' => 'sep31', 'operation' => 'put_transaction_callback',
                     'error' => $txNotFound->getMessage(), 'exception' => $txNotFound, 'http_status_code' => 400,
+                    'transaction_id' => $txNotFound->id,
                 ],
             );
 

@@ -193,7 +193,7 @@ class Sep31RequestParser
                 self::getLogger()->debug(
                     'Quote not found.',
                     ['context' => 'sep31', 'operation' => 'new_transaction',
-                        'id' => $quoteId, 'error' => $qi->getMessage(), 'exception' => $qi,
+                        'quote_id' => $quoteId, 'error' => $qi->getMessage(), 'exception' => $qi,
                     ],
                 );
 

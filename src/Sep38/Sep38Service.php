@@ -572,6 +572,7 @@ class Sep38Service
                 'Quote not found.',
                 ['context' => 'sep38', 'operation' => 'quote',
                     'error' => $qe->getMessage(), 'exception' => $qe, 'http_status_code' => 404,
+                    'quote_id' => $qe->id,
                 ],
             );
 
