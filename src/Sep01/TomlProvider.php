@@ -40,6 +40,11 @@ class TomlProvider
      */
     private LoggerInterface | NullLogger $logger;
 
+    /**
+     * Constructor.
+     *
+     * @param LoggerInterface|null $logger the logger to be used for logging.
+     */
     public function __construct(?LoggerInterface $logger = null)
     {
         $this->logger = $logger ?? new NullLogger();

@@ -53,7 +53,11 @@ class Sep12RequestParser
             if (is_string($requestData['id'])) {
                 $id = $requestData['id'];
             } else {
-                throw new InvalidSepRequest('id must be a string');
+                throw new InvalidSepRequest(
+                    message: 'id must be a string',
+                    messageKey: 'shared_lang.error.request.field_must_be_string',
+                    messageParams: ['field' => 'id'],
+                );
             }
         }
 
@@ -62,7 +66,11 @@ class Sep12RequestParser
             if (is_string($requestData['account'])) {
                 $account = $requestData['account'];
             } else {
-                throw new InvalidSepRequest('account must be a string');
+                throw new InvalidSepRequest(
+                    message: 'id must be a string',
+                    messageKey: 'shared_lang.error.request.field_must_be_string',
+                    messageParams: ['field' => 'account'],
+                );
             }
         }
 
@@ -70,10 +78,17 @@ class Sep12RequestParser
             if (is_string($requestData['memo_type'])) {
                 $memoType = $requestData['memo_type'];
                 if ($memoType !== 'id') {
-                    throw new InvalidSepRequest('only memo type id supported.');
+                    throw new InvalidSepRequest(
+                        message: 'only memo type id supported.',
+                        messageKey: 'shared_lang.error.request.memo.only_memo_type_id_supported',
+                    );
                 }
             } else {
-                throw new InvalidSepRequest('memo_type must be a string');
+                throw new InvalidSepRequest(
+                    message: 'id must be a string',
+                    messageKey: 'shared_lang.error.request.field_must_be_string',
+                    messageParams: ['field' => 'memo_type'],
+                );
             }
         }
 
@@ -84,10 +99,17 @@ class Sep12RequestParser
                 if (is_numeric($memoStr) && is_int($memoStr + 0)) {
                     $memo = intval($memoStr);
                 } else {
-                    throw new InvalidSepRequest('invalid memo value: ' . $memoStr);
+                    throw new InvalidSepRequest(
+                        message: 'invalid memo value: ' . $memoStr,
+                        messageKey: 'shared_lang.error.request.memo.invalid_memo',
+                    );
                 }
             } else {
-                throw new InvalidSepRequest('memo must be a string');
+                throw new InvalidSepRequest(
+                    message: 'id must be a string',
+                    messageKey: 'shared_lang.error.request.field_must_be_string',
+                    messageParams: ['field' => 'memo'],
+                );
             }
         }
 
@@ -96,7 +118,11 @@ class Sep12RequestParser
             if (is_string($requestData['type'])) {
                 $type = $requestData['type'];
             } else {
-                throw new InvalidSepRequest('type must be a string');
+                throw new InvalidSepRequest(
+                    message: 'id must be a string',
+                    messageKey: 'shared_lang.error.request.field_must_be_string',
+                    messageParams: ['field' => 'type'],
+                );
             }
         }
         $sep12CustomerRequestBase = new Sep12CustomerRequestBase(
@@ -130,7 +156,11 @@ class Sep12RequestParser
             if (is_string($requestData['lang'])) {
                 $lang = $requestData['lang'];
             } else {
-                throw new InvalidSepRequest('lang must be a string');
+                throw new InvalidSepRequest(
+                    message: 'lang must be a string',
+                    messageKey: 'shared_lang.error.request.field_must_be_string',
+                    messageParams: ['field' => 'lang'],
+                );
             }
         }
 
@@ -142,7 +172,10 @@ class Sep12RequestParser
         }
 
         if ($base->account === null) {
-            throw new InvalidSepRequest('invalid jwt token');
+            throw new InvalidSepRequest(
+                message: 'invalid jwt token',
+                messageKey: 'shared_lang.error.jwt.invalid',
+            );
         }
         $getCustomerRequest = new GetCustomerRequest(
             $base->account,
@@ -182,7 +215,10 @@ class Sep12RequestParser
                 $base->account = $token->accountId;
             }
             if ($base->account === null) {
-                throw new InvalidSepRequest('invalid jwt token');
+                throw new InvalidSepRequest(
+                    message: 'invalid jwt token',
+                    messageKey: 'shared_lang.error.jwt.invalid',
+                );
             }
         }
         $result = new PutCustomerRequest(
@@ -239,7 +275,10 @@ class Sep12RequestParser
                 $base->account = $token->accountId;
             }
             if ($base->account === null) {
-                throw new InvalidSepRequest('invalid jwt token');
+                throw new InvalidSepRequest(
+                    message: 'invalid jwt token',
+                    messageKey: 'shared_lang.error.jwt.invalid',
+                );
             }
         }
         $url = null;
@@ -247,10 +286,17 @@ class Sep12RequestParser
             if (is_string($requestData['url'])) {
                 $url = $requestData['url'];
                 if (!filter_var($url, FILTER_VALIDATE_URL)) {
-                    throw new InvalidSepRequest('invalid url');
+                    throw new InvalidSepRequest(
+                        message: 'invalid url',
+                        messageKey: 'sep12_lang.error.request.invalid_url',
+                    );
                 }
             } else {
-                throw new InvalidSepRequest('url must be a string');
+                throw new InvalidSepRequest(
+                    message: 'url must be a string',
+                    messageKey: 'shared_lang.error.request.field_must_be_string',
+                    messageParams: ['field' => 'url'],
+                );
             }
         }
 
@@ -285,12 +331,19 @@ class Sep12RequestParser
         $data = $requestData;
         $id = null;
         if (!array_key_exists('id', $data)) {
-            throw new InvalidSepRequest('missing id');
+            throw new InvalidSepRequest(
+                message: 'missing id',
+                messageKey: 'sep12_lang.error.request.customer_id_missing',
+            );
         } elseif (is_string($data['id'])) {
             $id = $data['id'];
             unset($data['id']);
         } else {
-            throw new InvalidSepRequest('id must be a string');
+            throw new InvalidSepRequest(
+                message: 'id must be a string',
+                messageKey: 'shared_lang.error.request.field_must_be_string',
+                messageParams: ['field' => 'id'],
+            );
         }
         /**
          * @var array<string, string> $verificationFields
@@ -298,14 +351,26 @@ class Sep12RequestParser
         $verificationFields = [];
         foreach (array_keys($data) as $key) {
             if (!is_string($key)) {
-                throw new InvalidSepRequest('key must be a string');
+                throw new InvalidSepRequest(
+                    message: 'id must be a string',
+                    messageKey: 'shared_lang.error.request.field_must_be_string',
+                    messageParams: ['field' => 'key'],
+                );
             }
             if (!str_ends_with($key, '_verification')) {
-                throw new InvalidSepRequest('invalid key ' . $key);
+                throw new InvalidSepRequest(
+                    message: 'invalid key ' . $key,
+                    messageKey: 'sep12_lang.error.request.invalid_verification_key',
+                    messageParams: ['key' => $key],
+                );
             }
             $value = $data[$key];
             if (!is_string($value)) {
-                throw new InvalidSepRequest('invalid value for ' . $key . '. Must be string');
+                throw new InvalidSepRequest(
+                    message: 'invalid value for ' . $key . '. Must be string',
+                    messageKey: 'shared_lang.error.request.field_must_be_string',
+                    messageParams: ['field' => 'key'],
+                );
             }
             $verificationFields[$key] = $value;
         }
@@ -316,7 +381,10 @@ class Sep12RequestParser
         }
 
         if ($account === null) {
-            throw new InvalidSepRequest('invalid jwt token');
+            throw new InvalidSepRequest(
+                message: 'invalid jwt token',
+                messageKey: 'shared_lang.error.jwt.invalid',
+            );
         }
 
         $putCustomerVerificationRequest = new PutCustomerVerificationRequest(
@@ -350,7 +418,11 @@ class Sep12RequestParser
         if (is_numeric($memoStr) && is_int($memoStr + 0)) {
             return intval($memoStr);
         } else {
-            throw new InvalidSepRequest('invalid jwt token memo value: ' . $memoStr);
+            throw new InvalidSepRequest(
+                message: 'invalid jwt token memo value: ' . $memoStr,
+                messageKey: 'shared_lang.error.request.field_must_be_an_int',
+                messageParams: ['field' => 'jwt memo'],
+            );
         }
     }
 

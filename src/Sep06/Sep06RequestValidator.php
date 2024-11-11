@@ -56,7 +56,11 @@ class Sep06RequestValidator
                 ['context' => 'sep06', 'asset_code' => $assetCode, 'operation' => 'deposit'],
             );
 
-            throw new InvalidSepRequest('invalid operation for asset ' . $assetCode);
+            throw new InvalidSepRequest(
+                message: 'invalid operation for asset ' . $assetCode,
+                messageKey: 'shared_lang.error.request.operation.invalid',
+                messageParams: ['asset' => $assetCode],
+            );
         }
 
         return $depositAsset;
@@ -94,7 +98,11 @@ class Sep06RequestValidator
                 ['context' => 'sep06', 'asset_code' => $assetCode, 'operation' => 'withdraw'],
             );
 
-            throw new InvalidSepRequest('invalid operation for asset ' . $assetCode);
+            throw new InvalidSepRequest(
+                message: 'invalid operation for asset ' . $assetCode,
+                messageKey: 'shared_lang.error.request.operation.invalid',
+                messageParams: ['asset' => $assetCode],
+            );
         }
 
         return $withdrawAsset;
@@ -132,7 +140,11 @@ class Sep06RequestValidator
                 ['context' => 'sep06', 'asset_code' => $assetCode],
             );
 
-            throw new InvalidSepRequest('invalid operation for asset ' . $assetCode);
+            throw new InvalidSepRequest(
+                message: 'invalid operation for asset ' . $assetCode,
+                messageKey: 'shared_lang.error.request.operation.invalid',
+                messageParams: ['asset' => $assetCode],
+            );
         }
 
         return $destinationAsset;
@@ -170,7 +182,11 @@ class Sep06RequestValidator
                 ['context' => 'sep06', 'asset_code' => $assetCode],
             );
 
-            throw new InvalidSepRequest('invalid operation for asset null');
+            throw new InvalidSepRequest(
+                message: 'invalid operation for asset ' . $assetCode,
+                messageKey: 'shared_lang.error.request.operation.invalid',
+                messageParams: ['asset' => 'null'],
+            );
         }
 
         return $sourceAsset;
@@ -196,10 +212,21 @@ class Sep06RequestValidator
                     'asset_code' => $assetCode, 'valid_types' => implode(', ', $validTypes),
                 ],
             );
-
-            throw new InvalidSepRequest('Invalid type ' .
+            $validTypesStr = implode(', ', $validTypes);
+            $err = 'Invalid type ' .
                 $requestType . ' for asset ' . $assetCode .
-                '. Supported types are ' . implode(', ', $validTypes) . '.');
+                '. Supported types are ' . $validTypesStr . '.';
+
+            throw new InvalidSepRequest(
+                message: $err,
+                messageKey: 'sep06_lang.error.request.invalid_operation_type',
+                messageParams: [
+                    'requestType' => $requestType,
+                    'asset' => $assetCode,
+                    'assetCode' => $assetCode,
+                    'types' => $validTypesStr,
+                ],
+            );
         }
     }
 
@@ -231,8 +258,11 @@ class Sep06RequestValidator
                 ['context' => 'sep06', 'request_amount' => $requestAmount, 'for_asset' => $assetCode],
             );
 
-            throw new InvalidSepRequest('invalid amount ' . strval($requestAmount) .
-                ' for asset ' . $assetCode);
+            throw new InvalidSepRequest(
+                message: 'invalid amount ' . strval($requestAmount) . ' for asset ' . $assetCode,
+                messageKey: 'sep06_lang.error.request.invalid_amount_for_asset',
+                messageParams: ['amount' => strval($requestAmount), 'asset' => $assetCode],
+            );
         }
     }
 

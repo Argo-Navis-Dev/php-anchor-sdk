@@ -15,11 +15,13 @@ use ArgoNavis\PhpAnchorSdk\callback\ICustomerIntegration;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerCallbackRequest;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerRequest;
 use ArgoNavis\PhpAnchorSdk\callback\PutCustomerResponse;
+use ArgoNavis\PhpAnchorSdk\config\IAppConfig;
 use ArgoNavis\PhpAnchorSdk\config\ISep12Config;
 use ArgoNavis\PhpAnchorSdk\exception\AnchorFailure;
 use ArgoNavis\PhpAnchorSdk\exception\CustomerNotFoundForId;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidRequestData;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSepRequest;
+use ArgoNavis\PhpAnchorSdk\exception\LocalizedExceptionHelper;
 use ArgoNavis\PhpAnchorSdk\exception\SepNotAuthorized;
 use ArgoNavis\PhpAnchorSdk\logging\NullLogger;
 use ArgoNavis\PhpAnchorSdk\util\MemoHelper;
@@ -59,6 +61,7 @@ use function trim;
  */
 class Sep12Service
 {
+    public IAppConfig $appConfig;
     public ICustomerIntegration $customerIntegration;
     private ?ISep12Config $config;
     private int $uploadFileMaxSize = 2097152; // 2 MB
@@ -73,17 +76,21 @@ class Sep12Service
      *
      * @param ICustomerIntegration $customerIntegration the callback class containing the needed business
      * logic to load and store data, etc. See ICustomerIntegration description.
+     * @param IAppConfig $appConfig the app config containing the needed configuration data.
      * @param ISep12Config|null $config SEP-12 config containing info about the max size and number of files
+     * @param LoggerInterface|null $logger the PSR-3 logger to be used for logging.
      * allowed to be uploaded.
      */
     public function __construct(
         ICustomerIntegration $customerIntegration,
+        IAppConfig $appConfig,
         ?ISep12Config $config = null,
         ?LoggerInterface $logger = null,
     ) {
         $this->logger = $logger ?? new NullLogger();
         Sep10Jwt::setLogger($this->logger);
         $this->customerIntegration = $customerIntegration;
+        $this->appConfig = $appConfig;
         $this->config = $config;
         if ($this->config !== null) {
             $fMaxSizeMb = $this->config->getUploadFileMaxSizeMb();
@@ -127,7 +134,7 @@ class Sep12Service
                 'Executing get customer info request.',
                 ['context' => 'sep12', 'operation' => 'customer_info'],
             );
-
+            $customerRequest = null;
             try {
                 $queryParams = $request->getQueryParams();
                 $this->logger->debug(
@@ -152,22 +159,39 @@ class Sep12Service
                         'customer_id' => $e->id,
                     ],
                 );
+                $localizedError = LocalizedExceptionHelper::getLocalizedErrorMsgFromException(
+                    $e,
+                    $this->appConfig,
+                    $customerRequest?->lang ?? 'en',
+                );
 
-                return new JsonResponse(['error' => $e->getMessage()], 404);
+                return new JsonResponse(['error' => $localizedError], 404);
             } catch (SepNotAuthorized $e) {
                 $this->logger->error(
                     'SEP not authorized.',
                     ['context' => 'sep12', 'error' => $e->getMessage(), 'exception' => $e, 'http_status_code' => 401],
                 );
 
-                return new JsonResponse(['error' => $e->getMessage()], 401);
+                $localizedError = LocalizedExceptionHelper::getLocalizedErrorMsgFromException(
+                    $e,
+                    $this->appConfig,
+                    $customerRequest?->lang ?? 'en',
+                );
+
+                return new JsonResponse(['error' => $localizedError], 401);
             } catch (InvalidSepRequest | InvalidSepRequest | AnchorFailure $e) {
                 $this->logger->error(
                     'Invalid request.',
                     ['context' => 'sep12', 'error' => $e->getMessage(), 'exception' => $e, 'http_status_code' => 400],
                 );
 
-                return new JsonResponse(['error' => $e->getMessage()], 400);
+                $localizedError = LocalizedExceptionHelper::getLocalizedErrorMsgFromException(
+                    $e,
+                    $this->appConfig,
+                    $customerRequest?->lang ?? 'en',
+                );
+
+                return new JsonResponse(['error' => $localizedError], 400);
             }
         } elseif ($request->getMethod() === 'PUT') {
             $requestTarget = $request->getRequestTarget();

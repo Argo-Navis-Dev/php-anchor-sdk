@@ -371,7 +371,10 @@ class Sep10Jwt
                     ['context' => 'jwt', 'error' => $th->getMessage(), 'exception' => $th],
                 );
 
-                throw new InvalidSep10JwtData('invalid account id in jwt token');
+                throw new InvalidSep10JwtData(
+                    message: 'invalid account id in jwt token',
+                    messageKey: 'shared_lang.error.jwt.account_id_not_found',
+                );
             }
             $accountData['account_id'] = $this->muxedAccountId;
         } elseif ($this->accountId !== null) {
@@ -383,7 +386,10 @@ class Sep10Jwt
                     ['context' => 'jwt', 'error' => $th->getMessage(), 'exception' => $th],
                 );
 
-                throw new InvalidSep10JwtData('invalid account id in jwt token');
+                throw new InvalidSep10JwtData(
+                    message: 'invalid account id in jwt token',
+                    messageKey: 'shared_lang.error.jwt.account_id_not_found',
+                );
             }
             $accountData['account_id'] = $this->accountId;
             if ($this->accountMemo !== null) {
@@ -395,13 +401,19 @@ class Sep10Jwt
                         ['context' => 'jwt', 'error' => $t->getMessage(), 'exception' => $t],
                     );
 
-                    throw new InvalidSep10JwtData($t->getMessage());
+                    throw new InvalidSep10JwtData(
+                        message: $t->getMessage(),
+                        messageKey: 'shared_lang.error.unexpected',
+                    );
                 }
 
                 $accountData['account_memo'] = $this->accountMemo;
             }
         } else {
-            throw new InvalidSep10JwtData('account id not found in jwt token');
+            throw new InvalidSep10JwtData(
+                message: 'invalid account id in jwt token',
+                messageKey: 'shared_lang.error.jwt.account_id_not_found',
+            );
         }
 
         return $accountData;

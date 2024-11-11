@@ -118,7 +118,11 @@ class IdentificationFormatAsset
 
             return new IdentificationFormatAsset($schema, $code, $issuer);
         } else {
-            throw new InvalidAsset('the asset ' . $asset . ' has an invalid asset format');
+            throw new InvalidAsset(
+                message: 'the asset ' . $asset . ' has an invalid asset format',
+                messageKey: 'asset_lang.error.invalid_asset_format',
+                messageParams: ['asset' => $asset],
+            );
         }
     }
 

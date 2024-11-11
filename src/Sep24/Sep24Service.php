@@ -15,11 +15,13 @@ use ArgoNavis\PhpAnchorSdk\callback\IInteractiveFlowIntegration;
 use ArgoNavis\PhpAnchorSdk\callback\InteractiveDepositRequest;
 use ArgoNavis\PhpAnchorSdk\callback\InteractiveTransactionResponse;
 use ArgoNavis\PhpAnchorSdk\callback\InteractiveWithdrawRequest;
+use ArgoNavis\PhpAnchorSdk\config\IAppConfig;
 use ArgoNavis\PhpAnchorSdk\config\ISep24Config;
 use ArgoNavis\PhpAnchorSdk\exception\AnchorFailure;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidRequestData;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSep10JwtData;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSepRequest;
+use ArgoNavis\PhpAnchorSdk\exception\LocalizedExceptionHelper;
 use ArgoNavis\PhpAnchorSdk\logging\NullLogger;
 use ArgoNavis\PhpAnchorSdk\shared\IdentificationFormatAsset;
 use ArgoNavis\PhpAnchorSdk\util\MemoHelper;
@@ -36,6 +38,7 @@ use function is_numeric;
 use function is_string;
 use function json_encode;
 use function str_contains;
+use function strval;
 use function trim;
 
 /**
@@ -56,6 +59,7 @@ use function trim;
  */
 class Sep24Service
 {
+    public IAppConfig $appConfig;
     public ISep24Config $sep24Config;
     public IInteractiveFlowIntegration $sep24Integration;
     private int $uploadFileMaxSize = 2097152; // 2 MB
@@ -69,15 +73,19 @@ class Sep24Service
      * Constructor.
      *
      * @param ISep24Config $sep24Config SEP-24 config containing info about the supported features.
+     * @param IAppConfig $appConfig the app config containing the server specific configuration.
      * @param IInteractiveFlowIntegration $sep24Integration the callback class containing the needed business
      * supported assets, fees, load and store transaction data and more. See IInteractiveFlowIntegration description.
+     * @param LoggerInterface|null $logger the PSR-3 logger to be used for logging.
      */
     public function __construct(
         ISep24Config $sep24Config,
+        IAppConfig $appConfig,
         IInteractiveFlowIntegration $sep24Integration,
         ?LoggerInterface $logger = null,
     ) {
         $this->sep24Config = $sep24Config;
+        $this->appConfig = $appConfig;
         $this->sep24Integration = $sep24Integration;
         $this->logger = $logger ?? new NullLogger();
         Sep10Jwt::setLogger($this->logger);
@@ -183,8 +191,20 @@ class Sep24Service
                     'Invalid request, unknown endpoint',
                     ['context' => 'sep24', 'http_status_code' => 404],
                 );
+                $queryParameters = $request->getQueryParams();
+                $lang = null;
+                if (isset($queryParameters['lang'])) {
+                    if (is_string($queryParameters['lang'])) {
+                        $lang = $queryParameters['lang'];
+                    }
+                }
+                $errorMsg = $this->appConfig->getLocalizedText(
+                    key: 'shared_lang.error.request.invalid_unknown_endpoint',
+                    locale: $lang,
+                    default: 'authentication_required',
+                );
 
-                return new JsonResponse(['error' => 'Invalid request. Unknown endpoint.'], 404);
+                return new JsonResponse(['error' => $errorMsg], 404);
             }
         } elseif ($request->getMethod() === 'POST') {
             if (str_contains($requestTarget, '/transactions/deposit/interactive')) {
@@ -278,6 +298,14 @@ class Sep24Service
      */
     private function handleGetFeeRequest(ServerRequestInterface $request): ResponseInterface
     {
+        $lang = null;
+        $queryParameters = $request->getQueryParams();
+        if (isset($queryParameters['lang'])) {
+            if (is_string($queryParameters['lang'])) {
+                $lang = $queryParameters['lang'];
+            }
+        }
+
         if ($this->sep24Config->isFeeEndpointSupported()) {
             try {
                 $queryParams = $request->getQueryParams();
@@ -292,16 +320,26 @@ class Sep24Service
                     'Failed to execute the fee info request.',
                     ['context' => 'sep24', 'http_status_code' => 400, 'error' => $e->getMessage(), 'exception' => $e],
                 );
+                $localizedError = LocalizedExceptionHelper::getLocalizedErrorMsgFromException(
+                    $e,
+                    $this->appConfig,
+                    $lang,
+                );
 
-                return new JsonResponse(['error' => $e->getMessage()], 400);
+                return new JsonResponse(['error' => $localizedError], 400);
             }
         } else {
             $this->logger->error(
                 'Fee info is not supported',
                 ['context' => 'sep24', 'http_status_code' => 404],
             );
+            $errorMsg = $this->appConfig->getLocalizedText(
+                key: 'sep24_lang.error.fee_not_supported',
+                locale: $lang,
+                default: 'Fee endpoint is not supported.',
+            );
 
-            return new JsonResponse(['error' => 'Fee endpoint is not supported.'], 404);
+            return new JsonResponse(['error' => $errorMsg], 404);
         }
     }
 
@@ -324,8 +362,22 @@ class Sep24Service
                     'http_status_code' => 400, 'error' => $e->getMessage(), 'exception' => $e,
                 ],
             );
+            $lang = 'en';
+            try {
+                $requestData = $request->getParsedBody();
+                if (is_array($requestData)) {
+                    $lang = Sep24RequestParser::getLangFromRequestData($requestData);
+                }
+            } catch (InvalidSepRequest $e) {
+                // ignore
+            }
+            $localizedError = LocalizedExceptionHelper::getLocalizedErrorMsgFromException(
+                $e,
+                $this->appConfig,
+                $lang,
+            );
 
-            return new JsonResponse(['error' => $e->getMessage()], 400);
+            return new JsonResponse(['error' => $localizedError], 400);
         }
     }
 
@@ -348,8 +400,22 @@ class Sep24Service
                     'http_status_code' => 400, 'error' => $e->getMessage(), 'exception' => $e,
                 ],
             );
+            $lang = 'en';
+            try {
+                $requestData = $request->getParsedBody();
+                if (is_array($requestData)) {
+                    $lang = Sep24RequestParser::getLangFromRequestData($requestData);
+                }
+            } catch (InvalidSepRequest $e) {
+                // ignore
+            }
+            $localizedError = LocalizedExceptionHelper::getLocalizedErrorMsgFromException(
+                $e,
+                $this->appConfig,
+                $lang,
+            );
 
-            return new JsonResponse(['error' => $e->getMessage()], 400);
+            return new JsonResponse(['error' => $localizedError], 400);
         }
     }
 
@@ -363,6 +429,7 @@ class Sep24Service
      */
     private function handleGetTransactionRequest(ServerRequestInterface $request, Sep10Jwt $token): ResponseInterface
     {
+        $lang = 'en';
         try {
             $result = null;
             $accountData = $token->getValidatedAccountData();
@@ -371,7 +438,10 @@ class Sep24Service
             if (isset($accountData['account_id'])) {
                 $accountId = $accountData['account_id'];
             } else {
-                throw new InvalidSepRequest('account id not found in jwt token');
+                throw new InvalidSepRequest(
+                    message: 'account id not found in jwt token',
+                    messageKey: 'shared_lang.error.jwt.account_id_not_found',
+                );
             }
             if (isset($accountData['account_memo'])) {
                 $accountMemo = $accountData['account_memo'];
@@ -384,7 +454,6 @@ class Sep24Service
                 ],
             );
 
-            $lang = null;
             if (isset($queryParameters['lang'])) {
                 if (is_string($queryParameters['lang'])) {
                     $lang = $queryParameters['lang'];
@@ -392,7 +461,11 @@ class Sep24Service
             }
             if (isset($queryParameters['id'])) {
                 if (!is_string($queryParameters['id'])) {
-                    throw new InvalidSepRequest('id must be a string');
+                    throw new InvalidSepRequest(
+                        message: 'id must be a string',
+                        messageKey: 'shared_lang.error.request.field_must_be_string',
+                        messageParams: ['field' => 'id'],
+                    );
                 }
                 $id = $queryParameters['id'];
                 $this->logger->info(
@@ -408,7 +481,11 @@ class Sep24Service
                 );
             } elseif (isset($queryParameters['stellar_transaction_id'])) {
                 if (!is_string($queryParameters['stellar_transaction_id'])) {
-                    throw new InvalidSepRequest('stellar_transaction_id must be a string');
+                    throw new InvalidSepRequest(
+                        message: 'stellar_transaction_id must be a string',
+                        messageKey: 'shared_lang.error.request.field_must_be_string',
+                        messageParams: ['field' => 'stellar_transaction_id'],
+                    );
                 }
                 $stellarTransactionId = $queryParameters['stellar_transaction_id'];
                 $this->logger->info(
@@ -426,7 +503,11 @@ class Sep24Service
                 );
             } elseif (isset($queryParameters['external_transaction_id'])) {
                 if (!is_string($queryParameters['external_transaction_id'])) {
-                    throw new InvalidSepRequest('external_transaction_id must be a string');
+                    throw new InvalidSepRequest(
+                        message: 'external_transaction_id must be a string',
+                        messageKey: 'shared_lang.error.request.field_must_be_string',
+                        messageParams: ['field' => 'external_transaction_id'],
+                    );
                 }
                 $externalTransactionId = $queryParameters['external_transaction_id'];
                 $this->logger->info(
@@ -443,7 +524,8 @@ class Sep24Service
                 );
             } else {
                 throw new InvalidSepRequest(
-                    'One of id, stellar_transaction_id or external_transaction_id is required.',
+                    message: 'One of id, stellar_transaction_id or external_transaction_id is required.',
+                    messageKey: 'shared_lang.error.transaction.id_or_stellar_or_transaction_must_be_specified',
                 );
             }
             if ($result !== null) {
@@ -459,8 +541,13 @@ class Sep24Service
                     'Transaction not found.',
                     ['context' => 'sep24', 'operation' => 'transaction', 'http_status_code' => 404],
                 );
+                $localizedError = $this->appConfig->getLocalizedText(
+                    key: 'shared_lang.error.general.transaction_not_found',
+                    locale: $lang,
+                    default: 'transaction not found',
+                );
 
-                return new JsonResponse(['error' => 'transaction not found'], 404);
+                return new JsonResponse(['error' => $localizedError], 404);
             }
         } catch (InvalidSep10JwtData | InvalidSepRequest | AnchorFailure $e) {
             $this->logger->error(
@@ -469,8 +556,13 @@ class Sep24Service
                     'http_status_code' => 400, 'error' => $e->getMessage(), 'exception' => $e,
                 ],
             );
+            $localizedError = LocalizedExceptionHelper::getLocalizedErrorMsgFromException(
+                $e,
+                $this->appConfig,
+                $lang,
+            );
 
-            return new JsonResponse(['error' => $e->getMessage()], 400);
+            return new JsonResponse(['error' => $localizedError], 400);
         }
     }
 
@@ -484,6 +576,7 @@ class Sep24Service
      */
     private function handleGetTransactionsRequest(ServerRequestInterface $request, Sep10Jwt $token): ResponseInterface
     {
+        $lang = 'en';
         try {
             $accountData = $token->getValidatedAccountData();
             $accountId = null;
@@ -491,7 +584,10 @@ class Sep24Service
             if (isset($accountData['account_id'])) {
                 $accountId = $accountData['account_id'];
             } else {
-                throw new InvalidSepRequest('account id not found in jwt token');
+                throw new InvalidSepRequest(
+                    message: 'account id not found in jwt token',
+                    messageKey: 'shared_lang.error.jwt.account_id_not_found',
+                );
             }
             if (isset($accountData['account_memo'])) {
                 $accountMemo = $accountData['account_memo'];
@@ -541,8 +637,13 @@ class Sep24Service
                     'http_status_code' => 400, 'error' => $e->getMessage(), 'exception' => $e,
                 ],
             );
+            $localizedError = LocalizedExceptionHelper::getLocalizedErrorMsgFromException(
+                $e,
+                $this->appConfig,
+                $lang,
+            );
 
-            return new JsonResponse(['error' => $e->getMessage()], 400);
+            return new JsonResponse(['error' => $localizedError], 400);
         }
     }
 
@@ -646,7 +747,11 @@ class Sep24Service
                 ],
             );
 
-            throw new InvalidSepRequest('invalid operation for asset ' . $asset->getCode());
+            throw new InvalidSepRequest(
+                message: 'invalid operation for asset ' . $asset->getCode(),
+                messageKey: 'asset_lang.error.request.invalid_operation_for_asset',
+                messageParams: ['asset' => $asset->getCode()],
+            );
         }
 
         // Validate min amount
@@ -660,7 +765,11 @@ class Sep24Service
                     ],
                 );
 
-                throw new InvalidSepRequest("amount is less than asset's minimum limit of: " . $minAmount);
+                throw new InvalidSepRequest(
+                    message: "amount is less than asset's minimum limit of: " . $minAmount,
+                    messageKey: 'sep24_lang.error.amount.less_than_asset_min',
+                    messageParams: ['min' => strval($minAmount)],
+                );
             }
         }
 
@@ -675,7 +784,11 @@ class Sep24Service
                     ],
                 );
 
-                throw new InvalidSepRequest("amount exceeds asset's maximum limit of: " . $maxAmount);
+                throw new InvalidSepRequest(
+                    message: "amount exceeds asset's maximum limit of: " . $maxAmount,
+                    messageKey: 'sep24_lang.error.amount.greater_than_asset_max',
+                    messageParams: ['max' => strval($maxAmount)],
+                );
             }
         }
 
@@ -808,7 +921,11 @@ class Sep24Service
         $assetInfo = $this->sep24Integration->getAsset($asset->getCode(), $asset->getIssuer());
 
         if ($assetInfo === null || !$assetInfo->depositOperation->enabled) {
-            throw new InvalidSepRequest('invalid operation for asset ' . $asset->getCode());
+            throw new InvalidSepRequest(
+                message: 'invalid operation for asset ' . $asset->getCode(),
+                messageKey: 'asset_lang.error.request.invalid_operation_for_asset',
+                messageParams: ['asset' => $asset->getCode()],
+            );
         }
 
         // Validate min amount
@@ -822,7 +939,11 @@ class Sep24Service
                     ],
                 );
 
-                throw new InvalidSepRequest("amount is less than asset's minimum limit of: " . $minAmount);
+                throw new InvalidSepRequest(
+                    message: "amount is less than asset's minimum limit of: " . $minAmount,
+                    messageKey: 'sep24_lang.error.amount.less_than_asset_min',
+                    messageParams: ['min' => strval($minAmount)],
+                );
             }
         }
 
@@ -837,7 +958,11 @@ class Sep24Service
                     ],
                 );
 
-                throw new InvalidSepRequest("amount exceeds asset's maximum limit of: " . $maxAmount);
+                throw new InvalidSepRequest(
+                    message: "amount exceeds asset's maximum limit of: " . $maxAmount,
+                    messageKey: 'sep24_lang.error.amount.greater_than_asset_max',
+                    messageParams: ['max' => strval($maxAmount)],
+                );
             }
         }
 
@@ -891,7 +1016,10 @@ class Sep24Service
     private function getFee(array $requestData): float
     {
         if (!$this->sep24Config->isFeeEndpointSupported()) {
-            throw new InvalidSepRequest('Fee endpoint is not supported.');
+            throw new InvalidSepRequest(
+                message: 'Fee endpoint is not supported.',
+                messageKey: 'sep24_lang.error.fee_not_supported',
+            );
         }
         /**
          * @var string $operation
@@ -901,13 +1029,24 @@ class Sep24Service
             if (is_string($requestData['operation'])) {
                 $operation = $requestData['operation'];
                 if ($operation !== 'deposit' && $operation !== 'withdraw') {
-                    throw new InvalidSepRequest('unsupported operation type ' . $operation);
+                    throw new InvalidSepRequest(
+                        message: 'unsupported operation type ' . $operation,
+                        messageKey: 'sep24_lang.error.unsupported_operation_type',
+                        messageParams: ['type' => $operation],
+                    );
                 }
             } else {
-                throw new InvalidSepRequest('operation must be a string');
+                throw new InvalidSepRequest(
+                    message: 'operation must be a string',
+                    messageKey: 'shared_lang.error.request.field_must_be_string',
+                    messageParams: ['field' => 'operation'],
+                );
             }
         } else {
-            throw new InvalidSepRequest('missing operation');
+            throw new InvalidSepRequest(
+                message: 'missing operation',
+                messageKey: 'sep24_lang.error.missing_operation',
+            );
         }
 
         $type = null;
@@ -915,7 +1054,11 @@ class Sep24Service
             if (is_string($requestData['type'])) {
                 $type = $requestData['type'];
             } else {
-                throw new InvalidSepRequest('type must be a string');
+                throw new InvalidSepRequest(
+                    message: 'type must be a string',
+                    messageKey: 'shared_lang.error.request.field_must_be_string',
+                    messageParams: ['field' => 'type'],
+                );
             }
         }
 
@@ -928,7 +1071,11 @@ class Sep24Service
                 // check if asset is supported.
                 $assetInfo = $this->sep24Integration->getAsset($assetCode);
                 if ($assetInfo === null) {
-                    throw new InvalidSepRequest("This anchor doesn't support the given currency code: " . $assetCode);
+                    throw new InvalidSepRequest(
+                        message: "This anchor doesn't support the given currency code: " . $assetCode,
+                        messageKey: 'sep24_lang.error.currencies_not_supported',
+                        messageParams: ['code' => $assetCode],
+                    );
                 }
                 if ($operation === 'deposit') {
                     $assetOperation = $assetInfo->depositOperation;
@@ -936,15 +1083,25 @@ class Sep24Service
                     $assetOperation = $assetInfo->withdrawOperation;
                 }
                 if (!$assetOperation->enabled) {
-                    throw new InvalidSepRequest($operation .
-                        ' operation not supported for the currency code: ' .
-                        $assetCode);
+                    throw new InvalidSepRequest(
+                        message: $operation . ' operation not supported for the currency code: ' . $assetCode,
+                        messageKey: 'sep24_lang.error.operation_not_supported_by_currency',
+                        messageParams: ['operation' => $operation, 'code' => $assetCode],
+                    );
                 }
             } else {
-                throw new InvalidSepRequest('asset code must be a string');
+                throw new InvalidSepRequest(
+                    message: 'asset code must be a string',
+                    messageKey: 'shared_lang.error.request.field_must_be_string',
+                    messageParams: ['field' => 'asset code'],
+                );
             }
         } else {
-            throw new InvalidSepRequest('missing asset code');
+            throw new InvalidSepRequest(
+                message: 'missing asset code',
+                messageKey: 'shared_lang.error.request.field_required',
+                messageParams: ['field' => 'asset code'],
+            );
         }
 
         $amount = null;
@@ -952,22 +1109,41 @@ class Sep24Service
             if (is_numeric($requestData['amount'])) {
                 $amount = floatval($requestData['amount']);
                 if ($amount <= 0.0) {
-                    throw new InvalidSepRequest('negative and zero amounts are not supported.');
+                    throw new InvalidSepRequest(
+                        message: 'negative and zero amounts are not supported.',
+                        messageKey: 'shared_lang.error.amount.less_or_equal_to_zero',
+                    );
                 }
             } else {
-                throw new InvalidSepRequest('amount must be a float');
+                throw new InvalidSepRequest(
+                    message: 'amount must be a float',
+                    messageKey: 'shared_lang.error.request.field_must_be_a_float',
+                    messageParams: ['field' => 'amount'],
+                );
             }
         } else {
-            throw new InvalidSepRequest('missing amount');
+            throw new InvalidSepRequest(
+                message: 'missing amount',
+                messageKey: 'shared_lang.error.request.field_required',
+                messageParams: ['field' => 'amount'],
+            );
         }
 
         // check if amount is in range
         if ($assetOperation->minAmount !== null && $amount < $assetOperation->minAmount) {
-            throw new InvalidSepRequest("amount is less than asset's minimum limit of: " . $assetOperation->minAmount);
+            throw new InvalidSepRequest(
+                message: "amount is less than asset's minimum limit of: " . $assetOperation->minAmount,
+                messageKey: 'sep24_lang.error.amount.less_than_asset_min',
+                messageParams: ['min' => strval($assetOperation->minAmount)],
+            );
         }
 
         if ($assetOperation->maxAmount !== null && $amount > $assetOperation->maxAmount) {
-            throw new InvalidSepRequest("amount exceeds asset's maximum limit of: " . $assetOperation->maxAmount);
+            throw new InvalidSepRequest(
+                message: "amount exceeds asset's maximum limit of: " . $assetOperation->maxAmount,
+                messageKey: 'sep24_lang.error.amount.greater_than_asset_max',
+                messageParams: ['max' => strval($assetOperation->maxAmount)],
+            );
         }
 
         $this->logger->debug(
@@ -1055,7 +1231,10 @@ class Sep24Service
             $accountMemo = $accountData['account_memo'];
         }
         if ($accountId === null) {
-            throw new InvalidSep10JwtData('invalid jwt token');
+            throw new InvalidSep10JwtData(
+                message: 'invalid jwt token',
+                messageKey: 'shared_lang.error.jwt.invalid',
+            );
         }
 
         $this->logger->info(
@@ -1076,21 +1255,29 @@ class Sep24Service
 
         if ($sellAsset !== null && !$this->assetEqualsQuoteAsset($sellAsset, $quote->sellAsset)) {
             throw new InvalidRequestData(
-                'source asset (' .
+                message: 'source asset (' .
                 $sellAsset->getStringRepresentation() .
                 ') does not match quote sell asset (' .
                 $quote->sellAsset->getStringRepresentation() .
                 ')',
+                messageKey: 'sep24_lang.error.request.source_asset_not_match_with_quote_sell_asset',
+                messageParams: ['source_asset' => $sellAsset->getStringRepresentation(),
+                    'quote_sell_asset' => $quote->sellAsset->getStringRepresentation(),
+                ],
             );
         }
 
         if ($buyAsset !== null && !$this->assetEqualsQuoteAsset($buyAsset, $quote->buyAsset)) {
             throw new InvalidRequestData(
-                'destination asset (' .
+                message: 'destination asset (' .
                 $buyAsset->getStringRepresentation() .
                 ') does not match quote buy asset (' .
                 $quote->buyAsset->getStringRepresentation() .
                 ')',
+                messageKey: 'sep24_lang.error.request.destination_asset_not_match_with_quote_buy_asset',
+                messageParams: ['destination_asset' => $buyAsset->getStringRepresentation(),
+                    'quote_buy_asset' => $quote->buyAsset->getStringRepresentation(),
+                ],
             );
         }
 
@@ -1100,10 +1287,12 @@ class Sep24Service
             $sellAmount !== floatval($quote->sellAmount)
         ) {
             throw new InvalidRequestData(
-                'amount (' . $sellAmount .
+                message: 'amount (' . $sellAmount .
                 ') does not match quote sell amount (' .
                 $quote->sellAmount .
                 ')',
+                messageKey: 'sep24_lang.error.request.amount_not_match_with_quote_amount',
+                messageParams: ['amount' => strval($sellAmount), 'quote_amount' => strval($quote->sellAmount)],
             );
         }
     }

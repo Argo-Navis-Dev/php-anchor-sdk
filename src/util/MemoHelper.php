@@ -57,7 +57,10 @@ class MemoHelper
         if (strlen($memoType) === 0) {
             self::getLogger()->debug('Memo type is empty.', ['context' => 'util']);
 
-            throw new InvalidSepRequest('memo_type is required if memo is specified');
+            throw new InvalidSepRequest(
+                message: 'memo_type is required if memo is specified',
+                messageKey: 'shared_lang.error.request.memo.type_missing',
+            );
         }
 
         switch ($memoType) {
@@ -65,7 +68,11 @@ class MemoHelper
                 if (!is_numeric($memo)) {
                     self::getLogger()->debug('Memo type is id, but memo is not an int.', ['context' => 'util']);
 
-                    throw new InvalidSepRequest('Invalid memo ' . $memo . ' of type: id');
+                    throw new InvalidSepRequest(
+                        message: 'Invalid memo ' . $memo . ' of type: id',
+                        messageKey: 'shared_lang.error.request.memo.invalid_by_id',
+                        messageParams: ['memo' => $memo],
+                    );
                 }
 
                 return Memo::id((int) $memo);
@@ -76,7 +83,11 @@ class MemoHelper
                         ['context' => 'util'],
                     );
 
-                    throw new InvalidSepRequest('Invalid memo ' . $memo . ' of type: text');
+                    throw new InvalidSepRequest(
+                        message: 'Invalid memo ' . $memo . ' of type: text',
+                        messageKey: 'shared_lang.error.request.memo.invalid_by_text',
+                        messageParams: ['memo' => $memo],
+                    );
                 }
 
                 return Memo::text($memo);
@@ -96,12 +107,24 @@ class MemoHelper
                         ['context' => 'util', 'error' => $th->getMessage(), 'exception' => $th],
                     );
 
-                    throw new InvalidSepRequest('Invalid memo ' . $memo . ' of type: hash');
+                    throw new InvalidSepRequest(
+                        message: 'Invalid memo ' . $memo . ' of type: hash',
+                        messageKey: 'shared_lang.error.request.memo.invalid_by_hash',
+                        messageParams: ['memo' => $memo],
+                    );
                 }
             case 'return':
-                throw new InvalidSepRequest('Unsupported memo type value: ' . $memoType);
+                throw new InvalidSepRequest(
+                    message: 'Unsupported memo type value: ' . $memoType,
+                    messageKey: 'shared_lang.error.request.memo.unsupported_memo_type_value',
+                    messageParams: ['memoType' => $memoType],
+                );
             default:
-                throw new InvalidSepRequest('Invalid memo type: ' . $memoType);
+                throw new InvalidSepRequest(
+                    message: 'Invalid memo type: ' . $memoType,
+                    messageKey: 'shared_lang.error.request.memo.invalid_memo_type',
+                    messageParams: ['memoType' => $memoType],
+                );
         }
     }
 

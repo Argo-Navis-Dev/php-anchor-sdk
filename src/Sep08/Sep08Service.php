@@ -38,6 +38,10 @@ class Sep08Service
      */
     private LoggerInterface | NullLogger $logger;
 
+    /**
+     * @param IRegulatedAssetsIntegration $sep08Integration The SEP-08 integration to be used.
+     * @param LoggerInterface|null $logger The PSR-3 specific logger to be used for logging.
+     */
     public function __construct(
         IRegulatedAssetsIntegration $sep08Integration,
         ?LoggerInterface $logger = null,

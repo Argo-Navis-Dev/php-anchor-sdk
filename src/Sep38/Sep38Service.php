@@ -57,6 +57,7 @@ class Sep38Service
     /**
      * @param IQuotesIntegration $sep38Integration the callback class providing the needed business
      *  logic. See IQuotesIntegration description.
+     * @param LoggerInterface|null $logger the PSR-3 specific logger to be used for logging.
      */
     public function __construct(IQuotesIntegration $sep38Integration, ?LoggerInterface $logger = null)
     {

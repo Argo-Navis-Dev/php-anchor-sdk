@@ -12,6 +12,7 @@ use ArgoNavis\PhpAnchorSdk\Sep10\Sep10Jwt;
 use ArgoNavis\PhpAnchorSdk\Sep24\Sep24Service;
 use ArgoNavis\PhpAnchorSdk\shared\IdentificationFormatAsset;
 use ArgoNavis\Test\PhpAnchorSdk\callback\InteractiveFlowIntegration;
+use ArgoNavis\Test\PhpAnchorSdk\config\AppConfig;
 use ArgoNavis\Test\PhpAnchorSdk\config\Sep24Config;
 use ArgoNavis\Test\PhpAnchorSdk\util\ServerRequestBuilder;
 use Psr\Http\Message\ResponseInterface;
@@ -60,7 +61,11 @@ class Sep24Test extends TestCase
     {
         $integration = new InteractiveFlowIntegration();
         $config = new Sep24Config();
-        $sep24Service = new Sep24Service(sep24Config: $config, sep24Integration: $integration);
+        $sep24Service = new Sep24Service(
+            sep24Config: $config,
+            appConfig: new AppConfig(),
+            sep24Integration: $integration,
+        );
         $sep10Jwt = $this->createSep10Jwt($this->accountId);
         $request = ServerRequestBuilder::getServerRequest($this->infoEndpoint, []);
         $response = $sep24Service->handleRequest($request, $sep10Jwt);
@@ -162,7 +167,11 @@ class Sep24Test extends TestCase
     {
         $integration = new InteractiveFlowIntegration();
         $config = new Sep24Config();
-        $sep24Service = new Sep24Service(sep24Config: $config, sep24Integration: $integration);
+        $sep24Service = new Sep24Service(
+            sep24Config: $config,
+            appConfig: new AppConfig(),
+            sep24Integration: $integration,
+        );
         $sep10Jwt = $this->createSep10Jwt($this->accountId);
         $data = ['asset_code' => 'native', 'amount' => '100.0', 'operation' => 'withdraw'];
         $request = ServerRequestBuilder::getServerRequest($this->feeEndpoint, $data);
@@ -194,7 +203,11 @@ class Sep24Test extends TestCase
         $this->checkError($response, 400, "amount is less than asset's minimum limit of: 0.1");
 
         $config->feeEndpointEnabled = false;
-        $sep24Service = new Sep24Service(sep24Config: $config, sep24Integration: $integration);
+        $sep24Service = new Sep24Service(
+            sep24Config: $config,
+            appConfig: new AppConfig(),
+            sep24Integration: $integration,
+        );
         $data = ['asset_code' => 'native', 'amount' => 100.0, 'operation' => 'deposit'];
         $request = ServerRequestBuilder::getServerRequest($this->feeEndpoint, $data);
         $response = $sep24Service->handleRequest($request, $sep10Jwt);
@@ -205,7 +218,11 @@ class Sep24Test extends TestCase
     {
         $integration = new InteractiveFlowIntegration();
         $config = new Sep24Config();
-        $sep24Service = new Sep24Service(sep24Config: $config, sep24Integration: $integration);
+        $sep24Service = new Sep24Service(
+            sep24Config: $config,
+            appConfig: new AppConfig(),
+            sep24Integration: $integration,
+        );
         $sep10Jwt = $this->createSep10Jwt($this->accountId);
 
         // deposit

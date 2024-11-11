@@ -84,25 +84,40 @@ class MultipartFormDataParser
     {
         $contentType = $request->getHeaderLine('Content-Type');
         if (strlen($contentType) === 0) {
-            throw new InvalidRequestData('no content type in header');
+            throw new InvalidRequestData(
+                message: 'no content type in header',
+                messageKey: 'shared_lang.error.request.no_content_type_in_header',
+            );
         }
         if (stripos($contentType, 'multipart/form-data') === false) {
-            throw new InvalidRequestData('content type is not multipart/form-data');
+            throw new InvalidRequestData(
+                message: 'content type is not multipart/form-data',
+                messageKey: 'shared_lang.error.request.content_type_is_not_multi_form_data',
+            );
         }
         if (!preg_match('/boundary=(.*)$/is', $contentType, $matches)) {
-            throw new InvalidRequestData('could not parse boundary from header');
+            throw new InvalidRequestData(
+                message: 'could not parse boundary from header',
+                messageKey: 'shared_lang.error.request.boundary_not_parsable',
+            );
         }
 
         $boundary = $matches[1];
 
         $rawBody = $request->getBody()->__toString();
         if (strlen($rawBody) === 0) {
-            throw new InvalidRequestData('body is empty');
+            throw new InvalidRequestData(
+                message: 'body is empty',
+                messageKey: 'shared_lang.error.request.body_is_empty',
+            );
         }
 
         $bodyParts = preg_split('/\\R?-+' . preg_quote($boundary, '/') . '/s', $rawBody);
         if (!$bodyParts) {
-            throw new InvalidRequestData('body parts not found');
+            throw new InvalidRequestData(
+                message: 'body parts not found',
+                messageKey: 'shared_lang.error.request.body_parts_not_found',
+            );
         }
 
         /**
@@ -251,7 +266,10 @@ class MultipartFormDataParser
         $headers = [];
         $headerParts = preg_split('/\\R/s', $headerContent, -1, PREG_SPLIT_NO_EMPTY);
         if (!is_array($headerParts)) {
-            throw new InvalidRequestData('could not split header');
+            throw new InvalidRequestData(
+                message: 'could not split header',
+                messageKey: 'shared_lang.error.request.header_parts_no_parsable',
+            );
         }
         foreach ($headerParts as $headerPart) {
             if (!str_contains($headerPart, ':')) {

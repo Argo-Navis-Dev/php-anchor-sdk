@@ -22,4 +22,13 @@ class AppConfig implements IAppConfig
     {
         return 'https://horizon-testnet.stellar.org';
     }
+
+    public function getLocalizedText(
+        string $key,
+        ?string $locale = 'en',
+        ?string $default = null,
+        ?array $params = null,
+    ): string {
+        return $default ?? $key;
+    }
 }

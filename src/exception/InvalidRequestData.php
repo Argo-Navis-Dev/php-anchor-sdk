@@ -8,8 +8,6 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\exception;
 
-use Exception;
-
-class InvalidRequestData extends Exception
+class InvalidRequestData extends AnchorFailure
 {
 }

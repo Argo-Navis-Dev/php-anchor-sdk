@@ -13,10 +13,12 @@ use ArgoNavis\PhpAnchorSdk\Sep12\MultipartFormDataset;
 use ArgoNavis\PhpAnchorSdk\Sep12\RequestBodyDataParser;
 use ArgoNavis\PhpAnchorSdk\callback\ICrossBorderIntegration;
 use ArgoNavis\PhpAnchorSdk\callback\IQuotesIntegration;
+use ArgoNavis\PhpAnchorSdk\config\IAppConfig;
 use ArgoNavis\PhpAnchorSdk\exception\AnchorFailure;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidRequestData;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSep10JwtData;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSepRequest;
+use ArgoNavis\PhpAnchorSdk\exception\LocalizedExceptionHelper;
 use ArgoNavis\PhpAnchorSdk\exception\Sep31TransactionCallbackNotSupported;
 use ArgoNavis\PhpAnchorSdk\exception\Sep31TransactionNotFoundForId;
 use ArgoNavis\PhpAnchorSdk\logging\NullLogger;
@@ -53,6 +55,7 @@ use function str_contains;
  */
 class Sep31Service
 {
+    public IAppConfig $appConfig;
     /**
      * @var ICrossBorderIntegration $sep31Integration the callback class containing the needed business
      * logic. See ICrossBorderPaymentsIntegration.
@@ -72,10 +75,12 @@ class Sep31Service
 
     public function __construct(
         ICrossBorderIntegration $sep31Integration,
+        IAppConfig $appConfig,
         ?IQuotesIntegration $quotesIntegration = null,
         ?LoggerInterface $logger = null,
     ) {
         $this->sep31Integration = $sep31Integration;
+        $this->appConfig = $appConfig;
         $this->quotesIntegration = $quotesIntegration;
 
         $this->logger = $logger ?? new NullLogger();
@@ -102,6 +107,12 @@ class Sep31Service
             'Handling incoming request.',
             ['context' => 'sep31', 'method' => $request->getMethod(), 'request_target' => $requestTarget],
         );
+        $lang = 'en';
+        try {
+            $lang = Sep31RequestParser::getRequestLang($request->getQueryParams());
+        } catch (InvalidSepRequest $e) {
+            //Ignore
+        }
 
         if ($request->getMethod() === 'GET') {
             if (str_contains($requestTarget, '/info')) {
@@ -142,8 +153,13 @@ class Sep31Service
             'Invalid request, unknown endpoint.',
             ['context' => 'sep31', 'http_status_code' => 200],
         );
+        $errorMsg = $this->appConfig->getLocalizedText(
+            key: 'shared_lang.error.request.invalid_unknown_endpoint',
+            locale: $lang,
+            default: 'authentication_required',
+        );
 
-        return new JsonResponse(['error' => 'Invalid request. Unknown endpoint.'], 200);
+        return new JsonResponse(['error' => $errorMsg], 200);
     }
 
     /**
@@ -163,6 +179,7 @@ class Sep31Service
         ServerRequestInterface $request,
         Sep10Jwt $jwtToken,
     ): ResponseInterface {
+        $lang = 'en';
         try {
             $queryParameters = $request->getQueryParams();
             $this->logger->debug(
@@ -194,8 +211,13 @@ class Sep31Service
                     'Invalid jwt token.',
                     ['context' => 'sep31', 'operation' => 'anchor_info', 'http_status_code' => 403],
                 );
+                $errorMsg = $this->appConfig->getLocalizedText(
+                    key: 'shared_lang.error.unauthorized_with_msg_error',
+                    locale: $lang,
+                    default: 'Invalid JWT token',
+                );
 
-                return new JsonResponse(['error' => 'invalid jwt token'], 403);
+                return new JsonResponse(['error' => $errorMsg], 403);
             }
 
             $supportedAssets = $this->sep31Integration->supportedAssets($accountId, $accountMemo, $lang);
@@ -222,8 +244,9 @@ class Sep31Service
                     'http_status_code' => 400,
                 ],
             );
+            $localizedError = LocalizedExceptionHelper::getLocalizedErrorMsgFromException($e, $this->appConfig, $lang);
 
-            return new JsonResponse(['error' => $e->getMessage()], 400);
+            return new JsonResponse(['error' => $localizedError], 400);
         }
     }
 
@@ -313,6 +336,7 @@ class Sep31Service
         ServerRequestInterface $request,
         Sep10Jwt $jwtToken,
     ): ResponseInterface {
+        $lang = null;
         try {
             // get account id and memo of the sending anchor from jwt token if provided.
             $accountId = null;
@@ -324,15 +348,6 @@ class Sep31Service
             }
             if (isset($accountData['account_memo'])) {
                 $accountMemo = $accountData['account_memo'];
-            }
-
-            if ($accountId === null) {
-                $this->logger->error(
-                    'Invalid jwt token.',
-                    ['context' => 'sep31', 'operation' => 'new_transaction', 'http_status_code' => 403],
-                );
-
-                return new JsonResponse(['error' => 'invalid jwt token'], 403);
             }
 
             $requestData = $request->getParsedBody();
@@ -354,6 +369,21 @@ class Sep31Service
             }
 
             $lang = Sep31RequestParser::getRequestLang($requestData);
+
+            if ($accountId === null) {
+                $this->logger->error(
+                    'Invalid jwt token.',
+                    ['context' => 'sep31', 'operation' => 'new_transaction', 'http_status_code' => 403],
+                );
+                $errorMsg = $this->appConfig->getLocalizedText(
+                    key: 'shared_lang.error.jwt.invalid',
+                    locale: $lang,
+                    default: 'Invalid JWT token',
+                );
+
+                return new JsonResponse(['error' => $errorMsg], 403);
+            }
+
             $this->logger->debug(
                 'The request data.',
                 ['context' => 'sep31', 'operation' => 'new_transaction', 'content' => json_encode($requestData)],
@@ -385,14 +415,22 @@ class Sep31Service
 
             return new JsonResponse($transaction->toJson(), 201);
         } catch (InvalidRequestData | InvalidSepRequest | AnchorFailure $af) {
+            $messageKey = $af->getMessageKey();
+            $errorMsg = LocalizedExceptionHelper::getLocalizedErrorMsgFromException(
+                $af,
+                $this->appConfig,
+                $lang,
+            );
             $this->logger->error(
                 'Failed to make a new transaction (payment).',
-                ['context' => 'sep31', 'operation' => 'new_transaction',
-                    'error' => $af->getMessage(), 'exception' => $af, 'http_status_code' => 400,
+                [
+                    'context' => 'sep31', 'operation' => 'new_transaction',
+                    'error' => $af->getMessage(), 'error_key' => $messageKey,
+                    'exception' => $af, 'http_status_code' => 400,
                 ],
             );
 
-            return new JsonResponse(['error' => $af->getMessage()], 400);
+            return new JsonResponse(['error' => $errorMsg], 400);
         }
     }
 

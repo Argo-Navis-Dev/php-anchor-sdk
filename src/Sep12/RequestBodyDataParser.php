@@ -49,8 +49,8 @@ class RequestBodyDataParser
         if (strlen($content) === 0) {
             return [];
         }
-
         $contentType = $request->getHeaderLine('Content-Type');
+
         self::getLogger()->debug('The content type', ['context' => 'sep12', 'content_type' => $contentType]);
         if ($contentType === 'application/x-www-form-urlencoded') {
             parse_str($content, $parsedArray);
@@ -70,12 +70,20 @@ class RequestBodyDataParser
                     ],
                 );
 
-                throw new InvalidRequestData('Could not parse multipart/form-data : ' . $invalid->getMessage());
+                throw new InvalidRequestData(
+                    message: 'Could not parse multipart/form-data : ' . $invalid->getMessage(),
+                    messageKey: 'shared_lang.error.request.invalid_multipart_form_data',
+                    previous: $invalid,
+                );
             }
         } elseif ($contentType === 'application/json') {
             return self::jsonDataFromRequestString($content);
         } else {
-            throw new InvalidRequestData('Invalid request type ' . $contentType);
+            throw new InvalidRequestData(
+                message: 'Invalid request type ' . $contentType,
+                messageKey: 'shared_lang.error.request.invalid_request_type',
+                messageParams: ['content_type' => $contentType],
+            );
         }
     }
 
@@ -95,7 +103,10 @@ class RequestBodyDataParser
             return [];
         }
         if (!is_array($jsonData)) {
-            throw new InvalidRequestData('Invalid body.');
+            throw new InvalidRequestData(
+                message: 'Invalid body.',
+                messageKey: 'shared_lang.error.request.invalid_http_request_body',
+            );
         }
 
         return $jsonData;

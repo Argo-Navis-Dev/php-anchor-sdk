@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-// Copyright 2024 Argo Navis Dev. All rights reserved.
+// Copyright 2024 Argo Navis Dev. All rights reserved.JsonResponse([
 // Use of this source code is governed by a license that can be
 // found in the LICENSE file.
 
@@ -24,6 +24,7 @@ use ArgoNavis\PhpAnchorSdk\exception\AnchorFailure;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidRequestData;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSep10JwtData;
 use ArgoNavis\PhpAnchorSdk\exception\InvalidSepRequest;
+use ArgoNavis\PhpAnchorSdk\exception\LocalizedExceptionHelper;
 use ArgoNavis\PhpAnchorSdk\logging\NullLogger;
 use ArgoNavis\PhpAnchorSdk\util\MemoHelper;
 use ArrayObject;
@@ -89,6 +90,7 @@ class Sep06Service
      * @param IQuotesIntegration|null $quotesIntegration the callback class for quotes if the anchor supports SEP-38
      * - Quotes. If the quotes integration is not provided, the deposit-exchange and withdraw-exchange endpoints
      * can not be supported.
+     * @param LoggerInterface|null $logger the PSR-3 specific logger to be used for logging.
      */
     public function __construct(
         IAppConfig $appConfig,
@@ -137,7 +139,7 @@ class Sep06Service
         }
 
         // all other cases require authentication.
-
+        $lang = 'en';
         if ($token === null) {
             //403  forbidden
             $this->logger->error(
@@ -196,8 +198,13 @@ class Sep06Service
                     'Invalid request. Unknown endpoint.',
                     ['http_status_code' => '404', 'operation' => $requestTarget, 'context' => 'sep06'],
                 );
+                $errorMsg = $this->appConfig->getLocalizedText(
+                    key: 'shared_lang.error.request.invalid_unknown_endpoint',
+                    locale: $lang,
+                    default: 'authentication_required',
+                );
 
-                return new JsonResponse(['error' => 'Invalid request. Unknown endpoint.'], 404);
+                return new JsonResponse(['error' => $errorMsg], 404);
             }
         } else {
             $this->logger->error(
@@ -206,8 +213,13 @@ class Sep06Service
                     'context' => 'sep06', 'operation' => $requestTarget, 'http_status_code' => '404',
                 ],
             );
+            $errorMsg = $this->appConfig->getLocalizedText(
+                key: 'shared_lang.error.request.invalid_method_not_supported',
+                locale: $lang,
+                default: 'authentication_required',
+            );
 
-            return new JsonResponse(['error' => 'Invalid request. Method not supported.'], 404);
+            return new JsonResponse(['error' => $errorMsg], 404);
         }
     }
 
@@ -234,7 +246,16 @@ class Sep06Service
                 ],
             );
 
-            return new JsonResponse(['error' => $e->getMessage()], $code);
+            $queryParameters = $request->getQueryParams();
+            $lang = 'en';
+            try {
+                $lang = Sep06RequestParser::getLangFromRequestData($queryParameters);
+            } catch (InvalidSepRequest $e) {
+                // ignore
+            }
+            $localizedError = LocalizedExceptionHelper::getLocalizedErrorMsgFromException($e, $this->appConfig, $lang);
+
+            return new JsonResponse(['error' => $localizedError], $code);
         }
     }
 
@@ -260,8 +281,16 @@ class Sep06Service
                     'context' => 'sep06', 'operation' => 'deposit',
                 ],
             );
+            $queryParameters = $request->getQueryParams();
+            $lang = 'en';
+            try {
+                $lang = Sep06RequestParser::getLangFromRequestData($queryParameters);
+            } catch (InvalidSepRequest $e) {
+                // ignore
+            }
+            $localizedError = LocalizedExceptionHelper::getLocalizedErrorMsgFromException($e, $this->appConfig, $lang);
 
-            return new JsonResponse(['error' => $e->getMessage()], $code);
+            return new JsonResponse(['error' => $localizedError], $code);
         }
     }
 
@@ -279,8 +308,16 @@ class Sep06Service
                     'context' => 'sep06', 'operation' => 'withdraw',
                 ],
             );
+            $queryParameters = $request->getQueryParams();
+            $lang = 'en';
+            try {
+                $lang = Sep06RequestParser::getLangFromRequestData($queryParameters);
+            } catch (InvalidSepRequest $e) {
+                // ignore
+            }
+            $localizedError = LocalizedExceptionHelper::getLocalizedErrorMsgFromException($e, $this->appConfig, $lang);
 
-            return new JsonResponse(['error' => $e->getMessage()], $code);
+            return new JsonResponse(['error' => $localizedError], $code);
         }
     }
 
@@ -298,8 +335,16 @@ class Sep06Service
                     'context' => 'sep06', 'operation' => 'withdraw_exchange',
                 ],
             );
+            $queryParameters = $request->getQueryParams();
+            $lang = 'en';
+            try {
+                $lang = Sep06RequestParser::getLangFromRequestData($queryParameters);
+            } catch (InvalidSepRequest $e) {
+                // ignore
+            }
+            $localizedError = LocalizedExceptionHelper::getLocalizedErrorMsgFromException($e, $this->appConfig, $lang);
 
-            return new JsonResponse(['error' => $e->getMessage()], $code);
+            return new JsonResponse(['error' => $localizedError], $code);
         }
     }
 
@@ -325,7 +370,11 @@ class Sep06Service
                 ['context' => 'sep06', 'operation' => 'deposit_exchange'],
             );
 
-            throw new AnchorFailure('Unable to access quotes.', 500);
+            throw new AnchorFailure(
+                message: 'Unable to access quotes.',
+                code: 500,
+                messageKey: 'shared_lang.error.quotes_service_not_available',
+            );
         }
         $queryParameters = $request->getQueryParams();
         $this->logger->info(
@@ -817,7 +866,11 @@ class Sep06Service
                 ['context' => 'sep06', 'operation' => 'withdraw_exchange'],
             );
 
-            throw new AnchorFailure('Unable to access quotes.', 500);
+            throw new AnchorFailure(
+                message: 'Unable to access quotes.',
+                code: 500,
+                messageKey: 'shared_lang.error.quotes_service_not_available',
+            );
         }
         $queryParameters = $request->getQueryParams();
         $this->logger->info(
@@ -1022,6 +1075,7 @@ class Sep06Service
      */
     private function handleGetTransactionRequest(ServerRequestInterface $request, Sep10Jwt $token): ResponseInterface
     {
+        $lang = null;
         try {
             $accountData = $token->getValidatedAccountData();
             $accountMemo = null;
@@ -1041,7 +1095,6 @@ class Sep06Service
                 ],
             );
 
-            $lang = null;
             if (isset($queryParameters['lang'])) {
                 if (is_string($queryParameters['lang'])) {
                     $lang = $queryParameters['lang'];
@@ -1106,15 +1159,22 @@ class Sep06Service
                     ['context' => 'sep06', 'operation' => 'transaction', 'http_status_code' => 404],
                 );
 
-                return new JsonResponse(['error' => 'transaction not found'], 404);
+                $errorMsg = $this->appConfig->getLocalizedText(
+                    key: 'shared_lang.error.general.transaction_not_found',
+                    locale: $lang,
+                    default: 'Transaction not found',
+                );
+
+                return new JsonResponse(['error' => $errorMsg], 404);
             }
         } catch (InvalidSep10JwtData | InvalidSepRequest | AnchorFailure $e) {
             $this->logger->error(
                 'Failed to retrieve the transaction.',
                 ['context' => 'sep06', 'operation' => 'transaction', 'http_status_code' => 400, 'exception' => $e],
             );
+            $localizedError = LocalizedExceptionHelper::getLocalizedErrorMsgFromException($e, $this->appConfig, $lang);
 
-            return new JsonResponse(['error' => $e->getMessage()], 400);
+            return new JsonResponse(['error' => $localizedError], 400);
         }
     }
 
@@ -1128,6 +1188,7 @@ class Sep06Service
      */
     private function handleGetTransactionsRequest(ServerRequestInterface $request, Sep10Jwt $token): ResponseInterface
     {
+        $lang = null;
         try {
             $accountData = $token->getValidatedAccountData();
             $accountMemo = null;
@@ -1148,7 +1209,7 @@ class Sep06Service
             );
 
             $request = Sep06RequestParser::getTransactionsRequestFromRequestData($queryParameters);
-
+            $lang = $request->lang;
             $result = $this->sep06Integration->getTransactionHistory($request, $accountId, $accountMemo);
 
             if ($result === null || count($result) === 0) {
@@ -1183,8 +1244,9 @@ class Sep06Service
                 'Failed to retrieve the transactions.',
                 ['context' => 'sep06', 'operation' => 'transactions', 'http_status_code' => 400, 'exception' => $e],
             );
+            $localizedError = LocalizedExceptionHelper::getLocalizedErrorMsgFromException($e, $this->appConfig, $lang);
 
-            return new JsonResponse(['error' => $e->getMessage()], 400);
+            return new JsonResponse(['error' => $localizedError], 400);
         }
     }
 

@@ -13,6 +13,7 @@ use ArgoNavis\PhpAnchorSdk\shared\CustomerFieldType;
 use ArgoNavis\PhpAnchorSdk\shared\CustomerStatus;
 use ArgoNavis\PhpAnchorSdk\shared\ProvidedCustomerFieldStatus;
 use ArgoNavis\Test\PhpAnchorSdk\callback\CustomerIntegration;
+use ArgoNavis\Test\PhpAnchorSdk\config\AppConfig;
 use ArgoNavis\Test\PhpAnchorSdk\util\ServerRequestBuilder;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -65,7 +66,7 @@ class Sep12Test extends TestCase
     public function testGetCustomerSuccess(): void
     {
         $customerIntegration = new CustomerIntegration();
-        $sep12Service = new Sep12Service($customerIntegration);
+        $sep12Service = new Sep12Service($customerIntegration, new AppConfig());
 
         $sep10Jwt = $this->createSep10Jwt($this->account6Id);
 
@@ -104,7 +105,7 @@ class Sep12Test extends TestCase
     public function testGetCustomerNeedsInfo(): void
     {
         $customerIntegration = new CustomerIntegration();
-        $sep12Service = new Sep12Service($customerIntegration);
+        $sep12Service = new Sep12Service($customerIntegration, new AppConfig());
 
         $sep10Jwt = $this->createSep10Jwt($this->account1Id);
 
@@ -154,7 +155,7 @@ class Sep12Test extends TestCase
     public function testGetCustomerUnknown(): void
     {
         $customerIntegration = new CustomerIntegration();
-        $sep12Service = new Sep12Service($customerIntegration);
+        $sep12Service = new Sep12Service($customerIntegration, new AppConfig());
 
         $sep10Jwt = $this->createSep10Jwt($this->account2Id);
 
@@ -198,7 +199,7 @@ class Sep12Test extends TestCase
     public function testGetCustomerProcessing(): void
     {
         $customerIntegration = new CustomerIntegration();
-        $sep12Service = new Sep12Service($customerIntegration);
+        $sep12Service = new Sep12Service($customerIntegration, new AppConfig());
 
         $sep10Jwt = $this->createSep10Jwt($this->account3Id);
 
@@ -228,7 +229,7 @@ class Sep12Test extends TestCase
     public function testGetCustomerRejected(): void
     {
         $customerIntegration = new CustomerIntegration();
-        $sep12Service = new Sep12Service($customerIntegration);
+        $sep12Service = new Sep12Service($customerIntegration, new AppConfig());
 
         $sep10Jwt = $this->createSep10Jwt($this->account4Id);
 
@@ -247,7 +248,7 @@ class Sep12Test extends TestCase
     public function testGetCustomerRequiresVerification(): void
     {
         $customerIntegration = new CustomerIntegration();
-        $sep12Service = new Sep12Service($customerIntegration);
+        $sep12Service = new Sep12Service($customerIntegration, new AppConfig());
 
         $sep10Jwt = $this->createSep10Jwt($this->account5Id);
 
@@ -273,7 +274,7 @@ class Sep12Test extends TestCase
     public function testGetCustomerErrors(): void
     {
         $customerIntegration = new CustomerIntegration();
-        $sep12Service = new Sep12Service($customerIntegration);
+        $sep12Service = new Sep12Service($customerIntegration, new AppConfig());
 
         $sep10Jwt = $this->createSep10Jwt($this->account6Id);
 
@@ -314,7 +315,7 @@ class Sep12Test extends TestCase
     public function testPutCustomerSuccess(): void
     {
         $customerIntegration = new CustomerIntegration();
-        $sep12Service = new Sep12Service($customerIntegration);
+        $sep12Service = new Sep12Service($customerIntegration, new AppConfig());
 
         $sep10Jwt = $this->createSep10Jwt($this->account6Id);
 
@@ -356,7 +357,7 @@ class Sep12Test extends TestCase
     public function testPutCustomerErrors(): void
     {
         $customerIntegration = new CustomerIntegration();
-        $sep12Service = new Sep12Service($customerIntegration);
+        $sep12Service = new Sep12Service($customerIntegration, new AppConfig());
 
         $sep10Jwt = $this->createSep10Jwt($this->account6Id);
 
@@ -391,7 +392,7 @@ class Sep12Test extends TestCase
     public function testPutCustomerVerificationSuccess(): void
     {
         $customerIntegration = new CustomerIntegration();
-        $sep12Service = new Sep12Service($customerIntegration);
+        $sep12Service = new Sep12Service($customerIntegration, new AppConfig());
 
         $sep10Jwt = $this->createSep10Jwt($this->account6Id);
 
@@ -405,7 +406,7 @@ class Sep12Test extends TestCase
     public function testPutCustomerVerificationErrors(): void
     {
         $customerIntegration = new CustomerIntegration();
-        $sep12Service = new Sep12Service($customerIntegration);
+        $sep12Service = new Sep12Service($customerIntegration, new AppConfig());
 
         $sep10Jwt = $this->createSep10Jwt($this->account6Id);
 
@@ -435,7 +436,7 @@ class Sep12Test extends TestCase
     public function testPutCustomerCallbackSuccess(): void
     {
         $customerIntegration = new CustomerIntegration();
-        $sep12Service = new Sep12Service($customerIntegration);
+        $sep12Service = new Sep12Service($customerIntegration, new AppConfig());
 
         $sep10Jwt = $this->createSep10Jwt($this->account6Id);
 
@@ -448,7 +449,7 @@ class Sep12Test extends TestCase
     public function testPutCustomerCallbackErrors(): void
     {
         $customerIntegration = new CustomerIntegration();
-        $sep12Service = new Sep12Service($customerIntegration);
+        $sep12Service = new Sep12Service($customerIntegration, new AppConfig());
 
         $sep10Jwt = $this->createSep10Jwt($this->account6Id);
 
@@ -477,7 +478,7 @@ class Sep12Test extends TestCase
     public function testDeleteCustomerSuccess(): void
     {
         $customerIntegration = new CustomerIntegration();
-        $sep12Service = new Sep12Service($customerIntegration);
+        $sep12Service = new Sep12Service($customerIntegration, new AppConfig());
 
         $sep10Jwt = $this->createSep10Jwt($this->account6Id . ':' . '100');
 
@@ -498,7 +499,7 @@ class Sep12Test extends TestCase
     public function testDeleteCustomerErrors(): void
     {
         $customerIntegration = new CustomerIntegration();
-        $sep12Service = new Sep12Service($customerIntegration);
+        $sep12Service = new Sep12Service($customerIntegration, new AppConfig());
 
         $sep10Jwt = $this->createSep10Jwt($this->account6Id . ':1234');
 

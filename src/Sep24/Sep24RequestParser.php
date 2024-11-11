@@ -57,10 +57,18 @@ class Sep24RequestParser
             if (is_string($requestData['asset_code'])) {
                 $assetCode = $requestData['asset_code'];
             } else {
-                throw new InvalidSepRequest('asset code must be a string');
+                throw new InvalidSepRequest(
+                    message: 'asset code must be a string',
+                    messageKey: 'shared_lang.error.request.field_must_be_string',
+                    messageParams: ['field' => 'asset code'],
+                );
             }
         } else {
-            throw new InvalidSepRequest('missing asset code');
+            throw new InvalidSepRequest(
+                message: 'missing asset code',
+                messageKey: 'shared_lang.error.request.field_required',
+                messageParams: ['field' => 'asset code'],
+            );
         }
 
         $assetIssuer = null;
@@ -75,15 +83,26 @@ class Sep24RequestParser
                         ['context' => 'sep24', 'error' => $th->getMessage(), 'exception' => $th],
                     );
 
-                    throw new InvalidSepRequest('invalid asset issuer, must be a valid account id');
+                    throw new InvalidSepRequest(
+                        message: 'invalid asset issuer, must be a valid account id',
+                        messageKey: 'shared_lang.error.request.invalid_asset_issuer',
+                    );
                 }
             } else {
-                throw new InvalidSepRequest('asset issuer must be a string');
+                throw new InvalidSepRequest(
+                    message: 'asset issuer must be a string',
+                    messageKey: 'shared_lang.error.request.field_must_be_string',
+                    messageParams: ['field' => 'asset issuer'],
+                );
             }
         }
 
         if ($assetCode === IdentificationFormatAsset::NATIVE_ASSET_CODE && $assetIssuer !== null) {
-            throw new InvalidSepRequest('invalid asset issuer ' . $assetIssuer . " for asset code 'native'");
+            throw new InvalidSepRequest(
+                message: 'invalid asset issuer ' . $assetIssuer . " for asset code 'native'",
+                messageKey: 'asset_lang.error.request.invalid_asset_issuer_native',
+                messageParams: ['issuer' => $assetIssuer],
+            );
         }
 
         try {
@@ -98,7 +117,10 @@ class Sep24RequestParser
                 ['context' => 'sep24', 'error' => $invalidAsset->getMessage(), 'exception' => $invalidAsset],
             );
 
-            throw new InvalidSepRequest('invalid asset: ' . $invalidAsset->getMessage());
+            throw new InvalidSepRequest(
+                message: 'invalid asset: ' . $invalidAsset->getMessage(),
+                messageKey: 'shared_lang.error.invalid_asset',
+            );
         }
     }
 
@@ -126,10 +148,17 @@ class Sep24RequestParser
                         ['context' => 'sep24', 'error' => $invalidAsset->getMessage(), 'exception' => $invalidAsset],
                     );
 
-                    throw new InvalidSepRequest('invalid destination asset: ' . $invalidAsset->getMessage());
+                    throw new InvalidSepRequest(
+                        message: 'invalid destination asset: ' . $invalidAsset->getMessage(),
+                        messageKey: 'sep06_lang.error.request.invalid_destination_asset',
+                    );
                 }
             } else {
-                throw new InvalidSepRequest('destination asset must be a string');
+                throw new InvalidSepRequest(
+                    message: 'destination asset must be a string',
+                    messageKey: 'shared_lang.error.request.field_must_be_string',
+                    messageParams: ['field' => 'destination asset'],
+                );
             }
         }
 
@@ -160,10 +189,17 @@ class Sep24RequestParser
                         ['context' => 'sep24', 'error' => $invalidAsset->getMessage(), 'exception' => $invalidAsset],
                     );
 
-                    throw new InvalidSepRequest('invalid source asset: ' . $invalidAsset->getMessage());
+                    throw new InvalidSepRequest(
+                        message: 'invalid source asset: ' . $invalidAsset->getMessage(),
+                        messageKey: 'sep06_lang.error.request.invalid_source_asset',
+                    );
                 }
             } else {
-                throw new InvalidSepRequest('source asset must be a string');
+                throw new InvalidSepRequest(
+                    message: 'source asset must be a string',
+                    messageKey: 'shared_lang.error.request.field_must_be_string',
+                    messageParams: ['field' => 'source asset'],
+                );
             }
         }
 
@@ -191,7 +227,11 @@ class Sep24RequestParser
             if (is_numeric($requestData['amount'])) {
                 $amount = floatval($requestData['amount']);
             } else {
-                throw new InvalidSepRequest('amount must be a float');
+                throw new InvalidSepRequest(
+                    message: 'amount must be a float',
+                    messageKey: 'shared_lang.error.request.field_must_be_a_float',
+                    messageParams: ['field' => 'amount'],
+                );
             }
         }
 
@@ -241,7 +281,11 @@ class Sep24RequestParser
             if (is_string($requestData['quote_id'])) {
                 $quoteId = $requestData['quote_id'];
             } else {
-                throw new InvalidSepRequest('quote id must be a string');
+                throw new InvalidSepRequest(
+                    message: 'quote id must be a string',
+                    messageKey: 'shared_lang.error.request.field_must_be_string',
+                    messageParams: ['field' => 'quote id'],
+                );
             }
         }
 
@@ -269,7 +313,11 @@ class Sep24RequestParser
             if (is_string($requestData['wallet_name'])) {
                 $result = $requestData['wallet_name'];
             } else {
-                throw new InvalidSepRequest('wallet_name must be a string');
+                throw new InvalidSepRequest(
+                    message: 'wallet_name must be a string',
+                    messageKey: 'shared_lang.error.request.field_must_be_string',
+                    messageParams: ['field' => 'wallet name'],
+                );
             }
         }
 
@@ -297,7 +345,11 @@ class Sep24RequestParser
             if (is_string($requestData['wallet_url'])) {
                 $result = $requestData['wallet_url'];
             } else {
-                throw new InvalidSepRequest('wallet_url must be a string');
+                throw new InvalidSepRequest(
+                    message: 'wallet_url must be a string',
+                    messageKey: 'shared_lang.error.request.field_must_be_string',
+                    messageParams: ['field' => 'wallet url'],
+                );
             }
         }
 
@@ -325,7 +377,11 @@ class Sep24RequestParser
             if (is_string($requestData['lang'])) {
                 $result = $requestData['lang'];
             } else {
-                throw new InvalidSepRequest('lang must be a string');
+                throw new InvalidSepRequest(
+                    message: 'lang must be a string',
+                    messageKey: 'shared_lang.error.request.field_must_be_string',
+                    messageParams: ['field' => 'lang'],
+                );
             }
         }
 
@@ -353,7 +409,11 @@ class Sep24RequestParser
             if (is_string($requestData['customer_id'])) {
                 $customerId = $requestData['customer_id'];
             } else {
-                throw new InvalidSepRequest('customer id must be a string');
+                throw new InvalidSepRequest(
+                    message: 'customer id must be a string',
+                    messageKey: 'shared_lang.error.request.field_must_be_string',
+                    messageParams: ['field' => 'customer id'],
+                );
             }
         }
 
@@ -377,7 +437,11 @@ class Sep24RequestParser
             if (is_string($requestData['account'])) {
                 $account = $requestData['account'];
             } else {
-                throw new InvalidSepRequest('account must be a string');
+                throw new InvalidSepRequest(
+                    message: 'account must be a string',
+                    messageKey: 'shared_lang.error.request.field_must_be_string',
+                    messageParams: ['field' => 'account'],
+                );
             }
         } else {
             $account = $token->accountId ?? $token->muxedAccountId;
@@ -394,7 +458,10 @@ class Sep24RequestParser
                     ['context' => 'sep24', 'error' => $th->getMessage(), 'exception' => $th],
                 );
 
-                throw new InvalidSepRequest('invalid account, must be a valid account id');
+                throw new InvalidSepRequest(
+                    message: 'invalid account, must be a valid account id',
+                    messageKey: 'sep24_lang.error.account_not_found',
+                );
             }
         }
 
@@ -417,7 +484,10 @@ class Sep24RequestParser
             if (is_string($requestData['memo'])) {
                 $memoStr = $requestData['memo'];
             } else {
-                throw new InvalidSepRequest('memo must be a string');
+                throw new InvalidSepRequest(
+                    message: 'refund memo must be a string',
+                    messageKey: 'shared_lang.error.request.refund_memo.must_be_string',
+                );
             }
         }
 

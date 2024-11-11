@@ -13,6 +13,7 @@ use ArgoNavis\PhpAnchorSdk\Sep31\Sep31Service;
 use ArgoNavis\PhpAnchorSdk\shared\Sep31TransactionStatus;
 use ArgoNavis\Test\PhpAnchorSdk\callback\CrossBorderIntegration;
 use ArgoNavis\Test\PhpAnchorSdk\callback\QuotesIntegration;
+use ArgoNavis\Test\PhpAnchorSdk\config\AppConfig;
 use ArgoNavis\Test\PhpAnchorSdk\util\ServerRequestBuilder;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -56,7 +57,7 @@ class Sep31Test extends TestCase
     public function testGetInfo(): void
     {
         $integration = new CrossBorderIntegration();
-        $sep31Service = new Sep31Service($integration);
+        $sep31Service = new Sep31Service($integration, new AppConfig());
         $sep10Jwt = $this->createSep10Jwt($this->accountId);
         $request = ServerRequestBuilder::getServerRequest($this->infoEndpoint, ['lang' => 'en']);
         $response = $sep31Service->handleRequest($request, $sep10Jwt);
@@ -144,7 +145,7 @@ class Sep31Test extends TestCase
     public function testPostTransaction(): void
     {
         $integration = new CrossBorderIntegration();
-        $sep31Service = new Sep31Service($integration);
+        $sep31Service = new Sep31Service($integration, new AppConfig());
         $sep10Jwt = $this->createSep10Jwt($this->accountId);
         $requestData = [
             'asset_code' => 'USDC',
@@ -292,7 +293,11 @@ class Sep31Test extends TestCase
 
         // test destination asset
         $quotesIntegration = new QuotesIntegration();
-        $sep31Service = new Sep31Service($integration, $quotesIntegration);
+        $sep31Service = new Sep31Service(
+            sep31Integration: $integration,
+            appConfig: new AppConfig(),
+            quotesIntegration: $quotesIntegration,
+        );
         $requestData = [
             'amount' => 10,
             'asset_code' => 'USDC',
@@ -307,7 +312,11 @@ class Sep31Test extends TestCase
         $response = $sep31Service->handleRequest($request, $sep10Jwt);
         $this->checkError($response, 400, 'invalid operation for asset iso4217:RON');
 
-        $sep31Service = new Sep31Service($integration, $quotesIntegration);
+        $sep31Service = new Sep31Service(
+            sep31Integration: $integration,
+            appConfig: new AppConfig(),
+            quotesIntegration: $quotesIntegration,
+        );
         $requestData = [
             'amount' => 10,
             'asset_code' => 'USDC',
@@ -390,7 +399,7 @@ class Sep31Test extends TestCase
     public function testGetTransaction(): void
     {
         $integration = new CrossBorderIntegration();
-        $sep31Service = new Sep31Service($integration);
+        $sep31Service = new Sep31Service($integration, new AppConfig());
         $sep10Jwt = $this->createSep10Jwt($this->accountId);
         $request = ServerRequestBuilder::getServerRequest($this->transactionsEndpoint . '/9273971203912', []);
         $response = $sep31Service->handleRequest($request, $sep10Jwt);
@@ -475,7 +484,7 @@ class Sep31Test extends TestCase
     public function testPutTxCallback(): void
     {
         $integration = new CrossBorderIntegration();
-        $sep31Service = new Sep31Service($integration);
+        $sep31Service = new Sep31Service($integration, new AppConfig());
         $sep10Jwt = $this->createSep10Jwt($this->accountId);
         $txId = '9bff0aff-e8fb-47a7-81bb-0b776501cbb6';
 

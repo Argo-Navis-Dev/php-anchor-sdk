@@ -93,6 +93,7 @@ class Sep10Service
      * @param ISep10Config $sep10Config sep 10 config containing the config values specific for
      *  the SEP-10 implementation, such as the signing keys for the challenge and the jwt token,
      *  timeouts for the jwt token and challenge, etc.
+     * @param LoggerInterface|null $logger the PSR-3 specific logger to be used for logging.
      *
      * @throws InvalidConfig if the sep 10 config contains invalid values.
      */
@@ -633,7 +634,11 @@ class Sep10Service
             $msg = 'Could not fetch account from horizon ' . $horizonUrl;
             $msg .= ' Error: ' . $e->getMessage();
 
-            throw new AccountNotLoaded($msg, 400, $e);
+            throw new AccountNotLoaded(
+                message: $msg,
+                code: 400,
+                previous: $e,
+            );
         }
 
         return $account;
@@ -663,7 +668,11 @@ class Sep10Service
             // decode the received input as a base64-urlencoded XDR representation of Stellar transaction envelope
             $tx = Transaction::fromEnvelopeBase64XdrString($request->transaction);
         } catch (Throwable $e) {
-            throw new InvalidRequestData('Transaction could not be parsed', 0, $e);
+            throw new InvalidRequestData(
+                message:'Transaction could not be parsed',
+                code: 0,
+                previous: $e,
+            );
         }
 
         // verify that transaction is not a fee bump transaction
@@ -1086,7 +1095,10 @@ class Sep10Service
                     $value = intval($request->memo);
                     $memo = Memo::id($value);
                 } else {
-                    throw new InvalidRequestData('invalid memo value: ' . $request->memo, 400);
+                    throw new InvalidRequestData(
+                        message: 'invalid memo value: ' . $request->memo,
+                        code: 400,
+                    );
                 }
             } catch (Throwable $e) {
                 $this->logger->debug(
@@ -1099,7 +1111,11 @@ class Sep10Service
                     ],
                 );
 
-                throw new InvalidRequestData('invalid memo value: ' . $request->memo, 400, $e);
+                throw new InvalidRequestData(
+                    message: 'invalid memo value: ' . $request->memo,
+                    code: 400,
+                    previous: $e,
+                );
             }
         }
 

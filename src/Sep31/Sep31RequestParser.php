@@ -64,7 +64,10 @@ class Sep31RequestParser
     ): Sep31PostTransactionRequest {
         $amount = self::getValidatedFloat($requestData, 'amount');
         if ($amount === null) {
-            throw new InvalidSepRequest('amount is required');
+            throw new InvalidSepRequest(
+                'amount is required',
+                messageKey: 'sep31_lang.error.request.amount_required',
+            );
         }
         $asset = self::getValidatedAsset($requestData, $supportedAssets);
 
@@ -121,12 +124,16 @@ class Sep31RequestParser
                 );
 
                 throw new InvalidSepRequest(
-                    'invalid operation for asset ' .
-                    $destinationAsset->getStringRepresentation(),
+                    message: 'invalid operation for asset ' . $destinationAsset->getStringRepresentation(),
+                    messageKey: 'asset_lang.error.request.invalid_operation_for_asset',
+                    messageParams: ['asset' => $destinationAsset->getStringRepresentation()],
                 );
             }
         } elseif ($destinationAsset !== null && $quotesIntegration === null) {
-            throw new InvalidSepRequest('Destination asset not supported. Can not find price.');
+            throw new InvalidSepRequest(
+                message: 'Destination asset not supported. Can not find price.',
+                messageKey: 'sep31_lang.error.request.destination_asset_not_supported',
+            );
         }
 
         $refundMemo = self::getRefundMemoFromRequestData($requestData);
@@ -154,8 +161,10 @@ class Sep31RequestParser
                     );
 
                     throw new InvalidSepRequest(
-                        'quote sell asset does not match source_asset ' .
-                        $asset->asset->getStringRepresentation(),
+                        message: 'quote sell asset does not match source_asset ' .
+                            $asset->asset->getStringRepresentation(),
+                        messageKey: 'sep31_lang.error.request.quote.sell_asset_source_asset_not_match',
+                        messageParams: ['asset' => $asset->asset->getStringRepresentation()],
                     );
                 }
                 if (
@@ -171,8 +180,10 @@ class Sep31RequestParser
                     );
 
                     throw new InvalidSepRequest(
-                        'quote buy asset does not match destination_asset' .
-                        $destinationAsset->getCode(),
+                        message: 'quote buy asset does not match destination_asset' .
+                            $destinationAsset->getCode(),
+                        messageKey: 'sep31_lang.error.request.quote.buy_asset_destination_asset_not_match',
+                        messageParams: ['code' => $destinationAsset->getCode()],
                     );
                 }
 
@@ -186,7 +197,10 @@ class Sep31RequestParser
                             ],
                         );
 
-                        throw new InvalidSepRequest('quote amount does not match request amount');
+                        throw new InvalidSepRequest(
+                            message: 'quote amount does not match request amount',
+                            messageKey: 'sep31_lang.error.request.quote.amount_request_amount_not_match',
+                        );
                     }
                 }
             } catch (QuoteNotFoundForId $qi) {
@@ -197,7 +211,12 @@ class Sep31RequestParser
                     ],
                 );
 
-                throw new InvalidSepRequest($qi->getMessage());
+                throw new InvalidSepRequest(
+                    $qi->getMessage(),
+                    $qi->getCode(),
+                    $qi->getMessageKey(),
+                    $qi->getMessageParams(),
+                );
             }
         } elseif ($quoteId !== null && $quotesIntegration === null) {
             self::getLogger()->debug(
@@ -205,7 +224,10 @@ class Sep31RequestParser
                 ['context' => 'sep31', 'operation' => 'new_transaction', 'id' => $quoteId],
             );
 
-            throw new InvalidSepRequest('quote_id not supported. Can not find quote.');
+            throw new InvalidSepRequest(
+                message: 'quote_id not supported. Can not find quote.',
+                messageKey: 'sep31_lang.error.request.quote.not_supported',
+            );
         }
 
         /**
@@ -214,7 +236,10 @@ class Sep31RequestParser
          */
         $senderId = self::getValidatedStrValue($requestData, 'sender_id');
         if ($senderId === null && count($asset->sep12SenderTypes) > 0) {
-            throw new InvalidSepRequest('sender_id is required');
+            throw new InvalidSepRequest(
+                message: 'sender_id is required',
+                messageKey: 'sep31_lang.error.request.sender_id_required',
+            );
         }
 
         /**
@@ -223,7 +248,10 @@ class Sep31RequestParser
          */
         $receiverId = self::getValidatedStrValue($requestData, 'receiver_id');
         if ($receiverId === null && count($asset->sep12ReceiverTypes) > 0) {
-            throw new InvalidSepRequest('receiver_id is required');
+            throw new InvalidSepRequest(
+                message: 'receiver_id is required',
+                messageKey: 'sep31_lang.error.request.receiver_id_required',
+            );
         }
 
         return new Sep31PostTransactionRequest(
@@ -255,23 +283,31 @@ class Sep31RequestParser
         array $requestData,
         array $supportedAssets,
     ): Sep31AssetInfo {
-        $assetCode = null;
         $assetIssuer = null;
         if (isset($requestData['asset_code'])) {
             if (is_string($requestData['asset_code'])) {
                 $assetCode = $requestData['asset_code'];
             } else {
-                throw new InvalidSepRequest('asset_code must be a string');
+                throw new InvalidSepRequest(
+                    message: 'asset_code must be a string',
+                    messageKey: 'sep31_lang.error.request.invalid_asset_code',
+                );
             }
         } else {
-            throw new InvalidSepRequest('asset_code is required');
+            throw new InvalidSepRequest(
+                message: 'asset_code is required',
+                messageKey: 'asset_lang.error.request.asset_code_is_required',
+            );
         }
 
         if (isset($requestData['asset_issuer'])) {
             if (is_string($requestData['asset_issuer'])) {
                 $assetIssuer = $requestData['asset_issuer'];
             } else {
-                throw new InvalidSepRequest('asset_issuer must be a string');
+                throw new InvalidSepRequest(
+                    message: 'asset_issuer must be a string',
+                    messageKey: 'asset_lang.error.request.invalid_asset_issuer',
+                );
             }
         }
 
@@ -288,7 +324,10 @@ class Sep31RequestParser
             }
         }
         if ($asset === null) {
-            throw new InvalidSepRequest('asset is not supported');
+            throw new InvalidSepRequest(
+                message: 'asset is not supported',
+                messageKey: 'asset_lang.error.request.asset_not_supported',
+            );
         }
 
         return $asset;
@@ -307,6 +346,7 @@ class Sep31RequestParser
         string $fieldKey,
     ): ?float {
         $amount = null;
+
         if (isset($requestData[$fieldKey])) {
             if (is_numeric($requestData[$fieldKey])) {
                 $amount = floatval($requestData[$fieldKey]);
@@ -318,10 +358,18 @@ class Sep31RequestParser
                         ],
                     );
 
-                    throw new InvalidSepRequest($fieldKey . ' must be greater than zero');
+                    throw new InvalidSepRequest(
+                        message: $fieldKey . ' must be greater than zero',
+                        messageKey: 'sep31_lang.error.request.field_greater_than_zero',
+                        messageParams: ['field' => $fieldKey],
+                    );
                 }
             } else {
-                throw new InvalidSepRequest($fieldKey . ' must be a float');
+                throw new InvalidSepRequest(
+                    message: $fieldKey . ' must be greater than zero',
+                    messageKey: 'shared_lang.error.request.field_must_be_float',
+                    messageParams: ['field' => $fieldKey],
+                );
             }
         }
 
@@ -443,8 +491,14 @@ class Sep31RequestParser
             ($minAmount !== null && $requestAmount < $minAmount) ||
             ($maxAmount !== null && $requestAmount > $maxAmount)
         ) {
-            throw new InvalidSepRequest('invalid amount ' . strval($requestAmount) .
-                ' for asset ' . $assetCode);
+            $requestAmountStr = strval($requestAmount);
+            $errorMsg = 'invalid amount ' . strval($requestAmountStr) . ' for asset ' . $assetCode;
+
+            throw new InvalidSepRequest(
+                message: $errorMsg,
+                messageKey: 'sep31_lang.error.request.invalid_amount',
+                messageParams: ['amount' => strval($requestAmountStr), 'asset' => $assetCode],
+            );
         }
     }
 
@@ -465,7 +519,10 @@ class Sep31RequestParser
             if (is_string($requestData['refund_memo'])) {
                 $refundMemoStr = $requestData['refund_memo'];
             } else {
-                throw new InvalidSepRequest('refund memo must be a string');
+                throw new InvalidSepRequest(
+                    message: 'refund memo must be a string',
+                    messageKey: 'shared_lang.error.request.refund_memo.must_be_string',
+                );
             }
         }
 
@@ -474,16 +531,25 @@ class Sep31RequestParser
             if (is_string($requestData['refund_memo_type'])) {
                 $refundMemoTypeStr = $requestData['refund_memo_type'];
                 if ($refundMemoStr === null) {
-                    throw new InvalidSepRequest('refund memo type is specified but refund memo missing');
+                    throw new InvalidSepRequest(
+                        message: 'refund memo type is specified but refund memo missing',
+                        messageKey: 'shared_lang.error.request.refund_memo.type_without_memo',
+                    );
                 }
                 $refundMemo = MemoHelper::makeMemoFromSepRequestData($refundMemoStr, $refundMemoTypeStr);
             } else {
-                throw new InvalidSepRequest('refund memo type must be a string');
+                throw new InvalidSepRequest(
+                    message: 'refund memo type must be a string',
+                    messageKey: 'shared_lang.error.request.refund_memo.type_must_be_string',
+                );
             }
         }
 
         if ($refundMemoStr !== null && $refundMemoTypeStr === null) {
-            throw new InvalidSepRequest('missing refund memo type');
+            throw new InvalidSepRequest(
+                message: 'missing refund memo type',
+                messageKey: 'shared_lang.error.request.refund_memo.type_missing',
+            );
         }
 
         return $refundMemo;
@@ -505,7 +571,10 @@ class Sep31RequestParser
             if (is_string($queryParams['lang'])) {
                 $lang = $queryParams['lang'];
             } else {
-                throw new InvalidSepRequest('lang must be a string');
+                throw new InvalidSepRequest(
+                    message: 'lang must be a string',
+                    messageKey: 'shared_lang.error.request.invalid_lang',
+                );
             }
         }
 
@@ -530,7 +599,11 @@ class Sep31RequestParser
             if (is_string($requestData[$fieldKey])) {
                 return trim($requestData[$fieldKey]);
             } else {
-                throw new InvalidSepRequest($fieldKey . ' must be a string');
+                throw new InvalidSepRequest(
+                    message: $fieldKey . ' must be a string',
+                    messageKey: 'shared_lang.error.request.field_must_be_string',
+                    messageParams: ['field' => $fieldKey],
+                );
             }
         }
 
@@ -563,10 +636,18 @@ class Sep31RequestParser
                         ],
                     );
 
-                    throw new InvalidSepRequest('invalid destination asset: ' . $invalidAsset->getMessage());
+                    throw new InvalidSepRequest(
+                        message: 'invalid destination asset: ' . $invalidAsset->getMessage(),
+                        code: 0,
+                        messageKey: 'sep31_lang.error.request.invalid_destination_asset',
+                        previous: $invalidAsset,
+                    );
                 }
             } else {
-                throw new InvalidSepRequest('destination asset must be a string');
+                throw new InvalidSepRequest(
+                    message: 'destination asset must be a string',
+                    messageKey: 'sep31_lang.error.request.destination_asset_must_be_a_string',
+                );
             }
         }
 
