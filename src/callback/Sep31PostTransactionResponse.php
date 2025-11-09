@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\callback;
 
-class Sep31PostTransactionResponse
+final class Sep31PostTransactionResponse
 {
     /**
      * @var string $id The persistent identifier to check the status of this payment transaction.

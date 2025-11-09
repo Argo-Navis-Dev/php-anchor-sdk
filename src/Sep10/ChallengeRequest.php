@@ -12,7 +12,7 @@ use ArgoNavis\PhpAnchorSdk\exception\InvalidRequestData;
 
 use function is_string;
 
-class ChallengeRequest
+final class ChallengeRequest
 {
     /**
      * The Client Account, which can be a stellar account (G...) or muxed account (M...) that the Client wishes to authenticate with the Server.

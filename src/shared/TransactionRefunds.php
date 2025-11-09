@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\shared;
 
-class TransactionRefunds
+final class TransactionRefunds
 {
     /**
      * @var string $amountRefunded The total amount refunded to the user, in units of amountInAsset. If a full refund was issued, this amount should match amountIn.

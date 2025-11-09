@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\shared;
 
-class DepositOperation extends AssetOperation
+final class DepositOperation extends AssetOperation
 {
     /**
      * @param bool $enabled true if deposit for this asset is supported

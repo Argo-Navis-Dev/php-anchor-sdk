@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\shared;
 
-class Sep12TypesInfo
+final class Sep12TypesInfo
 {
     /**
      * An object containing a types key if KYC information is required for the Sending Client, empty otherwise.

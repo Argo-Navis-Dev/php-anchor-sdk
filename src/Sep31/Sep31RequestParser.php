@@ -34,7 +34,7 @@ use function trim;
 
 use const FILTER_VALIDATE_URL;
 
-class Sep31RequestParser
+final class Sep31RequestParser
 {
     /**
      * The PSR-3 specific logger to be used for logging.

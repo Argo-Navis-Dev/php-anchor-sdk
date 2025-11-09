@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\Sep24;
 
-class FeeResponse
+final class FeeResponse
 {
     public bool $enabled;
     public ?bool $authenticationRequired = null;

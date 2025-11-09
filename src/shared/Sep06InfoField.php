@@ -13,7 +13,7 @@ namespace ArgoNavis\PhpAnchorSdk\shared;
  *
  * see <a href="https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0006.md#fields">Fields</a>
  */
-class Sep06InfoField
+final class Sep06InfoField
 {
     public string $fieldName;
     public string $description;

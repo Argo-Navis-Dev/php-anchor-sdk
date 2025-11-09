@@ -10,7 +10,7 @@ namespace ArgoNavis\PhpAnchorSdk\callback;
 
 use ArgoNavis\PhpAnchorSdk\shared\InstructionsField;
 
-class StartDepositResponse
+final class StartDepositResponse
 {
     /**
      * @var string $id The anchor's ID for this deposit. The wallet will use this ID to query the

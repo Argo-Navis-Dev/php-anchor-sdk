@@ -11,7 +11,7 @@ namespace ArgoNavis\PhpAnchorSdk\callback;
 use ArgoNavis\PhpAnchorSdk\shared\Sep06AssetInfo;
 use Soneso\StellarSDK\Memo;
 
-class StartWithdrawRequest
+final class StartWithdrawRequest
 {
     /**
      * @var Sep06AssetInfo $asset The on-chain asset the user wants to withdraw.

@@ -11,7 +11,7 @@ namespace ArgoNavis\PhpAnchorSdk\exception;
 use Exception;
 use Throwable;
 
-class AccountNotFound extends Exception
+final class AccountNotFound extends Exception
 {
     public string $accountId;
 

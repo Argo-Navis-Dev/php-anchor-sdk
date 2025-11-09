@@ -13,7 +13,7 @@ namespace ArgoNavis\PhpAnchorSdk\callback;
  *
  * See: <a href="https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0012.md#customer-put">Customer PUT</a>.
  */
-class PutCustomerResponse
+final class PutCustomerResponse
 {
     /**
      * @var string An identifier for the updated or created customer. E.g. "391fb415-c223-4608-b2f5-dd1e91e3a986"

@@ -10,7 +10,7 @@ namespace ArgoNavis\PhpAnchorSdk\Sep12;
 
 use Psr\Http\Message\UploadedFileInterface;
 
-class MultipartFormDataset
+final class MultipartFormDataset
 {
     /**
      * @var array<string,string> $bodyParams parameters parsed from the body

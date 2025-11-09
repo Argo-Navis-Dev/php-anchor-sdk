@@ -10,7 +10,7 @@ namespace ArgoNavis\PhpAnchorSdk\exception;
 
 use Throwable;
 
-class SepNotAuthorized extends SepHandlingFailure
+final class SepNotAuthorized extends SepHandlingFailure
 {
     /**
      * @param string $message The exception message.

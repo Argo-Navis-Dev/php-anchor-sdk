@@ -13,7 +13,7 @@ use Throwable;
 /**
  * This Exception must be thrown if a transaction was not found for a given id.
  */
-class Sep31TransactionNotFoundForId extends AnchorFailure
+final class Sep31TransactionNotFoundForId extends AnchorFailure
 {
     public string $id;
 

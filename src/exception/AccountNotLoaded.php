@@ -7,6 +7,6 @@ declare(strict_types=1);
 // found in the LICENSE file.
 namespace ArgoNavis\PhpAnchorSdk\exception;
 
-class AccountNotLoaded extends SepHandlingFailure
+final class AccountNotLoaded extends SepHandlingFailure
 {
 }

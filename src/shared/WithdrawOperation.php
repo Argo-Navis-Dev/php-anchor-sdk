@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\shared;
 
-class WithdrawOperation extends AssetOperation
+final class WithdrawOperation extends AssetOperation
 {
     /**
      * @param bool $enabled true if withdraw for this asset is supported

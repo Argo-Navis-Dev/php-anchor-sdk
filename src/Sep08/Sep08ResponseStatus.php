@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\Sep08;
 
-class Sep08ResponseStatus
+final class Sep08ResponseStatus
 {
     public const SUCCESS = 'success';
     public const REVISED = 'revised';

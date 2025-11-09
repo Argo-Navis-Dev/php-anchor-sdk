@@ -29,7 +29,7 @@ use function json_encode;
 use function parse_str;
 use function strlen;
 
-class Sep08Service
+final class Sep08Service
 {
     public IRegulatedAssetsIntegration $sep08Integration;
 

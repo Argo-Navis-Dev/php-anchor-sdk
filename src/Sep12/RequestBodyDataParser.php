@@ -19,7 +19,7 @@ use function parse_str;
 use function str_starts_with;
 use function strlen;
 
-class RequestBodyDataParser
+final class RequestBodyDataParser
 {
     /**
      * The PSR-3 specific logger to be used for logging.

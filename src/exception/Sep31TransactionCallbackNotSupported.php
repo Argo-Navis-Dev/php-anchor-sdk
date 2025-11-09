@@ -8,6 +8,6 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\exception;
 
-class Sep31TransactionCallbackNotSupported extends AnchorFailure
+final class Sep31TransactionCallbackNotSupported extends AnchorFailure
 {
 }

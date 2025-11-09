@@ -10,7 +10,7 @@ namespace ArgoNavis\PhpAnchorSdk\callback;
 
 use ArgoNavis\PhpAnchorSdk\shared\IdentificationFormatAsset;
 
-class Sep38PriceRequest
+final class Sep38PriceRequest
 {
     /**
      * @var string $context The context for what this quote will be used for. One of sep6 or sep31.

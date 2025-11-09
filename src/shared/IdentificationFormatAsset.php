@@ -19,7 +19,7 @@ use function strlen;
 /**
  * Asset as defined in [Asset Identification Format](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0038.md#asset-identification-format)
  */
-class IdentificationFormatAsset
+final class IdentificationFormatAsset
 {
     public const NATIVE_ASSET_CODE = 'native';
     public const ASSET_SCHEMA_STELLAR = 'stellar';

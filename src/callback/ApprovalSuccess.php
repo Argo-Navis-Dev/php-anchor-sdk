@@ -13,7 +13,7 @@ use ArgoNavis\PhpAnchorSdk\Sep08\Sep08ResponseStatus;
 /**
  * This response means that the transaction was found compliant and signed without being revised.
  */
-class ApprovalSuccess
+final class ApprovalSuccess
 {
     /**
      * @var string $tx Transaction envelope XDR, base64 encoded. This transaction will have both the original signature(s)

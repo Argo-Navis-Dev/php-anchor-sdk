@@ -11,7 +11,7 @@ namespace ArgoNavis\PhpAnchorSdk\shared;
 /**
  * Instructions fields are used in SEP-06. They describe how to complete the off-chain deposit.
  */
-class InstructionsField
+final class InstructionsField
 {
     /**
      * @var string $name The of the field. Should be a [SEP-9 financial account fields](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0009.md#financial-account-fields)

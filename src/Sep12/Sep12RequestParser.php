@@ -22,7 +22,6 @@ use function array_key_exists;
 use function array_keys;
 use function filter_var;
 use function intval;
-use function is_int;
 use function is_numeric;
 use function is_string;
 use function json_encode;
@@ -30,7 +29,7 @@ use function str_ends_with;
 
 use const FILTER_VALIDATE_URL;
 
-class Sep12RequestParser
+final class Sep12RequestParser
 {
     /**
      * The PSR-3 specific logger to be used for logging.
@@ -96,7 +95,7 @@ class Sep12RequestParser
         if (isset($requestData['memo'])) {
             if (is_string($requestData['memo'])) {
                 $memoStr = $requestData['memo'];
-                if (is_numeric($memoStr) && is_int($memoStr + 0)) {
+                if (is_numeric($memoStr) && (float) $memoStr === (float) (int) $memoStr) {
                     $memo = intval($memoStr);
                 } else {
                     throw new InvalidSepRequest(
@@ -415,7 +414,7 @@ class Sep12RequestParser
             return null;
         }
         $memoStr = $token->accountMemo;
-        if (is_numeric($memoStr) && is_int($memoStr + 0)) {
+        if (is_numeric($memoStr) && (float) $memoStr === (float) (int) $memoStr) {
             return intval($memoStr);
         } else {
             throw new InvalidSepRequest(

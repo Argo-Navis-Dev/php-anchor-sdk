@@ -8,21 +8,21 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\logging;
 
+use Override;
 use Psr\Log\LoggerInterface;
 
 /**
  * @phpcsSuppress
  */
-class NullLogger implements LoggerInterface
+final class NullLogger implements LoggerInterface
 {
     /**
      * Empty implementation, do nothing.
      *
      * @param string $message
      * @param array<mixed, mixed> $context
-     *
-     * @phpcsSuppress SlevomatCodingStandard.TypeHints.ParameterTypeHint.MissingNativeTypeHint
      */
+    #[Override]
     public function emergency($message, array $context = []): void
     {
         // Do nothing
@@ -33,9 +33,8 @@ class NullLogger implements LoggerInterface
      *
      * @param string $message
      * @param array<mixed, mixed> $context
-     *
-     * @phpcsSuppress SlevomatCodingStandard.TypeHints.ParameterTypeHint.MissingNativeTypeHint
      */
+    #[Override]
     public function alert($message, array $context = []): void
     {
         // Do nothing
@@ -46,9 +45,8 @@ class NullLogger implements LoggerInterface
      *
      * @param string $message
      * @param array<mixed, mixed> $context
-     *
-     * @phpcsSuppress SlevomatCodingStandard.TypeHints.ParameterTypeHint.MissingNativeTypeHint
      */
+    #[Override]
     public function critical($message, array $context = []): void
     {
         // Do nothing
@@ -59,9 +57,8 @@ class NullLogger implements LoggerInterface
      *
      * @param string $message
      * @param array<mixed, mixed> $context
-     *
-     * @phpcsSuppress SlevomatCodingStandard.TypeHints.ParameterTypeHint.MissingNativeTypeHint
      */
+    #[Override]
     public function error($message, array $context = []): void
     {
         // Do nothing
@@ -72,9 +69,8 @@ class NullLogger implements LoggerInterface
      *
      * @param string $message
      * @param array<mixed, mixed> $context
-     *
-     * @phpcsSuppress SlevomatCodingStandard.TypeHints.ParameterTypeHint.MissingNativeTypeHint
      */
+    #[Override]
     public function warning($message, array $context = []): void
     {
         // Do nothing
@@ -85,9 +81,8 @@ class NullLogger implements LoggerInterface
      *
      * @param string $message
      * @param array<mixed, mixed> $context
-     *
-     * @phpcsSuppress SlevomatCodingStandard.TypeHints.ParameterTypeHint.MissingNativeTypeHint
      */
+    #[Override]
     public function notice($message, array $context = []): void
     {
         // Do nothing
@@ -98,9 +93,8 @@ class NullLogger implements LoggerInterface
      *
      * @param string $message
      * @param array<mixed, mixed> $context
-     *
-     * @phpcsSuppress SlevomatCodingStandard.TypeHints.ParameterTypeHint.MissingNativeTypeHint
      */
+    #[Override]
     public function info($message, array $context = []): void
     {
         // Do nothing
@@ -111,9 +105,8 @@ class NullLogger implements LoggerInterface
      *
      * @param string $message
      * @param array<mixed, mixed> $context
-     *
-     * @phpcsSuppress SlevomatCodingStandard.TypeHints.ParameterTypeHint.MissingNativeTypeHint
      */
+    #[Override]
     public function debug($message, array $context = []): void
     {
         // Do nothing
@@ -125,9 +118,8 @@ class NullLogger implements LoggerInterface
      * @param $level
      * @param string $message
      * @param array<mixed, mixed> $context
-     *
-     * @phpcsSuppress SlevomatCodingStandard.TypeHints.ParameterTypeHint.MissingNativeTypeHint
      */
+    #[Override]
     public function log(mixed $level, $message, array $context = []): void
     {
         // Do nothing

@@ -13,7 +13,7 @@ use ArgoNavis\PhpAnchorSdk\Sep08\Sep08ResponseStatus;
 /**
  * This response means that the transaction was revised to be made compliant.
  */
-class ApprovalRevised
+final class ApprovalRevised
 {
     /**
      * @var string $tx Transaction envelope XDR, base64 encoded. This transaction is a revised compliant version of

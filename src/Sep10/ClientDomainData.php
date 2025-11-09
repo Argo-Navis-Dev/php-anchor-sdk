@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\Sep10;
 
-class ClientDomainData
+final class ClientDomainData
 {
     public string $clientDomain;
     public string $clientDomainAccountId;

@@ -8,6 +8,6 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\exception;
 
-class InvalidAsset extends AnchorFailure
+final class InvalidAsset extends AnchorFailure
 {
 }

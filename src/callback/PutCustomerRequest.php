@@ -15,7 +15,7 @@ use Psr\Http\Message\UploadedFileInterface;
  *
  * See: <a href="https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0012.md#customer-put">Customer PUT</a>.
  */
-class PutCustomerRequest
+final class PutCustomerRequest
 {
     /**
      * @var string|null (optional) The id value returned from a previous call to this endpoint. If specified, no other parameter is required.

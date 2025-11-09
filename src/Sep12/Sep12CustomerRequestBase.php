@@ -16,7 +16,7 @@ use ArgoNavis\PhpAnchorSdk\callback\PutCustomerVerificationRequest;
 /**
  * Base data contained in all request. Used to make the validation implementation easier.
  */
-class Sep12CustomerRequestBase
+final class Sep12CustomerRequestBase
 {
     /**
      * @var string|null (optional) The ID of the customer as returned in the response of a previous PUT request.

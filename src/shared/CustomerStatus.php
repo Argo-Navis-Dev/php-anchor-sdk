@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\shared;
 
-class CustomerStatus
+final class CustomerStatus
 {
     /**
      * All required KYC fields have been accepted and the customer has been validated for the type passed.

@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\callback;
 
-class StartWithdrawResponse
+final class StartWithdrawResponse
 {
     /**
      * @var string $id The anchor's ID for this withdrawal. The wallet will use this ID to query the

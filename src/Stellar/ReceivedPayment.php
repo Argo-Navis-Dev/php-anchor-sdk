@@ -15,7 +15,7 @@ use function array_map;
 use function implode;
 use function sprintf;
 
-class ReceivedPayment
+final class ReceivedPayment
 {
     /**
      * @var string $assetCode The asset code of the asset received. 'native' if Stellar Lumens - XLM have been received.

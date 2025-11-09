@@ -11,7 +11,7 @@ namespace ArgoNavis\PhpAnchorSdk\shared;
 use DateTime;
 use DateTimeInterface;
 
-class Sep38Quote
+final class Sep38Quote
 {
     /**
      * @var string $id The unique identifier for the quote to be used in other Stellar Ecosystem Proposals (SEPs).

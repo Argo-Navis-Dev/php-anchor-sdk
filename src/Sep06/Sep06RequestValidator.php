@@ -17,7 +17,7 @@ use function implode;
 use function in_array;
 use function strval;
 
-class Sep06RequestValidator
+final class Sep06RequestValidator
 {
     /**
      * The PSR-3 specific logger to be used for logging.

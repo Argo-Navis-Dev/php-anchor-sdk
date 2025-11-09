@@ -11,7 +11,7 @@ namespace ArgoNavis\PhpAnchorSdk\shared;
 /**
  * SEP12 type used in SEP-31 to define the sender and receiver SEP-12 types. See SEP-38.
  */
-class Sep12Type
+final class Sep12Type
 {
     /**
      * @var string Type name. E.g. 'sep31-sender', 'sep31-large-sender', 'sep31-foreign-receiver'

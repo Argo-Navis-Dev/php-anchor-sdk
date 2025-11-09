@@ -44,7 +44,7 @@ class AnchorFailure extends Exception
         parent::__construct($message, $code, $previous);
     }
 
-    public function getMessageKey(): string | null
+    public function getMessageKey(): ?string
     {
         return $this->messageKey;
     }
@@ -52,7 +52,7 @@ class AnchorFailure extends Exception
     /**
      * @return array<string, string> | null
      */
-    public function getMessageParams(): array | null
+    public function getMessageParams(): ?array
     {
         return $this->messageParams;
     }

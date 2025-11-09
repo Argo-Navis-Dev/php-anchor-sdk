@@ -36,7 +36,6 @@ use Throwable;
 use function array_pop;
 use function explode;
 use function intval;
-use function is_int;
 use function is_numeric;
 use function is_string;
 use function json_encode;
@@ -59,7 +58,7 @@ use function trim;
  *
  *  See: <a href="https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-12.md">SDK SEP-12 docs</a>
  */
-class Sep12Service
+final class Sep12Service
 {
     public IAppConfig $appConfig;
     public ICustomerIntegration $customerIntegration;
@@ -505,7 +504,7 @@ class Sep12Service
                         'Memo value',
                         ['context' => 'sep12', 'operation' => 'delete_customer', 'memo' => $memoStr],
                     );
-                    if (is_numeric($memoStr) && is_int($memoStr + 0)) {
+                    if (is_numeric($memoStr) && (float) $memoStr === (float) (int) $memoStr) {
                         $memo = intval($memoStr);
                     } else {
                         $error = 'invalid memo value';

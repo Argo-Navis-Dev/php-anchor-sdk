@@ -10,7 +10,7 @@ namespace ArgoNavis\PhpAnchorSdk\callback;
 
 use DateTime;
 
-class TransactionHistoryRequest
+final class TransactionHistoryRequest
 {
     /**
      * @var string $assetCode The code of the asset of interest. E.g. BTC, ETH, USD, INR, native, etc.

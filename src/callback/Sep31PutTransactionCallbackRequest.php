@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\callback;
 
-class Sep31PutTransactionCallbackRequest
+final class Sep31PutTransactionCallbackRequest
 {
     /**
      * @var string $transactionId id of the transaction to put the callback for.

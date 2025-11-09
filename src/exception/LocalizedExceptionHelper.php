@@ -13,7 +13,7 @@ use ArgoNavis\PhpAnchorSdk\config\IAppConfig;
 /**
  * Helper class for exception related operations.
  */
-class LocalizedExceptionHelper
+final class LocalizedExceptionHelper
 {
     /**
      * @param InvalidRequestData|InvalidSepRequest|AnchorFailure|CustomerNotFoundForId|QuoteNotFoundForId $af

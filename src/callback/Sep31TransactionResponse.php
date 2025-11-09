@@ -15,7 +15,7 @@ use ArgoNavis\PhpAnchorSdk\shared\TransactionRefunds;
 use DateTime;
 use DateTimeInterface;
 
-class Sep31TransactionResponse
+final class Sep31TransactionResponse
 {
     /**
      * @var string $id The ID returned from the POST /transactions request that created this transaction record.

@@ -32,7 +32,7 @@ use function trim;
 
 use const DATE_ATOM;
 
-class Sep38RequestParser
+final class Sep38RequestParser
 {
     /**
      * The PSR-3 specific logger to be used for logging.

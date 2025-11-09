@@ -13,7 +13,7 @@ namespace ArgoNavis\PhpAnchorSdk\callback;
  *
  * See: <a href="https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0012.md#customer-put-verification">Customer PUT Verification</a>.
  */
-class PutCustomerVerificationRequest
+final class PutCustomerVerificationRequest
 {
     /**
      * @var string The ID of the customer as returned in the response of a previous PUT request.

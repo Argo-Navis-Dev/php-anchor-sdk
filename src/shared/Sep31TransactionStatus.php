@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\shared;
 
-class Sep31TransactionStatus
+final class Sep31TransactionStatus
 {
     /**
      * @const PENDING_SENDER -- -- awaiting payment to be sent by Sending Anchor

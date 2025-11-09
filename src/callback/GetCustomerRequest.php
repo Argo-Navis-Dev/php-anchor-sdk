@@ -13,7 +13,7 @@ namespace ArgoNavis\PhpAnchorSdk\callback;
  *
  * See: <a href="https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0012.md#customer-get">Customer GET</a>.
  */
-class GetCustomerRequest
+final class GetCustomerRequest
 {
     /**
      * @var string|null (optional) The ID of the customer as returned in the response of a previous PUT request.

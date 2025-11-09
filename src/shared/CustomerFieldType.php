@@ -11,7 +11,7 @@ namespace ArgoNavis\PhpAnchorSdk\shared;
 /**
  * The data type of the field value.
  */
-class CustomerFieldType
+final class CustomerFieldType
 {
     public const STRING = 'string';
     public const BINARY = 'binary';

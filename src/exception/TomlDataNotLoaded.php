@@ -10,6 +10,6 @@ namespace ArgoNavis\PhpAnchorSdk\exception;
 
 use Exception;
 
-class TomlDataNotLoaded extends Exception
+final class TomlDataNotLoaded extends Exception
 {
 }

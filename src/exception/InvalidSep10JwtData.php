@@ -9,6 +9,6 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\exception;
 
-class InvalidSep10JwtData extends InvalidRequestData
+final class InvalidSep10JwtData extends InvalidRequestData
 {
 }

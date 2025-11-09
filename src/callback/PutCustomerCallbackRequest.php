@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\callback;
 
-class PutCustomerCallbackRequest
+final class PutCustomerCallbackRequest
 {
     /**
      * @var string|null $id (optional) The id of the customer to put the callback url for if given by client request.

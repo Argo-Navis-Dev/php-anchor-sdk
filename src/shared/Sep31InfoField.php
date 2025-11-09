@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\shared;
 
-class Sep31InfoField
+final class Sep31InfoField
 {
     public string $fieldName;
     public string $description;

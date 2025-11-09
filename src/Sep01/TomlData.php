@@ -32,7 +32,7 @@ use function file_get_contents;
  * In these cases, the data will be parsed from the given source and the class members will
  * be filled from the parsed data. You can then read, and if needed, manipulate them.
  */
-class TomlData
+final class TomlData
 {
     public ?GeneralInformation $generalInformation = null;
     public ?Documentation $documentation = null;

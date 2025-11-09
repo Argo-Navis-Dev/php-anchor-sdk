@@ -19,7 +19,7 @@ use function count;
 use function is_string;
 use function json_encode;
 
-class ApprovalRequest
+final class ApprovalRequest
 {
     /**
      * The base64 encoded transaction envelope XDR signed by the user.

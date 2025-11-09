@@ -17,7 +17,7 @@ namespace ArgoNavis\PhpAnchorSdk\shared;
  *
  * see <a href="https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0012.md#fields">Fields</a>
  */
-class CustomerField
+final class CustomerField
 {
     public string $fieldName;
     public string $type;

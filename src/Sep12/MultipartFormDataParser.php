@@ -38,7 +38,7 @@ use const UPLOAD_ERR_CANT_WRITE;
 use const UPLOAD_ERR_INI_SIZE;
 use const UPLOAD_ERR_OK;
 
-class MultipartFormDataParser
+final class MultipartFormDataParser
 {
     /**
      * @var array<string> $knownFileFields known sep-09 field names that represent files (images).

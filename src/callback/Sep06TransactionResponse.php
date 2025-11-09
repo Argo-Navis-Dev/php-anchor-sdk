@@ -16,7 +16,7 @@ use ArgoNavis\PhpAnchorSdk\shared\TransactionRefunds;
 use DateTime;
 use DateTimeInterface;
 
-class Sep06TransactionResponse
+final class Sep06TransactionResponse
 {
     /**
      * @var string $id Unique, anchor-generated id for the deposit/withdrawal.

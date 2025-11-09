@@ -19,7 +19,7 @@ use function count;
  * Prepared SEP-24 deposit request data.
  * See also <a href="https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0024.md#deposit-2">SEP-024 deposit</a>
  */
-class InteractiveDepositRequest
+final class InteractiveDepositRequest
 {
     /**
      * @var string $account The Stellar account id or muxed account id the client wants to use as the destination of the payment sent by the anchor. Defaults to the account authenticated via SEP-10 if not specified by the client.

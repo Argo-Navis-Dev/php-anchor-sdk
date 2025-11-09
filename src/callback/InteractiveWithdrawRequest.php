@@ -19,7 +19,7 @@ use function count;
  * Prepared SEP-24 withdraw request data.
  * See also <a href="https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0024.md#withdraw-2">SEP-024 withdraw</a>
  */
-class InteractiveWithdrawRequest
+final class InteractiveWithdrawRequest
 {
     /**
      * @var string $account The Stellar account id or muxed account id the client will use as the source of the withdrawal payment to the anchor. Defaults to the account authenticated via SEP-10 if not specified by the client.

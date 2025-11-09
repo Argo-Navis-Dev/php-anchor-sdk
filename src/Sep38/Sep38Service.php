@@ -46,7 +46,7 @@ use function trim;
  *
  * See: <a href="https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-38.md">SDK SEP-38 docs</a>
  */
-class Sep38Service
+final class Sep38Service
 {
     public IQuotesIntegration $sep38Integration;
     /**

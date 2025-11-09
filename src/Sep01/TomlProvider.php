@@ -33,7 +33,7 @@ use function json_encode;
  * You can either provide the input data by building a TomlData object, the path to a file or an url.
  * If you provide a path to a file or an url, the data must already be correctly formatted.
  */
-class TomlProvider
+final class TomlProvider
 {
     /**
      * The PSR-3 specific logger to be used for logging.

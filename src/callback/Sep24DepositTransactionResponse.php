@@ -12,8 +12,9 @@ namespace ArgoNavis\PhpAnchorSdk\callback;
 use ArgoNavis\PhpAnchorSdk\shared\IdentificationFormatAsset;
 use ArgoNavis\PhpAnchorSdk\shared\TransactionRefunds;
 use DateTime;
+use Override;
 
-class Sep24DepositTransactionResponse extends Sep24TransactionResponse
+final class Sep24DepositTransactionResponse extends Sep24TransactionResponse
 {
     /**
      * @var string|null $from Sent from address, perhaps BTC, IBAN, or bank account.
@@ -128,6 +129,7 @@ class Sep24DepositTransactionResponse extends Sep24TransactionResponse
     /**
      * @return array<string, mixed>
      */
+    #[Override]
     public function toJson(): array
     {
         $json = parent::toJson();

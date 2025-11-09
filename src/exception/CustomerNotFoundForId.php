@@ -16,7 +16,7 @@ use function is_array;
 /**
  * This Exception must be thrown if a customer was not found for a given id.
  */
-class CustomerNotFoundForId extends AnchorFailure
+final class CustomerNotFoundForId extends AnchorFailure
 {
     public string $id;
 

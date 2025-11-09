@@ -32,7 +32,7 @@ use function json_encode;
 use function str_starts_with;
 use function strval;
 
-class Sep10Jwt
+final class Sep10Jwt
 {
     public string $jti; // JWT ID
     public string $iss; // Issuer

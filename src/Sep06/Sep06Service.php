@@ -59,7 +59,7 @@ use function strval;
  *
  * See: <a href="https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-06.md">SDK SEP-06 docs</a>
  */
-class Sep06Service
+final class Sep06Service
 {
     public IAppConfig $appConfig;
     /**

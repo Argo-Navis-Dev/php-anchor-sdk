@@ -10,7 +10,7 @@ namespace ArgoNavis\PhpAnchorSdk\Sep24;
 
 use function array_keys;
 
-class InfoResponse
+final class InfoResponse
 {
     /**
      * @var array<string, OperationResponse> deposit assets.

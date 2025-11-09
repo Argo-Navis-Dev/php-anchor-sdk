@@ -10,7 +10,7 @@ namespace ArgoNavis\PhpAnchorSdk\callback;
 
 use ArgoNavis\PhpAnchorSdk\shared\IdentificationFormatAsset;
 
-class Sep38PricesRequest
+final class Sep38PricesRequest
 {
     /**
      * @var IdentificationFormatAsset $sellAsset The asset the user wants to sell,

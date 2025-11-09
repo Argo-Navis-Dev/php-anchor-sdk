@@ -14,7 +14,7 @@ use Psr\Log\LoggerInterface;
 use Soneso\StellarSDK\Exceptions\HorizonRequestException;
 use Soneso\StellarSDK\StellarSDK;
 
-class TrustlinesHelper
+final class TrustlinesHelper
 {
     /**
      * The PSR-3 specific logger to be used for logging.

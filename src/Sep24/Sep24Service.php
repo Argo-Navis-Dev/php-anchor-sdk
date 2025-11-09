@@ -57,7 +57,7 @@ use function trim;
  *
  * See: <a href="https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-24.md">SDK SEP-24 docs</a>
  */
-class Sep24Service
+final class Sep24Service
 {
     public IAppConfig $appConfig;
     public ISep24Config $sep24Config;
@@ -766,7 +766,7 @@ class Sep24Service
                 );
 
                 throw new InvalidSepRequest(
-                    message: "amount is less than asset's minimum limit of: " . $minAmount,
+                    message: "amount is less than asset's minimum limit of: " . strval($minAmount),
                     messageKey: 'sep24_lang.error.amount.less_than_asset_min',
                     messageParams: ['min' => strval($minAmount)],
                 );
@@ -785,7 +785,7 @@ class Sep24Service
                 );
 
                 throw new InvalidSepRequest(
-                    message: "amount exceeds asset's maximum limit of: " . $maxAmount,
+                    message: "amount exceeds asset's maximum limit of: " . strval($maxAmount),
                     messageKey: 'sep24_lang.error.amount.greater_than_asset_max',
                     messageParams: ['max' => strval($maxAmount)],
                 );
@@ -940,7 +940,7 @@ class Sep24Service
                 );
 
                 throw new InvalidSepRequest(
-                    message: "amount is less than asset's minimum limit of: " . $minAmount,
+                    message: "amount is less than asset's minimum limit of: " . strval($minAmount),
                     messageKey: 'sep24_lang.error.amount.less_than_asset_min',
                     messageParams: ['min' => strval($minAmount)],
                 );
@@ -959,7 +959,7 @@ class Sep24Service
                 );
 
                 throw new InvalidSepRequest(
-                    message: "amount exceeds asset's maximum limit of: " . $maxAmount,
+                    message: "amount exceeds asset's maximum limit of: " . strval($maxAmount),
                     messageKey: 'sep24_lang.error.amount.greater_than_asset_max',
                     messageParams: ['max' => strval($maxAmount)],
                 );
@@ -1132,7 +1132,7 @@ class Sep24Service
         // check if amount is in range
         if ($assetOperation->minAmount !== null && $amount < $assetOperation->minAmount) {
             throw new InvalidSepRequest(
-                message: "amount is less than asset's minimum limit of: " . $assetOperation->minAmount,
+                message: "amount is less than asset's minimum limit of: " . strval($assetOperation->minAmount),
                 messageKey: 'sep24_lang.error.amount.less_than_asset_min',
                 messageParams: ['min' => strval($assetOperation->minAmount)],
             );
@@ -1140,7 +1140,7 @@ class Sep24Service
 
         if ($assetOperation->maxAmount !== null && $amount > $assetOperation->maxAmount) {
             throw new InvalidSepRequest(
-                message: "amount exceeds asset's maximum limit of: " . $assetOperation->maxAmount,
+                message: "amount exceeds asset's maximum limit of: " . strval($assetOperation->maxAmount),
                 messageKey: 'sep24_lang.error.amount.greater_than_asset_max',
                 messageParams: ['max' => strval($assetOperation->maxAmount)],
             );
@@ -1287,9 +1287,9 @@ class Sep24Service
             $sellAmount !== floatval($quote->sellAmount)
         ) {
             throw new InvalidRequestData(
-                message: 'amount (' . $sellAmount .
+                message: 'amount (' . strval($sellAmount) .
                 ') does not match quote sell amount (' .
-                $quote->sellAmount .
+                strval($quote->sellAmount) .
                 ')',
                 messageKey: 'sep24_lang.error.request.amount_not_match_with_quote_amount',
                 messageParams: ['amount' => strval($sellAmount), 'quote_amount' => strval($quote->sellAmount)],

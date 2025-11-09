@@ -53,7 +53,7 @@ use function str_contains;
  *
  * See: <a href="https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-31.md">SDK SEP-31 docs</a>
  */
-class Sep31Service
+final class Sep31Service
 {
     public IAppConfig $appConfig;
     /**

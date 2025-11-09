@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\shared;
 
-class ProvidedCustomerFieldStatus
+final class ProvidedCustomerFieldStatus
 {
     /**
      * The field has been validated. When all required fields are accepted, the Customer Status should also be accepted.

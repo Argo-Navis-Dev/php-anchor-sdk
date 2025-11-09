@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\shared;
 
-class Sep38DeliveryMethod
+final class Sep38DeliveryMethod
 {
     /**
      * @var string $name The value to use when making POST /quote requests.

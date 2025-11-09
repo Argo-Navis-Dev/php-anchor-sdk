@@ -12,7 +12,7 @@ use ArgoNavis\PhpAnchorSdk\shared\IdentificationFormatAsset;
 use ArgoNavis\PhpAnchorSdk\shared\Sep06AssetInfo;
 use Soneso\StellarSDK\Memo;
 
-class StartDepositExchangeRequest
+final class StartDepositExchangeRequest
 {
     /**
      * @var Sep06AssetInfo $destinationAsset the on-chain asset the user wants to

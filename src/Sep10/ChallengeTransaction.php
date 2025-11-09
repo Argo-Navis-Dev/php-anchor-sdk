@@ -10,7 +10,7 @@ namespace ArgoNavis\PhpAnchorSdk\Sep10;
 
 use Soneso\StellarSDK\Transaction;
 
-class ChallengeTransaction
+final class ChallengeTransaction
 {
     public Transaction $transaction;
     public string $clientAccountId;

@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\callback;
 
-class InteractiveTransactionResponse
+final class InteractiveTransactionResponse
 {
     /**
      * @var string $type Always set to interactive_customer_info_needed.

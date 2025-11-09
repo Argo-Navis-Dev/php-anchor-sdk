@@ -29,7 +29,7 @@ use function count;
 use function end;
 use function json_encode;
 
-class PaymentsHelper
+final class PaymentsHelper
 {
     /**
      * The PSR-3 specific logger to be used for logging.

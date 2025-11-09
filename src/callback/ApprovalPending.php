@@ -14,7 +14,7 @@ use ArgoNavis\PhpAnchorSdk\Sep08\Sep08ResponseStatus;
  * This response means that the issuer could not determine whether to approve the transaction at the time of
  * receiving it. Wallet can re-submit the same transaction at a later point in time.
  */
-class ApprovalPending
+final class ApprovalPending
 {
     /**
      * @var int $timeout Number of milliseconds to wait before submitting the same transaction again. Use 0 if the wait time cannot be determined.

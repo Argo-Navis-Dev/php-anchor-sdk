@@ -11,7 +11,7 @@ namespace ArgoNavis\PhpAnchorSdk\callback;
 use ArgoNavis\PhpAnchorSdk\shared\IdentificationFormatAsset;
 use DateTime;
 
-class Sep38QuoteRequest
+final class Sep38QuoteRequest
 {
     /**
      * @var string $context The context for what this quote will be used for. Must be one of sep6, sep24 or sep31.

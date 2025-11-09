@@ -10,7 +10,7 @@ namespace ArgoNavis\PhpAnchorSdk\Sep24;
 
 use ArgoNavis\PhpAnchorSdk\shared\AssetOperation;
 
-class OperationResponse
+final class OperationResponse
 {
     public bool $enabled;
     public ?float $minAmount = null;

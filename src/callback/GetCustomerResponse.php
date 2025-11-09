@@ -16,7 +16,7 @@ use ArgoNavis\PhpAnchorSdk\shared\ProvidedCustomerField;
  *
  *  See: <a href="https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0012.md#customer-get">Customer GET</a>.
  */
-class GetCustomerResponse
+final class GetCustomerResponse
 {
     /**
      * @var string|null (optional) ID of the customer, if the customer has already been created via a PUT /customer request.

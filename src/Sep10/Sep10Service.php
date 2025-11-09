@@ -75,7 +75,7 @@ use function substr;
  *
  * See also: <a href="https://github.com/Argo-Navis-Dev/php-anchor-sdk/blob/main/docs/sep-10.md">SDK SEP-10 docs</a>
  */
-class Sep10Service
+final class Sep10Service
 {
     public IAppConfig $appConfig;
     public ISep10Config $sep10Config;
@@ -1091,7 +1091,7 @@ class Sep10Service
             }
             try {
                 // check if the memo is an integer. We only support memos of type id.
-                if (is_numeric($request->memo) && is_int($request->memo + 0)) {
+                if (is_numeric($request->memo) && (float) $request->memo === (float) (int) $request->memo) {
                     $value = intval($request->memo);
                     $memo = Memo::id($value);
                 } else {

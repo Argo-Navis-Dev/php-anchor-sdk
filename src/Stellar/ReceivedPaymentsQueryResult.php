@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\Stellar;
 
-class ReceivedPaymentsQueryResult
+final class ReceivedPaymentsQueryResult
 {
     /**
      * @var string $cursor The (start) cursor used to query the transactions for the receiver account.

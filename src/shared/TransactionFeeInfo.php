@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\shared;
 
-class TransactionFeeInfo
+final class TransactionFeeInfo
 {
     /**
      * @var string $total The total amount of fee applied.

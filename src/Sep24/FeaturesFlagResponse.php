@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\Sep24;
 
-class FeaturesFlagResponse
+final class FeaturesFlagResponse
 {
     public bool $accountCreation;
     public bool $claimableBalances;

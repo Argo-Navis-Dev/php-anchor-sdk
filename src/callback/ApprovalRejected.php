@@ -13,7 +13,7 @@ use ArgoNavis\PhpAnchorSdk\Sep08\Sep08ResponseStatus;
 /**
  * This response means that the transaction is not compliant and could not be revised to be made compliant.
  */
-class ApprovalRejected
+final class ApprovalRejected
 {
     /**
      * @var string $error A human-readable string explaining why the transaction is not compliant and

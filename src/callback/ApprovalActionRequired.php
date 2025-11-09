@@ -15,7 +15,7 @@ use ArgoNavis\PhpAnchorSdk\Sep08\Sep08ResponseStatus;
  * The approval service will provide a URL that facilitates the action.
  * Upon completion, the user will resubmit the transaction.
  */
-class ApprovalActionRequired
+final class ApprovalActionRequired
 {
     /**
      * @var string $message A human-readable string containing information regarding the action required.

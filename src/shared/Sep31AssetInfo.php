@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\shared;
 
-class Sep31AssetInfo
+final class Sep31AssetInfo
 {
     /**
      * @var IdentificationFormatAsset the asset, the info is for.

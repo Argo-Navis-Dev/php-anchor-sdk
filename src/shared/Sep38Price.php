@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\shared;
 
-class Sep38Price
+final class Sep38Price
 {
     /**
      * @var string $totalPrice The total conversion price offered by the anchor for one unit of buyAsset in terms

@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace ArgoNavis\PhpAnchorSdk\shared;
 
-class Sep06TransactionStatus
+final class Sep06TransactionStatus
 {
     /**
      * @const COMPLETED -- deposit/withdrawal fully completed.

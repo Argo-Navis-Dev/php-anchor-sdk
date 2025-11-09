@@ -11,7 +11,7 @@ namespace ArgoNavis\PhpAnchorSdk\callback;
 use ArgoNavis\PhpAnchorSdk\shared\Sep06AssetInfo;
 use Soneso\StellarSDK\Memo;
 
-class StartDepositRequest
+final class StartDepositRequest
 {
     /**
      * @var Sep06AssetInfo $depositAsset the on-chain asset the user wants to

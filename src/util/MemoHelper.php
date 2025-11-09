@@ -20,7 +20,7 @@ use function is_numeric;
 use function is_string;
 use function strlen;
 
-class MemoHelper
+final class MemoHelper
 {
     /**
      * The PSR-3 specific logger to be used for logging.

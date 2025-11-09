@@ -19,8 +19,9 @@ use function base64_encode;
 use function json_encode;
 use function microtime;
 use function round;
+use function strval;
 
-class CallbackHelper
+final class CallbackHelper
 {
     /**
      * The PSR-3 specific logger to be used for logging.
@@ -130,10 +131,14 @@ class CallbackHelper
         string $callbackUrl,
         object $requestBodyData,
         string $serverAccountSigningKey,
-    ): string | null {
+    ): ?string {
         $anchorKeys = KeyPair::fromSeed($serverAccountSigningKey);
         $currentTime = round(microtime(true));
-        $signature = $currentTime . '.' . $callbackUrl . '.' . json_encode($requestBodyData);
+        $jsonData = json_encode($requestBodyData);
+        if ($jsonData === false) {
+            return null;
+        }
+        $signature = strval($currentTime) . '.' . $callbackUrl . '.' . $jsonData;
         self::getLogger()->debug(
             'The callback header signature (plain) to be signed.',
             ['context' => 'shared', 'signature' => $signature],
@@ -141,7 +146,7 @@ class CallbackHelper
         $signature = $anchorKeys->sign($signature);
         if ($signature !== null) {
             $based64Signature = base64_encode($signature);
-            $signatureHeader = 't=' . $currentTime . ', s=' . $based64Signature;
+            $signatureHeader = 't=' . strval($currentTime) . ', s=' . $based64Signature;
             self::getLogger()->debug(
                 'The callback header signed signature.',
                 ['context' => 'shared', 'signed_signature' => $signatureHeader],

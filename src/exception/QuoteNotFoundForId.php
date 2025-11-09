@@ -13,7 +13,7 @@ use Throwable;
 /**
  * This Exception must be thrown if a quote was not found for a given id.
  */
-class QuoteNotFoundForId extends AnchorFailure
+final class QuoteNotFoundForId extends AnchorFailure
 {
     public string $id;
 

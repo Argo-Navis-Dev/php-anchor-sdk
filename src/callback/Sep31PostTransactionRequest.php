@@ -12,7 +12,7 @@ use ArgoNavis\PhpAnchorSdk\shared\IdentificationFormatAsset;
 use ArgoNavis\PhpAnchorSdk\shared\Sep31AssetInfo;
 use Soneso\StellarSDK\Memo;
 
-class Sep31PostTransactionRequest
+final class Sep31PostTransactionRequest
 {
     /**
      * @var string $accountId account id of the sending anchor received via SEP-10.

@@ -12,7 +12,7 @@ use ArgoNavis\PhpAnchorSdk\exception\InvalidRequestData;
 
 use function is_string;
 
-class ValidationRequest
+final class ValidationRequest
 {
     /**
      * The signed transaction.
